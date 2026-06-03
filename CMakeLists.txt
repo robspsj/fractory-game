@@ -8,9 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(EMSCRIPTEN)
     add_executable(fractory src/main.cpp)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=3")
     target_link_options(fractory PRIVATE
-        -sUSE_SDL=2
+        -sUSE_SDL=3
         -sFULL_ES2=1
         -sGL_ENABLE_GET_PROC_ADDRESS=1
         --shell-file ${CMAKE_SOURCE_DIR}/index.html
@@ -21,9 +21,16 @@ if(EMSCRIPTEN)
 endif()
 
 # --- Native (macOS/Linux) ---
-find_package(SDL2 REQUIRED)
-find_package(OpenGL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL3 REQUIRED sdl3)
 
 add_executable(fractory src/main.cpp)
-target_include_directories(fractory PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(fractory PRIVATE ${SDL2_LIBRARIES} ${OPENGL_gl_LIBRARY})
+target_include_directories(fractory PRIVATE ${SDL3_INCLUDE_DIRS})
+target_link_directories(fractory PRIVATE ${SDL3_LIBRARY_DIRS})
+target_link_libraries(fractory PRIVATE ${SDL3_LIBRARIES} ${CMAKE_DL_LIBS})
+target_compile_options(fractory PRIVATE ${SDL3_CFLAGS_OTHER})
+
+if(APPLE)
+    find_library(OPENGL_LIB OpenGL)
+    target_link_libraries(fractory PRIVATE ${OPENGL_LIB})
+endif()
