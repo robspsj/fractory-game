@@ -29,8 +29,9 @@ static float dragMX = 0.0f, dragMY = 0.0f;
 static GLuint prog, vbo;
 static GLint aPosLoc, aColorLoc, uPosLoc;
 
-void gameInit() {
-    std::srand((unsigned)std::time(nullptr));
+void gameInit(unsigned int seed) {
+    if (seed != 0) std::srand(seed);
+    else std::srand((unsigned)std::time(nullptr));
     for (int r = 0; r < GRID; r++)
         for (int c = 0; c < GRID; c++)
             grid[r][c] = std::rand() % ELEMS;

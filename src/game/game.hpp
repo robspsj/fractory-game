@@ -2,7 +2,7 @@
 #include "../gl.hpp"
 #include <vector>
 
-void gameInit();
+void gameInit(unsigned int seed = 0);
 void gameUpdate(int mousePx, int mousePy, int winW, int winH);
 void gameMouseDown(int mousePx, int mousePy, int winW, int winH);
 void gameMouseUp(int mousePx, int mousePy, int winW, int winH);
