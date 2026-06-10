@@ -1,16 +1,18 @@
 #include "game/game.hpp"
 #include "shader.hpp"
 #include "font.hpp"
+#include "test_runner.hpp"
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <cstring>
+#include <string>
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #endif
 
 static int winW = 800, winH = 600;
-
 static Uint64 lastFpsTime = 0;
 static int frameCount = 0;
 static float fps = 0.0f;
@@ -55,7 +57,6 @@ static void drawFpsOverlay() {
 
 #ifdef __EMSCRIPTEN__
 static SDL_Window *window;
-
 static void frame() {
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
@@ -82,7 +83,6 @@ static void frame() {
 int main() {
     SDL_Init(SDL_INIT_VIDEO);
     lastFpsTime = SDL_GetTicks();
-
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
@@ -96,17 +96,26 @@ int main() {
 
     gameInit();
     initFont(gameProgram());
-
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
     resizeCanvas(w, h);
     resize(w, h);
-
     emscripten_set_main_loop(frame, 0, 1);
     return 0;
 }
 #else
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc >= 3 && std::string(argv[1]) == "--test") {
+        SDL_Init(SDL_INIT_VIDEO);
+        SDL_Window *win = SDL_CreateWindow("test", 1, 1, SDL_WINDOW_HIDDEN | SDL_WINDOW_OPENGL);
+        SDL_GLContext ctx = SDL_GL_CreateContext(win);
+        TestRunner::runTest(argv[2]);
+        SDL_GL_DestroyContext(ctx);
+        SDL_DestroyWindow(win);
+        SDL_Quit();
+        return 0;
+    }
+
     SDL_Init(SDL_INIT_VIDEO);
     lastFpsTime = SDL_GetTicks();
 
