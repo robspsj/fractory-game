@@ -7,7 +7,7 @@
 #define GRID 5
 #define ELEMS 5
 
-static int grid[GRID][GRID];
+static Cell grid[GRID][GRID];
 
 static const float elemColors[ELEMS][3] = {
     {0.15f, 0.50f, 0.90f},
@@ -17,9 +17,9 @@ static const float elemColors[ELEMS][3] = {
     {0.80f, 0.30f, 0.85f},
 };
 
-static const float gridMin = -0.78f;
-static const float cellSize = 1.56f / GRID;
-static const float gap = 0.03f;
+static const float gridMin = -0.75f;
+static const float cellSize = 0.30f;
+static const float gap = 0.02f;
 static const float halfRender = (cellSize - gap) * 0.5f;
 
 static int hoverRow = -1, hoverCol = -1;
@@ -33,8 +33,10 @@ void gameInit(unsigned int seed) {
     if (seed != 0) std::srand(seed);
     else std::srand((unsigned)std::time(nullptr));
     for (int r = 0; r < GRID; r++)
-        for (int c = 0; c < GRID; c++)
-            grid[r][c] = std::rand() % ELEMS;
+        for (int c = 0; c < GRID; c++) {
+            grid[r][c].type = CellType::ITEM;
+            grid[r][c].item_count = std::rand() % ELEMS;
+        }
 
     prog = glCreateProgram();
     glAttachShader(prog, compile(GL_VERTEX_SHADER, vertSrc));
@@ -89,7 +91,7 @@ void gameMouseUp(int mousePx, int mousePy, int winW, int winH) {
         int idx = cellAt(mousePx, mousePy, winW, winH);
         if (idx >= 0) {
             int tr = idx / GRID, tc = idx % GRID;
-            int tmp = grid[dragRow][dragCol];
+            Cell tmp = grid[dragRow][dragCol];
             grid[dragRow][dragCol] = grid[tr][tc];
             grid[tr][tc] = tmp;
         }
@@ -117,7 +119,7 @@ void gameRender() {
             if (r == dragRow && c == dragCol) continue;
             float cx = gridMin + c * cellSize + cellSize * 0.5f;
             float cy = gridMin + r * cellSize + cellSize * 0.5f;
-            const float *col = elemColors[grid[r][c]];
+            const float *col = elemColors[grid[r][c].item_count];
             float hc[3] = {col[0], col[1], col[2]};
             if (r == hoverRow && c == hoverCol && dragRow < 0) {
                 float bright = 1.4f;
@@ -130,7 +132,7 @@ void gameRender() {
     }
 
     if (dragRow >= 0 && dragCol >= 0) {
-        const float *col = elemColors[grid[dragRow][dragCol]];
+        const float *col = elemColors[grid[dragRow][dragCol].item_count];
         float dim[3] = {col[0] * 0.5f, col[1] * 0.5f, col[2] * 0.5f};
         float cx = gridMin + dragCol * cellSize + cellSize * 0.5f;
         float cy = gridMin + dragRow * cellSize + cellSize * 0.5f;
@@ -161,9 +163,18 @@ GLuint gameProgram() {
 }
 
 void gameSetState(int newGrid[GRID][GRID]) {
-    std::memcpy(grid, newGrid, sizeof(grid));
+    for (int r = 0; r < GRID; r++) {
+        for (int c = 0; c < GRID; c++) {
+            grid[r][c].type = CellType::ITEM;
+            grid[r][c].item_count = newGrid[r][c];
+        }
+    }
 }
 
 void gameGetState(int outGrid[GRID][GRID]) {
-    std::memcpy(outGrid, grid, sizeof(grid));
+    for (int r = 0; r < GRID; r++) {
+        for (int c = 0; c < GRID; c++) {
+            outGrid[r][c] = (grid[r][c].type == CellType::ITEM) ? grid[r][c].item_count : 0;
+        }
+    }
 }
