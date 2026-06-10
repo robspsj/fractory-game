@@ -1,0 +1,3 @@
+# Action type, mousePx, mousePy
+mousedown, 100, 100
+mouseup, 200, 200
