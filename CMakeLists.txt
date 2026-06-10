@@ -6,15 +6,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --- Web (Emscripten) ---
 if(EMSCRIPTEN)
-    add_executable(fractory src/main.cpp)
+    add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/game/game.cpp)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=3 -Os")
     target_link_options(fractory PRIVATE
         -sUSE_SDL=3
         -sFULL_ES2=1
         -sGL_ENABLE_GET_PROC_ADDRESS=1
         --shell-file ${CMAKE_SOURCE_DIR}/index.html
         -sALLOW_MEMORY_GROWTH=1
+        -sFILESYSTEM=0
+        -sINITIAL_MEMORY=8MB
         -o fractory.html
     )
     return()
@@ -24,7 +26,7 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED sdl3)
 
-add_executable(fractory src/main.cpp)
+add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/game/game.cpp)
 target_include_directories(fractory PRIVATE ${SDL3_INCLUDE_DIRS})
 target_link_directories(fractory PRIVATE ${SDL3_LIBRARY_DIRS})
 target_link_libraries(fractory PRIVATE ${SDL3_LIBRARIES} ${CMAKE_DL_LIBS})
