@@ -18,19 +18,27 @@ public:
         
         gameInit();
         
+        // Use default window size for testing
+        int testW = 800;
+        int testH = 600;
+        
         for (const auto& action : actions) {
             if (action.type == "mousedown") {
-                gameMouseDown(action.x, action.y);
+                gameMouseDown(action.x, action.y, testW, testH);
             } else if (action.type == "mouseup") {
-                gameMouseUp(action.x, action.y);
+                gameMouseUp(action.x, action.y, testW, testH);
             }
         }
         
         // Output final state for verification
-        int* state = gameGetState();
+        int grid[5][5];
+        gameGetState(grid);
         std::cout << "Test completed. Final grid state:" << std::endl;
-        for(int i = 0; i < 25; ++i) {
-            std::cout << state[i] << (i % 5 == 4 ? "\n" : " ");
+        for(int i = 0; i < 5; ++i) {
+            for(int j = 0; j < 5; ++j) {
+                std::cout << grid[i][j] << (j == 4 ? "" : " ");
+            }
+            std::cout << std::endl;
         }
         
         return true;
