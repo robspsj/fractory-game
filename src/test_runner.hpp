@@ -16,7 +16,7 @@ public:
     static bool runTest(const std::string& filepath) {
         std::vector<TestAction> actions = loadActions(filepath);
         
-        gameInit();
+        gameInit(42);
         
         // Use default window size for testing
         int testW = 800;
