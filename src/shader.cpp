@@ -5,9 +5,12 @@ const char *vertSrc = R"(
 attribute vec2 aPos;
 attribute vec3 aColor;
 uniform vec2 uPos;
+uniform float uAspect;
 varying vec3 vColor;
 void main() {
-    gl_Position = vec4(aPos + uPos, 0.0, 1.0);
+    vec2 pos = aPos;
+    pos.y *= uAspect;
+    gl_Position = vec4(pos + uPos, 0.0, 1.0);
     vColor = aColor;
 }
 )";

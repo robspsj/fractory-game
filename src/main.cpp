@@ -75,7 +75,7 @@ static void frame() {
 
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    gameRender();
+    gameRender(w, h);
     drawFpsOverlay();
     SDL_GL_SwapWindow(window);
 }
@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
         }
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        gameRender();
+        gameRender(winW, winH);
         drawFpsOverlay();
         SDL_GL_SwapWindow(win);
     }

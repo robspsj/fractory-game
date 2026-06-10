@@ -53,8 +53,9 @@ void gameInit(unsigned int seed) {
 }
 
 static int cellAt(int px, int py, int winW, int winH) {
+    float aspect = (float)winW / (float)winH;
     float nx = (2.0f * px / (float)winW) - 1.0f;
-    float ny = 1.0f - (2.0f * py / (float)winH);
+    float ny = (1.0f - (2.0f * py / (float)winH)) / aspect;
     int col = (int)((nx - gridMin) / cellSize);
     int row = (int)((ny - gridMin) / cellSize);
     if (col < 0 || col >= GRID || row < 0 || row >= GRID) return -1;
@@ -67,8 +68,9 @@ static int cellAt(int px, int py, int winW, int winH) {
 }
 
 void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
+    float aspect = (float)winW / (float)winH;
     dragMX = (2.0f * mousePx / (float)winW) - 1.0f;
-    dragMY = 1.0f - (2.0f * mousePy / (float)winH);
+    dragMY = (1.0f - (2.0f * mousePy / (float)winH)) / aspect;
     int idx = cellAt(mousePx, mousePy, winW, winH);
     if (idx >= 0) {
         hoverRow = idx / GRID;
@@ -110,7 +112,8 @@ static void addQuad(float *&v, float cx, float cy, const float color[3]) {
     }
 }
 
-void gameRender() {
+void gameRender(int winW, int winH) {
+    float aspect = (float)winW / (float)winH;
     float verts[26 * 6 * 5];
     float *v = verts;
 
@@ -148,6 +151,7 @@ void gameRender() {
     glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), verts, GL_STREAM_DRAW);
 
     glUniform2f(uPosLoc, 0.0f, 0.0f);
+    glUniform1f(glGetUniformLocation(prog, "uAspect"), aspect);
     glVertexAttribPointer(aPosLoc, 2, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float), 0);
     glEnableVertexAttribArray(aPosLoc);
     glVertexAttribPointer(aColorLoc, 3, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float), (void*)(2 * sizeof(float)));
