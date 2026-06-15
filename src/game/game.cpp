@@ -166,6 +166,7 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
         return;
     }
     
+    
     if (dragRow >= 0 && dragCol >= 0) {
         int idx = cellAt(mousePx, mousePy, winW, winH);
         int dragIdx = dragRow * GRID + dragCol;
@@ -174,19 +175,18 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
             if (cells[idx].type == CellType::ITEM && cells[idx].data.item.id == dragItemId) {
                 // Combine with stack
                 cells[idx].data.item.count += dragAmount;
-            } else if (idx >= 0 && cells[idx].type == CellType::EMPTY) {
+            } else if (cells[idx].type == CellType::EMPTY) {
                 // Drop into empty slot
                 cells[idx].type = CellType::ITEM;
                 cells[idx].data.item.id = dragItemId;
                 cells[idx].data.item.count = dragAmount;
-            } else if (idx >= 0 && cells[idx].type == CellType::ITEM && cells[idx].data.item.id != dragItemId) {
-                // Swap case: item exists in target
-                // Perform swap
+            } else {
+                // Swap
                 Cell temp = cells[idx];
                 cells[idx].type = CellType::ITEM;
                 cells[idx].data.item.id = dragItemId;
                 cells[idx].data.item.count = dragAmount;
-            
+                
                 cells[dragIdx].type = temp.type;
                 if (temp.type == CellType::ITEM) {
                     cells[dragIdx].data.item.id = temp.data.item.id;
@@ -194,16 +194,17 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
                 } else {
                     cells[dragIdx].type = CellType::EMPTY;
                 }
-            } else {
-                // Return to source
-                cells[dragIdx].type = CellType::ITEM;
-                cells[dragIdx].data.item.id = dragItemId;
-                cells[dragIdx].data.item.count = dragAmount;
             }
+        } else {
+            // Return to source
+            cells[dragIdx].type = CellType::ITEM;
+            cells[dragIdx].data.item.id = dragItemId;
+            cells[dragIdx].data.item.count = dragAmount;
+        }
+        dragRow = dragCol = -1;
+        dragAmount = 0;
+        dragItemId = -1;
     }
-    dragRow = dragCol = -1;
-    dragAmount = 0;
-    dragItemId = -1;
 }
 
 void gameMouseWheel(float dx, float dy) {
