@@ -1,13 +1,15 @@
 #include "game.hpp"
+#include "item_renderer.hpp"
 #include "../shader.hpp"
 #include <cstdlib>
 #include <ctime>
 #include <cstring>
+#include <vector>
 
 #define GRID 5
 #define ELEMS 5
 
-static Cell grid[GRID][GRID];
+static std::vector<Cell> cells;
 
 static const float elemColors[ELEMS][3] = {
     {0.15f, 0.50f, 0.90f},
@@ -29,15 +31,33 @@ static float dragMX = 0.0f, dragMY = 0.0f;
 static GLuint prog, vbo;
 static GLint aPosLoc, aColorLoc, uPosLoc;
 
-void gameInit(unsigned int seed) {
+static void stateInit(unsigned int seed) {
     if (seed != 0) std::srand(seed);
     else std::srand((unsigned)std::time(nullptr));
-    for (int r = 0; r < GRID; r++)
-        for (int c = 0; c < GRID; c++) {
-            grid[r][c].type = CellType::ITEM;
-            grid[r][c].item_count = std::rand() % ELEMS;
-        }
 
+    cells.resize(GRID * GRID);
+
+    int subgridCount = 0;
+    for (int i = 0; i < GRID * GRID; i++) {
+        int r = i / GRID;
+        int c = i % GRID;
+        int randVal = std::rand() % 100;
+        if (randVal < 50) {
+            cells[i].type = CellType::EMPTY;
+        } else if (randVal < 90 || subgridCount >= 20) {
+            cells[i].type = CellType::ITEM;
+            cells[i].data.item.id = std::rand() % ELEMS;
+            cells[i].data.item.count = std::rand() % 9 + 1;
+        } else {
+            cells[i].type = CellType::SUBGRID;
+            cells[i].data.subgrid.data = nullptr; // Initialize as null for now
+            cells[i].data.subgrid.size = 3;
+            subgridCount++;
+        }
+    }
+}
+
+static void graphicsInit() {
     prog = glCreateProgram();
     glAttachShader(prog, compile(GL_VERTEX_SHADER, vertSrc));
     glAttachShader(prog, compile(GL_FRAGMENT_SHADER, fragSrc));
@@ -50,6 +70,11 @@ void gameInit(unsigned int seed) {
     aPosLoc = glGetAttribLocation(prog, "aPos");
     aColorLoc = glGetAttribLocation(prog, "aColor");
     uPosLoc = glGetUniformLocation(prog, "uPos");
+}
+
+void gameInit(unsigned int seed) {
+    stateInit(seed);
+    graphicsInit();
 }
 
 static int cellAt(int px, int py, int winW, int winH) {
@@ -93,18 +118,21 @@ void gameMouseUp(int mousePx, int mousePy, int winW, int winH) {
         int idx = cellAt(mousePx, mousePy, winW, winH);
         if (idx >= 0) {
             int tr = idx / GRID, tc = idx % GRID;
-            Cell tmp = grid[dragRow][dragCol];
-            grid[dragRow][dragCol] = grid[tr][tc];
-            grid[tr][tc] = tmp;
+            Cell tmp = cells[dragRow * GRID + dragCol];
+            cells[dragRow * GRID + dragCol] = cells[idx];
+            cells[idx] = tmp;
         }
     }
     dragRow = dragCol = -1;
 }
 
-static void addQuad(float *&v, float cx, float cy, const float color[3]) {
-    float h = halfRender;
+static const float grey[] = {0.5f, 0.5f, 0.5f};
+static const float itemSize = 0.20f;
+static const float halfItem = itemSize * 0.5f;
+
+static void addQuad(float *&v, float cx, float cy, float w, float h, const float color[3]) {
     for (int i = 0; i < 6; i++) {
-        float dx = (i == 1 || i == 3 || i == 4) ? h : -h;
+        float dx = (i == 1 || i == 3 || i == 4) ? w : -w;
         float dy = (i == 0 || i == 1 || i == 4) ? -h : h;
         v[0] = cx + dx; v[1] = cy + dy;
         v[2] = color[0]; v[3] = color[1]; v[4] = color[2];
@@ -114,33 +142,40 @@ static void addQuad(float *&v, float cx, float cy, const float color[3]) {
 
 void gameRender(int winW, int winH) {
     float aspect = (float)winW / (float)winH;
-    float verts[26 * 6 * 5];
+    static float verts[GRID * GRID * 12 * 6 * 5];
     float *v = verts;
 
     for (int r = 0; r < GRID; r++) {
         for (int c = 0; c < GRID; c++) {
+            int idx = r * GRID + c;
             if (r == dragRow && c == dragCol) continue;
             float cx = gridMin + c * cellSize + cellSize * 0.5f;
             float cy = gridMin + r * cellSize + cellSize * 0.5f;
-            const float *col = elemColors[grid[r][c].item_count];
-            float hc[3] = {col[0], col[1], col[2]};
-            if (r == hoverRow && c == hoverCol && dragRow < 0) {
-                float bright = 1.4f;
-                hc[0] = hc[0] * bright > 1.0f ? 1.0f : hc[0] * bright;
-                hc[1] = hc[1] * bright > 1.0f ? 1.0f : hc[1] * bright;
-                hc[2] = hc[2] * bright > 1.0f ? 1.0f : hc[2] * bright;
+
+            // Draw empty square (background)
+            addQuad(v, cx, cy, halfRender, halfRender, grey);
+
+            // Draw colored item inside
+            if (cells[idx].type == CellType::ITEM) {
+                const float *col = elemColors[cells[idx].data.item.id];
+                renderCellItems(v, cx, cy, cells[idx].data.item.count, col);
             }
-            addQuad(v, cx, cy, hc);
         }
     }
 
     if (dragRow >= 0 && dragCol >= 0) {
-        const float *col = elemColors[grid[dragRow][dragCol].item_count];
-        float dim[3] = {col[0] * 0.5f, col[1] * 0.5f, col[2] * 0.5f};
-        float cx = gridMin + dragCol * cellSize + cellSize * 0.5f;
-        float cy = gridMin + dragRow * cellSize + cellSize * 0.5f;
-        addQuad(v, cx, cy, dim);
-        addQuad(v, dragMX, dragMY, col);
+        int dragIdx = dragRow * GRID + dragCol;
+        if (cells[dragIdx].type == CellType::ITEM) {
+            const float *col = elemColors[cells[dragIdx].data.item.id];
+            float cx = gridMin + dragCol * cellSize + cellSize * 0.5f;
+            float cy = gridMin + dragRow * cellSize + cellSize * 0.5f;
+            
+            // Drag source cell shows just the background
+            addQuad(v, cx, cy, halfRender, halfRender, grey);
+
+            // Dragged item shows just the colored square(s)
+            renderCellItems(v, dragMX, dragMY, cells[dragIdx].data.item.count, col);
+        }
     }
 
     int totalFloats = (int)(v - verts);
@@ -166,19 +201,16 @@ GLuint gameProgram() {
     return prog;
 }
 
-void gameSetState(int newGrid[GRID][GRID]) {
-    for (int r = 0; r < GRID; r++) {
-        for (int c = 0; c < GRID; c++) {
-            grid[r][c].type = CellType::ITEM;
-            grid[r][c].item_count = newGrid[r][c];
-        }
+void gameSetState(int* newGrid) {
+    for (int i = 0; i < GRID * GRID; i++) {
+        cells[i].type = CellType::ITEM;
+        cells[i].data.item.id = newGrid[i];
+        cells[i].data.item.count = 1;
     }
 }
 
-void gameGetState(int outGrid[GRID][GRID]) {
-    for (int r = 0; r < GRID; r++) {
-        for (int c = 0; c < GRID; c++) {
-            outGrid[r][c] = (grid[r][c].type == CellType::ITEM) ? grid[r][c].item_count : 0;
-        }
+void gameGetState(int* outGrid) {
+    for (int i = 0; i < GRID * GRID; i++) {
+        outGrid[i] = (cells[i].type == CellType::ITEM) ? cells[i].data.item.id : 0;
     }
 }

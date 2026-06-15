@@ -9,13 +9,24 @@ enum class CellType {
     SUBGRID
 };
 
+struct ItemData {
+    int id;
+    int count;
+};
+
+struct SubgridData {
+    // We use a pointer to keep the footprint constant
+    // In a real scenario, you might use a custom allocator or index into a global pool
+    void* data; 
+    int size;
+};
+
 struct Cell {
     CellType type;
-    int item_count;
-    int max_capacity;
-    std::shared_ptr<std::vector<std::vector<Cell>>> subgrid;
-
-    Cell() : type(CellType::EMPTY), item_count(0), max_capacity(1) {}
+    union {
+        ItemData item;
+        SubgridData subgrid;
+    } data;
 };
 
 void gameInit(unsigned int seed = 0);
@@ -28,5 +39,5 @@ GLuint gameProgram();
 // Testing API - updated to return/set a more complex structure if needed
 // For now, let's keep the API working for the current test runner by serializing
 // the cell data into a flattened int array for the existing test runner.
-void gameSetState(int grid[5][5]);
-void gameGetState(int grid[5][5]);
+void gameSetState(int* grid);
+void gameGetState(int* grid);

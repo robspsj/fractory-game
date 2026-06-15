@@ -32,7 +32,7 @@ public:
         
         // Output final state for verification
         int grid[5][5];
-        gameGetState(grid);
+        gameGetState(&grid[0][0]);
         std::cout << "Test completed. Final grid state:" << std::endl;
         for(int i = 0; i < 5; ++i) {
             for(int j = 0; j < 5; ++j) {

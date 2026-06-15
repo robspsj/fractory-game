@@ -2,13 +2,14 @@
 #include <cstdio>
 
 const char *vertSrc = R"(
-attribute vec2 aPos;
-attribute vec3 aColor;
+attribute vec2 aPos;       // The base quad shape (0 to 1)
+attribute vec2 aOffset;    // The position of the instance
+attribute vec3 aColor;     // The color of the instance
 uniform vec2 uPos;
 uniform float uAspect;
 varying vec3 vColor;
 void main() {
-    vec2 pos = aPos;
+    vec2 pos = aPos + aOffset;
     pos.y *= uAspect;
     gl_Position = vec4(pos + uPos, 0.0, 1.0);
     vColor = aColor;
