@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <SDL3/SDL.h>
 #include "game/game.hpp"
 
 struct TestAction {
@@ -24,9 +25,9 @@ public:
         
         for (const auto& action : actions) {
             if (action.type == "mousedown") {
-                gameMouseDown(action.x, action.y, testW, testH);
+                gameMouseDown(SDL_BUTTON_LEFT, action.x, action.y, testW, testH);
             } else if (action.type == "mouseup") {
-                gameMouseUp(action.x, action.y, testW, testH);
+                gameMouseUp(SDL_BUTTON_LEFT, action.x, action.y, testW, testH);
             }
         }
         

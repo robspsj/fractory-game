@@ -5,6 +5,7 @@
 #include <ctime>
 #include <cstring>
 #include <vector>
+#include <SDL3/SDL.h>
 
 #define GRID 5
 #define ELEMS 5
@@ -29,7 +30,14 @@ static int dragRow = -1, dragCol = -1;
 static float dragMX = 0.0f, dragMY = 0.0f;
 
 static GLuint prog, vbo;
-static GLint aPosLoc, aColorLoc, uPosLoc;
+static GLint aPosLoc, aColorLoc, uPosLoc, uZoomLoc;
+
+static float zoom = 1.0f;
+static float panX = 0.0f;
+static float panY = 0.0f;
+static bool isPanning = false;
+static int lastPanX = 0;
+static int lastPanY = 0;
 
 static void stateInit(unsigned int seed) {
     if (seed != 0) std::srand(seed);
@@ -70,6 +78,7 @@ static void graphicsInit() {
     aPosLoc = glGetAttribLocation(prog, "aPos");
     aColorLoc = glGetAttribLocation(prog, "aColor");
     uPosLoc = glGetUniformLocation(prog, "uPos");
+    uZoomLoc = glGetUniformLocation(prog, "uZoom");
 }
 
 void gameInit(unsigned int seed) {
@@ -79,8 +88,8 @@ void gameInit(unsigned int seed) {
 
 static int cellAt(int px, int py, int winW, int winH) {
     float aspect = (float)winW / (float)winH;
-    float nx = (2.0f * px / (float)winW) - 1.0f;
-    float ny = (1.0f - (2.0f * py / (float)winH)) / aspect;
+    float nx = ((2.0f * px / (float)winW) - 1.0f - panX) / zoom;
+    float ny = ((1.0f - (2.0f * py / (float)winH)) / aspect - panY) / zoom;
     int col = (int)((nx - gridMin) / cellSize);
     int row = (int)((ny - gridMin) / cellSize);
     if (col < 0 || col >= GRID || row < 0 || row >= GRID) return -1;
@@ -94,8 +103,18 @@ static int cellAt(int px, int py, int winW, int winH) {
 
 void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
     float aspect = (float)winW / (float)winH;
-    dragMX = (2.0f * mousePx / (float)winW) - 1.0f;
-    dragMY = (1.0f - (2.0f * mousePy / (float)winH)) / aspect;
+    
+    if (isPanning) {
+        float dx = (2.0f * (mousePx - lastPanX) / (float)winW);
+        float dy = (-2.0f * (mousePy - lastPanY) / (float)winH) / aspect;
+        panX += dx;
+        panY += dy;
+        lastPanX = mousePx;
+        lastPanY = mousePy;
+    }
+    
+    dragMX = ((2.0f * mousePx / (float)winW) - 1.0f - panX) / zoom;
+    dragMY = ((1.0f - (2.0f * mousePy / (float)winH)) / aspect - panY) / zoom;
     int idx = cellAt(mousePx, mousePy, winW, winH);
     if (idx >= 0) {
         hoverRow = idx / GRID;
@@ -105,7 +124,14 @@ void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
     }
 }
 
-void gameMouseDown(int mousePx, int mousePy, int winW, int winH) {
+void gameMouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
+    if (button == SDL_BUTTON_MIDDLE || button == SDL_BUTTON_RIGHT) {
+        isPanning = true;
+        lastPanX = mousePx;
+        lastPanY = mousePy;
+        return;
+    }
+    
     int idx = cellAt(mousePx, mousePy, winW, winH);
     if (idx >= 0) {
         dragRow = idx / GRID;
@@ -113,17 +139,43 @@ void gameMouseDown(int mousePx, int mousePy, int winW, int winH) {
     }
 }
 
-void gameMouseUp(int mousePx, int mousePy, int winW, int winH) {
+void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
+    if (button == SDL_BUTTON_MIDDLE || button == SDL_BUTTON_RIGHT) {
+        isPanning = false;
+        return;
+    }
+    
     if (dragRow >= 0 && dragCol >= 0) {
         int idx = cellAt(mousePx, mousePy, winW, winH);
         if (idx >= 0) {
-            int tr = idx / GRID, tc = idx % GRID;
-            Cell tmp = cells[dragRow * GRID + dragCol];
-            cells[dragRow * GRID + dragCol] = cells[idx];
-            cells[idx] = tmp;
+            int dragIdx = dragRow * GRID + dragCol;
+            
+            // Try to combine if same item type
+            if (cells[dragIdx].type == CellType::ITEM && 
+                cells[idx].type == CellType::ITEM &&
+                cells[dragIdx].data.item.id == cells[idx].data.item.id &&
+                dragIdx != idx) {
+                cells[idx].data.item.count += cells[dragIdx].data.item.count;
+                cells[dragIdx].type = CellType::EMPTY;
+            } else {
+                // Otherwise swap
+                Cell tmp = cells[dragIdx];
+                cells[dragIdx] = cells[idx];
+                cells[idx] = tmp;
+            }
         }
     }
     dragRow = dragCol = -1;
+}
+
+void gameMouseWheel(float dx, float dy) {
+    if (dy > 0) {
+        zoom *= 1.1f;
+    } else if (dy < 0) {
+        zoom /= 1.1f;
+    }
+    if (zoom < 0.1f) zoom = 0.1f;
+    if (zoom > 10.0f) zoom = 10.0f;
 }
 
 static const float grey[] = {0.5f, 0.5f, 0.5f};
@@ -185,8 +237,9 @@ void gameRender(int winW, int winH) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), verts, GL_STREAM_DRAW);
 
-    glUniform2f(uPosLoc, 0.0f, 0.0f);
+    glUniform2f(uPosLoc, panX, panY);
     glUniform1f(glGetUniformLocation(prog, "uAspect"), aspect);
+    glUniform1f(uZoomLoc, zoom);
     glVertexAttribPointer(aPosLoc, 2, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float), 0);
     glEnableVertexAttribArray(aPosLoc);
     glVertexAttribPointer(aColorLoc, 3, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float), (void*)(2 * sizeof(float)));

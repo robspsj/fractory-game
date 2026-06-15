@@ -31,8 +31,9 @@ struct Cell {
 
 void gameInit(unsigned int seed = 0);
 void gameUpdate(int mousePx, int mousePy, int winW, int winH);
-void gameMouseDown(int mousePx, int mousePy, int winW, int winH);
-void gameMouseUp(int mousePx, int mousePy, int winW, int winH);
+void gameMouseDown(int button, int mousePx, int mousePy, int winW, int winH);
+void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH);
+void gameMouseWheel(float dx, float dy);
 void gameRender(int winW, int winH);
 GLuint gameProgram();
 

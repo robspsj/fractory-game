@@ -69,8 +69,9 @@ static void frame() {
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT) emscripten_cancel_main_loop();
         if (e.type == SDL_EVENT_MOUSE_MOTION) gameUpdate((int)e.motion.x, (int)e.motion.y, winW, winH);
-        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) gameMouseDown((int)e.button.x, (int)e.button.y, winW, winH);
-        if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) gameMouseUp((int)e.button.x, (int)e.button.y, winW, winH);
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) gameMouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) gameMouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+        if (e.type == SDL_EVENT_MOUSE_WHEEL) gameMouseWheel(e.wheel.x, e.wheel.y);
     }
 
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
@@ -141,8 +142,9 @@ int main(int argc, char* argv[]) {
             if (e.type == SDL_EVENT_QUIT) quit = true;
             if (e.type == SDL_EVENT_WINDOW_RESIZED) resize(e.window.data1, e.window.data2);
             if (e.type == SDL_EVENT_MOUSE_MOTION) gameUpdate((int)e.motion.x, (int)e.motion.y, winW, winH);
-            if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) gameMouseDown((int)e.button.x, (int)e.button.y, winW, winH);
-            if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) gameMouseUp((int)e.button.x, (int)e.button.y, winW, winH);
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) gameMouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) gameMouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+            if (e.type == SDL_EVENT_MOUSE_WHEEL) gameMouseWheel(e.wheel.x, e.wheel.y);
         }
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);

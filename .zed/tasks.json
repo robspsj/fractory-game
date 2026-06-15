@@ -1,0 +1,7 @@
+[
+  {
+    "label": "Run Fractory",
+    "command": "./build.sh && ./build/native/fractory",
+    "cwd": "/Users/roberto/Documents/Projects/fractory_cpp"
+  }
+]
