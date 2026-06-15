@@ -31,6 +31,7 @@ target_include_directories(fractory PRIVATE ${SDL3_INCLUDE_DIRS})
 target_link_directories(fractory PRIVATE ${SDL3_LIBRARY_DIRS})
 target_link_libraries(fractory PRIVATE ${SDL3_LIBRARIES} ${CMAKE_DL_LIBS})
 target_compile_options(fractory PRIVATE ${SDL3_CFLAGS_OTHER})
+target_compile_definitions(fractory PRIVATE GL_SILENCE_DEPRECATION)
 
 if(APPLE)
     find_library(OPENGL_LIB OpenGL)

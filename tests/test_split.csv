@@ -1,4 +1,15 @@
+# Action type, mousePx, mousePy or expect steps
 init:-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,0:2,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
-# Action type, mousePx, mousePy
+# Check initial state
+expect,cell,1,2,0,2
+expect,grab,-1,0
+
+# Pick up item
 mousedown,400,300
+expect,grab,0,2
+expect,cell,1,2,-1,0
+
+# Place item at row 1, col 3
 mouseup,480,300
+expect,grab,-1,0
+expect,cell,1,3,0,2

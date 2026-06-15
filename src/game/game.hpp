@@ -1,7 +1,5 @@
 #pragma once
 #include "../gl.hpp"
-#include <vector>
-#include <memory>
 
 enum class CellType {
     EMPTY,
@@ -40,5 +38,6 @@ GLuint gameProgram();
 // Testing API - updated to return/set a more complex structure if needed
 // For now, let's keep the API working for the current test runner by serializing
 // the cell data into a flattened int array for the existing test runner.
-void gameSetState(int* grid);
-void gameGetState(int* grid);
+void gameSetFullState(int* inData);
+void gameGetFullState(int* outData);
+void gameGetDragState(int& outId, int& outCount);

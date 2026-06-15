@@ -1,5 +1,4 @@
 #include "game/game.hpp"
-#include "shader.hpp"
 #include "font.hpp"
 #include "test_runner.hpp"
 #include <SDL3/SDL.h>
@@ -111,11 +110,11 @@ int main(int argc, char* argv[]) {
         SDL_Window *win = SDL_CreateWindow("test", 1, 1, SDL_WINDOW_HIDDEN | SDL_WINDOW_OPENGL);
         SDL_GLContext ctx = SDL_GL_CreateContext(win);
         gameInit(42);
-        TestRunner::runTest(argv[2]);
+        bool success = TestRunner::runTest(argv[2]);
         SDL_GL_DestroyContext(ctx);
         SDL_DestroyWindow(win);
         SDL_Quit();
-        return 0;
+        return success ? 0 : 1;
     }
 
     SDL_Init(SDL_INIT_VIDEO);

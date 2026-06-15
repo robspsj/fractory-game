@@ -254,19 +254,18 @@ void gameRender(int winW, int winH) {
         }
     }
 
-    if (dragRow >= 0 && dragCol >= 0) {
-        int dragIdx = dragRow * GRID + dragCol;
-        if (cells[dragIdx].type == CellType::ITEM) {
-            const float *col = elemColors[cells[dragIdx].data.item.id];
+    if (dragItemId != -1 && dragAmount > 0) {
+        const float *col = elemColors[dragItemId];
+        if (dragRow >= 0 && dragCol >= 0) {
             float cx = gridMin + dragCol * cellSize + cellSize * 0.5f;
             float cy = gridMin + dragRow * cellSize + cellSize * 0.5f;
             
             // Drag source cell shows just the background
             addQuad(v, cx, cy, halfRender, halfRender, grey);
-
-            // Dragged item shows just the colored square(s)
-            renderCellItems(v, dragMX, dragMY, cells[dragIdx].data.item.count, col);
         }
+
+        // Dragged item shows just the colored square(s)
+        renderCellItems(v, dragMX, dragMY, dragAmount, col);
     }
 
     int totalFloats = (int)(v - verts);

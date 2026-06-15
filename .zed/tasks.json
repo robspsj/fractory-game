@@ -1,7 +1,17 @@
 [
   {
+    "label": "Build",
+    "command": "./build.sh",
+    "cwd": "/Users/roberto/Documents/Projects/fractory_cpp",
+  },
+  {
     "label": "Run Fractory",
     "command": "./build.sh && ./build/native/fractory",
-    "cwd": "/Users/roberto/Documents/Projects/fractory_cpp"
-  }
+    "cwd": "/Users/roberto/Documents/Projects/fractory_cpp",
+  },
+  {
+    "label": "Run Tests",
+    "command": "./build.sh && ./build/native/fractory --test tests/test_swap.csv",
+    "cwd": "/Users/roberto/Documents/Projects/fractory_cpp",
+  },
 ]
