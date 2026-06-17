@@ -13,23 +13,23 @@ static int digitWidth(int n) {
     return w;
 }
 
+static const char* _itemColors[GameModel::ELEMS] = {
+    "\033[1;34m", "\033[1;31m", "\033[1;32m", "\033[1;33m", "\033[1;35m"
+};
+
 static void printCell(std::ostream& os, int arrayIdx, int id, int count, int subgridIdx, int idxWidth) {
     int contentWidth = idxWidth + 4;
-    std::ostringstream content;
-    content << std::setw(idxWidth) << arrayIdx;
-    if (id == -2) {
-        content << ":#:" << (char)('a' + subgridIdx);
+    if (id >= 0) {
+        os << "[" << std::setw(idxWidth) << arrayIdx << ":"
+           << _itemColors[id] << id << "\033[0m" << ":" << count << "]";
     } else if (id == -1) {
-        content << ":";
+        std::ostringstream content;
+        content << std::setw(idxWidth) << arrayIdx << ":";
         int pad = contentWidth - (int)content.tellp();
         for (int i = 0; i < pad; i++) content << "_";
-    } else {
-        content << ":" << id << ":" << count;
-    }
-    if (id == -2) {
-        os << "{" << content.str() << "}";
-    } else {
         os << "[" << content.str() << "]";
+    } else {
+        os << "{" << std::setw(idxWidth) << arrayIdx << ":\033[1m#\033[0m:" << (char)('a' + subgridIdx) << "}";
     }
 }
 
@@ -46,7 +46,7 @@ void printState(const GameModel& model) {
     std::cout << "Nodes: " << total << std::endl;
 
     if (dragId != -1) {
-        std::cout << "Drag:  [" << dragId << ":" << dragAmount << "]" << std::endl;
+        std::cout << "Drag:  [" << _itemColors[dragId] << dragId << "\033[0m" << ":" << dragAmount << "]" << std::endl;
     } else {
         std::cout << "Drag:  None" << std::endl;
     }
@@ -75,7 +75,7 @@ void printState(const GameModel& model) {
         int subData[9 * 2];
         int subSize;
         int subFirst = model.getSubgridState(s, subData, subSize);
-        for (int i = subSize - 1; i >= 0; --i) {
+        for (int i = 0; i < subSize; ++i) {
             for (int j = 0; j < subSize; j++) {
                 int cellIdx = subFirst + i * subSize + j;
                 int dataIdx = (i * subSize + j) * 2;

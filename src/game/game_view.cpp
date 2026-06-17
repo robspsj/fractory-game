@@ -15,6 +15,7 @@ const float GameView::_elemColors[GameModel::ELEMS][3] = {
 const float GameView::_white[3] = {1.0f, 1.0f, 1.0f};
 const float GameView::_yellow[3] = {1.0f, 1.0f, 0.0f};
 const float GameView::_grey[3] = {0.5f, 0.5f, 0.5f};
+const float GameView::_hoverBg[3] = {0.7f, 0.7f, 0.7f};
 const float GameView::_gridBg[3] = {0.8f, 0.2f, 0.2f};
 
 GameView::GameView(GameModel& model) : _model(model) {}
@@ -81,22 +82,26 @@ void GameView::renderCell(float*& v, int nodeIndex, float cx, float cy, float ce
         if (halfContent < 0.001f) halfContent = pitch * 0.45f;
 
         float startX = cx - cellSize * 0.5f + pitch * 0.5f;
-        float startY = cy - cellSize * 0.5f + pitch * 0.5f;
+        float startY = cy + cellSize * 0.5f - pitch * 0.5f;
+
+        int hoverIdx = (_hoverRow >= 0)
+            ? _model.rootChild(_hoverRow, _hoverCol) : -1;
 
         for (int r = 0; r < size; r++) {
             for (int c = 0; c < size; c++) {
                 float childCx = startX + c * pitch;
-                float childCy = startY + r * pitch;
+                float childCy = startY - r * pitch;
 
                 int childIndex = firstChild + r * size + c;
                 const auto& childNode = _model.node(childIndex);
+                const float* bg = (childIndex == hoverIdx) ? _hoverBg : _grey;
 
                 if (childNode.type == CellType::ITEM) {
-                    addQuad(v, childCx, childCy, halfContent, halfContent, _grey);
+                    addQuad(v, childCx, childCy, halfContent, halfContent, bg);
                     const float* col = _elemColors[childNode.data.item.id];
                     renderCellItems(v, childCx, childCy, childNode.data.item.count, col);
                 } else if (childNode.type == CellType::EMPTY) {
-                    addQuad(v, childCx, childCy, halfContent, halfContent, _grey);
+                    addQuad(v, childCx, childCy, halfContent, halfContent, bg);
                 } else if (childNode.type == CellType::GRID) {
                     if (depth + 1 < MAX_PREVIEW_DEPTH && pitch > _gap * 3.0f) {
                         renderCell(v, childIndex, childCx, childCy, pitch - _gap, depth + 1);
@@ -164,15 +169,15 @@ bool GameView::screenToGrid(int px, int py, int winW, int winH, int& row, int& c
     if (halfContent < 0.001f) halfContent = pitch * 0.45f;
 
     float startX = -totalSize * 0.5f + pitch * 0.5f;
-    float startY = -totalSize * 0.5f + pitch * 0.5f;
+    float startY = totalSize * 0.5f - pitch * 0.5f;
 
     col = (int)((wx - startX) / pitch + 0.5f);
-    row = (int)((wy - startY) / pitch + 0.5f);
+    row = (int)((startY - wy) / pitch + 0.5f);
 
     if (row < 0 || row >= size || col < 0 || col >= size) return false;
 
     float centerX = startX + col * pitch;
-    float centerY = startY + row * pitch;
+    float centerY = startY - row * pitch;
     if (std::abs(wx - centerX) > halfContent || std::abs(wy - centerY) > halfContent)
         return false;
 
@@ -194,7 +199,7 @@ float GameView::gridToWorldX(int col) const {
 float GameView::gridToWorldY(int row) const {
     float pitch = _cellSize;
     float totalSize = _currentGridSize * pitch;
-    return -totalSize * 0.5f + pitch * 0.5f + row * pitch;
+    return totalSize * 0.5f - pitch * 0.5f - row * pitch;
 }
 
 void GameView::focusGrid(int nodeIndex) {

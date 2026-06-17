@@ -12,6 +12,8 @@ public:
     void initGL();
     void render(int winW, int winH);
     void setDragWorldPos(float wx, float wy) { _dragWX = wx; _dragWY = wy; }
+    void setHoveredCell(int row, int col) { _hoverRow = row; _hoverCol = col; }
+    void clearHoveredCell() { _hoverRow = -1; _hoverCol = -1; }
     GLuint program() const { return _prog; }
 
     void zoom(float factor);
@@ -57,10 +59,12 @@ private:
 
     std::stack<int> _focusStack;
     int _currentGridSize = 0;
+    int _hoverRow = -1, _hoverCol = -1;
 
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];
     static const float _yellow[3];
     static const float _grey[3];
+    static const float _hoverBg[3];
     static const float _gridBg[3];
 };

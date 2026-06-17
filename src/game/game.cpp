@@ -51,13 +51,13 @@ void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
         bool overGridCell = view().screenToGrid(mousePx, mousePy, winW, winH, row, col);
         
         if (overGridCell) {
+            view().setHoveredCell(row, col);
             const auto& node = s_model->node(s_model->rootChild(row, col));
             if (node.type == CellType::GRID) {
                 if (mouseState != MouseState::HOVERING_GRID_FOR_FOCUS) {
                     mouseState = MouseState::HOVERING_GRID_FOR_FOCUS;
                     changedState = true;
                 }
-                // Optionally highlight the grid cell here
             } else {
                 if (mouseState == MouseState::HOVERING_GRID_FOR_FOCUS) {
                     mouseState = MouseState::NONE;
@@ -65,6 +65,7 @@ void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
                 }
             }
         } else {
+            view().clearHoveredCell();
             if (mouseState == MouseState::HOVERING_GRID_FOR_FOCUS) {
                 mouseState = MouseState::NONE;
                 changedState = true;
