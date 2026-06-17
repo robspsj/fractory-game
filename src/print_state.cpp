@@ -51,6 +51,9 @@ void printState(const GameModel& model) {
         std::cout << "Drag:  None" << std::endl;
     }
 
+    const auto& rootNode = model.node(0);
+    std::cout << "Root:  {0:GRID:" << rootNode.data.grid.size << "x" << rootNode.data.grid.size << "}" << std::endl;
+
     int maxSubgridIdx = -1;
     int first = 1;
     for (int i = 0; i < GameModel::GRID; ++i) {
