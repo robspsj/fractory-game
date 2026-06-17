@@ -63,4 +63,4 @@
 
 - [x] `test_runner.hpp` is header-only while everything else uses .hpp/.cpp — inconsistent pattern
 - [x] `game.hpp` exposes C-style free functions wrapping a C++ class — obscures the object-oriented design
-- [ ] `serve.sh` is duplicated at repo root and in `tools/`
+- [x] `serve.sh` is duplicated at repo root and in `tools/`
