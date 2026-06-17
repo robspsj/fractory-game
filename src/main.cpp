@@ -109,6 +109,26 @@ int main() {
     return 0;
 }
 #else
+
+static void saveWindowState(SDL_Window *win) {
+    int x, y, w, h;
+    SDL_GetWindowPosition(win, &x, &y);
+    SDL_GetWindowSize(win, &w, &h);
+    FILE *f = fopen("window_state.txt", "w");
+    if (f) {
+        fprintf(f, "%d %d %d %d\n", x, y, w, h);
+        fclose(f);
+    }
+}
+
+static bool loadWindowState(int &x, int &y, int &w, int &h) {
+    FILE *f = fopen("window_state.txt", "r");
+    if (!f) return false;
+    bool ok = fscanf(f, "%d %d %d %d", &x, &y, &w, &h) == 4;
+    fclose(f);
+    return ok;
+}
+
 int main(int argc, char* argv[]) {
     if (argc >= 3 && std::string(argv[1]) == "--test") {
         bool success = ModelTestRunner::runTest(argv[2]);
@@ -122,6 +142,11 @@ int main(int argc, char* argv[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 
     SDL_Window *win = SDL_CreateWindow("fractory", 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    int wx = 0, wy = 0, ww = 800, wh = 600;
+    if (loadWindowState(wx, wy, ww, wh)) {
+        SDL_SetWindowPosition(win, wx, wy);
+        SDL_SetWindowSize(win, ww, wh);
+    }
     SDL_GLContext ctx = SDL_GL_CreateContext(win);
     SDL_GL_SetSwapInterval(0);
 
@@ -139,7 +164,8 @@ int main(int argc, char* argv[]) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) quit = true;
-            if (e.type == SDL_EVENT_WINDOW_RESIZED) resize(e.window.data1, e.window.data2);
+            if (e.type == SDL_EVENT_WINDOW_RESIZED) { resize(e.window.data1, e.window.data2); saveWindowState(win); }
+            if (e.type == SDL_EVENT_WINDOW_MOVED) saveWindowState(win);
             if (e.type == SDL_EVENT_MOUSE_MOTION) s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
             if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                 s_game->mouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
@@ -154,6 +180,7 @@ int main(int argc, char* argv[]) {
         SDL_GL_SwapWindow(win);
     }
 
+    saveWindowState(win);
     SDL_GL_DestroyContext(ctx);
     SDL_DestroyWindow(win);
     SDL_Quit();
