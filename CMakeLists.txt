@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(EMSCRIPTEN)
     add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/game/game.cpp src/game/game_model.cpp src/game/game_view.cpp)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=3 -Os")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=3 -Os -Wno-experimental")
     target_link_options(fractory PRIVATE
         -sUSE_SDL=3
         -sFULL_ES2=1
