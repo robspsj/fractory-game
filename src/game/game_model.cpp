@@ -15,39 +15,44 @@ void GameModel::init(unsigned int seed) {
     root.data.grid.size = GRID;
     _nodes.push_back(root);
 
-    initGrid(0, 0);
+    populateWithSubgrid(0, GRID);
+    int gridCount = 1;
+
+    int i = 1;
+    while (i < (int)_nodes.size()) {
+        auto& cell = _nodes[i];
+
+        int randVal = std::rand() % 100;
+        if (randVal < 50) {
+            cell.type = CellType::EMPTY;
+        } else if (randVal < 85 || gridCount >= MAX_GRIDS) {
+            cell.type = CellType::ITEM;
+            cell.data.item.id = std::rand() % ELEMS;
+            cell.data.item.count = std::rand() % 4 + 1;
+        } else {
+            cell.type = CellType::GRID;
+            gridCount++;
+            int subSize = std::rand() % 3 + 3;
+            populateWithSubgrid(i, subSize);
+        }
+        i++;
+    }
 
     _dragSrcIndex = -1;
     _dragAmount = 0;
     _dragItemId = -1;
 }
 
-void GameModel::initGrid(int cellIndex, int depth) {
+void GameModel::populateWithSubgrid(int cellIndex, int size) {
     auto& cell = _nodes[cellIndex];
-    int size = cell.data.grid.size;
+    cell.type = CellType::GRID;
+    cell.data.grid.size = size;
     cell.data.grid.firstChild = (int)_nodes.size();
 
-    for (int i = 0; i < size * size; i++) {
+    for (int j = 0; j < size * size; j++) {
         Cell child;
         child.parent = cellIndex;
-        int randVal = std::rand() % 100;
-
-        if (randVal < 50) {
-            child.type = CellType::EMPTY;
-        } else {
-            int itemThreshold = (depth == 0) ? 85 : (depth == 1) ? 90 : (depth == 2) ? 95 : 100;
-            if (randVal < itemThreshold) {
-                child.type = CellType::ITEM;
-                child.data.item.id = std::rand() % ELEMS;
-                child.data.item.count = std::rand() % 9 + 1;
-            } else {
-                child.type = CellType::GRID;
-                child.data.grid.size = std::rand() % 3 + 3;
-                _nodes.push_back(child);
-                initGrid((int)_nodes.size() - 1, depth + 1);
-                continue;
-            }
-        }
+        child.type = CellType::EMPTY;
         _nodes.push_back(child);
     }
 }

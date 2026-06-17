@@ -30,6 +30,7 @@ class GameModel {
 public:
     static constexpr int GRID = 5;
     static constexpr int ELEMS = 5;
+    static constexpr int MAX_GRIDS = 20;
 
     GameModel() = default;
 
@@ -69,7 +70,7 @@ public:
     int totalNodes() const { return (int)_nodes.size(); }
 
 private:
-    void initGrid(int cellIndex, int depth);
+    void populateWithSubgrid(int cellIndex, int size);
 
     std::vector<Cell> _nodes;
     int _dragSrcIndex = -1;
