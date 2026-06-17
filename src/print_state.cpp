@@ -51,6 +51,9 @@ void printState(const GameModel& model) {
         std::cout << "Drag:  None" << std::endl;
     }
 
+    std::cout << std::endl << "Root:" << std::endl;
+    std::cout << "{" << std::setw(idxWidth) << 0 << ":\033[1m#\033[0m:root}" << std::endl;
+
     int maxSubgridIdx = -1;
     int first = 1;
 
