@@ -1,5 +1,5 @@
 #pragma once
-#include "../gl.hpp"
+#include "../gl.hpp" // IWYU pragma: keep
 #include "game_model.hpp"
 
 class GameView {

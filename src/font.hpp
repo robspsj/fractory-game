@@ -1,5 +1,5 @@
 #pragma once
-#include "gl.hpp"
+#include "gl.hpp" // IWYU pragma: keep
 
 void initFont(GLuint mainProg);
 void drawText(float x, float y, const char *text, float scale, float *vertsOut, int *outLen);

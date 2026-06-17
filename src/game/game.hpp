@@ -1,5 +1,5 @@
 #pragma once
-#include "../gl.hpp"
+#include "../gl.hpp" // IWYU pragma: keep
 
 void gameInit(unsigned int seed = 0);
 void gameUpdate(int mousePx, int mousePy, int winW, int winH);
