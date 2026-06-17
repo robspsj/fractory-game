@@ -29,7 +29,7 @@ static void printCell(std::ostream& os, int arrayIdx, int id, int count, int sub
         for (int i = 0; i < pad; i++) content << "_";
         os << "[" << content.str() << "]";
     } else {
-        os << "{" << std::setw(idxWidth) << arrayIdx << ":\033[1m#\033[0m:" << (char)('a' + subgridIdx) << "}";
+        os << "{" << std::setw(idxWidth) << arrayIdx << ":\033[1m#\033[0m:" << (char)('b' + subgridIdx) << "}";
     }
 }
 
@@ -54,7 +54,7 @@ void printState(const GameModel& model) {
     int maxSubgridIdx = -1;
     int first = 1;
 
-    std::cout << std::endl << "Root:" << std::endl;
+    std::cout << std::endl << "Subgrid a:" << std::endl;
     for (int i = 0; i < GameModel::GRID; ++i) {
         for (int j = 0; j < GameModel::GRID; ++j) {
             int idx = first + i * GameModel::GRID + j;
@@ -73,7 +73,7 @@ void printState(const GameModel& model) {
 
     for (int s = 0; s <= maxSubgridIdx; s++) {
         char letter = 'a' + s;
-        std::cout << std::endl << "Subgrid " << letter << ":" << std::endl;
+        std::cout << std::endl << "Subgrid " << (char)(letter + 1) << ":" << std::endl;
         int subData[9 * 2];
         int subSize;
         int subFirst = model.getSubgridState(s, subData, subSize);
