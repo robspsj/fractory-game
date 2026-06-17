@@ -32,8 +32,18 @@ public:
             if (step.type == "expect_cell") {
                 int idx = model.rootChild(step.row, step.col);
                 const auto& n = model.node(idx);
-                int actualId = (n.type == CellType::ITEM) ? n.data.item.id : -1;
-                int actualCount = (n.type == CellType::ITEM) ? n.data.item.count : 0;
+                int actualId;
+                int actualCount;
+                if (n.type == CellType::ITEM) {
+                    actualId = n.data.item.id;
+                    actualCount = n.data.item.count;
+                } else if (n.type == CellType::GRID) {
+                    actualId = -2;
+                    actualCount = -1;
+                } else {
+                    actualId = -1;
+                    actualCount = 0;
+                }
                 if (actualId != step.expectedId || actualCount != step.expectedCount) {
                     std::cerr << "Expectation FAILED: Cell [" << step.row << "," << step.col << "] expected ["
                               << step.expectedId << ":" << step.expectedCount << "] but got ["
@@ -86,14 +96,45 @@ private:
             std::cout << "Dragging: None" << std::endl;
         }
 
+        int maxSubgridIdx = -1;
         for (int i = 0; i < GameModel::GRID; ++i) {
             for (int j = 0; j < GameModel::GRID; ++j) {
                 int id = data[(i * GameModel::GRID + j) * 2];
                 int count = data[(i * GameModel::GRID + j) * 2 + 1];
-                if (id == -1) std::cout << "[___] ";
-                else std::cout << "[" << id << ":" << count << "] ";
+                if (id == -2) {
+                    char letter = 'a' + count;
+                    if (count > maxSubgridIdx) maxSubgridIdx = count;
+                    std::cout << "[s:" << letter << "] ";
+                } else if (id == -1) {
+                    std::cout << "[___] ";
+                } else {
+                    std::cout << "[" << id << ":" << count << "] ";
+                }
             }
             std::cout << std::endl;
+        }
+
+        for (int s = 0; s <= maxSubgridIdx; s++) {
+            char letter = 'a' + s;
+            std::cout << std::endl << "Subgrid " << letter << ":" << std::endl;
+            int subData[9 * 2];
+            int subSize;
+            model.getSubgridState(s, subData, subSize);
+            for (int i = 0; i < subSize; i++) {
+                for (int j = 0; j < subSize; j++) {
+                    int idx = i * subSize + j;
+                    int id = subData[idx * 2];
+                    int count = subData[idx * 2 + 1];
+                    if (id == -2) {
+                        std::cout << "[s:_] ";
+                    } else if (id == -1) {
+                        std::cout << "[___] ";
+                    } else {
+                        std::cout << "[" << id << ":" << count << "] ";
+                    }
+                }
+                std::cout << std::endl;
+            }
         }
     }
 

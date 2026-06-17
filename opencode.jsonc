@@ -4,9 +4,17 @@
     "build-server": {
       "type": "local",
       "command": ["python3", "tools/serve_build.py"],
-      "environment": {
+      "env": {
         "FRACTORY_PORT": "8080",
         "FRACTORY_BUILD_DIR": "${workspaceFolder}/build/web"
+      }
+    },
+    "cpp-analysis": {
+      "type": "local",
+      "command": ["mcp-cpp-server", "--root", "${workspaceFolder}"],
+      "env": {
+        "CLANGD_PATH": "/opt/homebrew/opt/llvm/bin/clangd",
+        "RUST_LOG": "info"
       }
     }
   }

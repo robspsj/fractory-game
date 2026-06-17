@@ -63,6 +63,7 @@ public:
 
     void setFullState(int* inData);
     void getFullState(int* outData) const;
+    int getSubgridState(int subgridSeqIndex, int* outData, int& outSize) const;
     void getDragState(int& outId, int& outCount);
 
 private:

@@ -1,5 +1,8 @@
 #include "game_view.hpp"
 #include "../shader.hpp"
+#include <cstring>
+#include <cmath>
+#include <algorithm>
 
 const float GameView::_elemColors[GameModel::ELEMS][3] = {
     {0.15f, 0.50f, 0.90f},
@@ -12,6 +15,7 @@ const float GameView::_elemColors[GameModel::ELEMS][3] = {
 const float GameView::_white[3] = {1.0f, 1.0f, 1.0f};
 const float GameView::_yellow[3] = {1.0f, 1.0f, 0.0f};
 const float GameView::_grey[3] = {0.5f, 0.5f, 0.5f};
+const float GameView::_gridBg[3] = {0.8f, 0.2f, 0.2f};
 
 GameView::GameView(GameModel& model) : _model(model) {}
 
@@ -48,139 +52,81 @@ void GameView::addQuad(float*& v, float cx, float cy, float w, float h, const fl
 
 void GameView::renderCellItems(float*& v, float cx, float cy, int count, const float color[3]) {
     if (count <= 0) return;
-
+    float itemDotSize = 0.05f;
+    float spacing = itemDotSize * 2.5f;
     switch (count) {
-        case 1: {
-            float size = 0.05f;
-            addQuad(v, cx, cy, size, size, color);
-            break;
-        }
-        case 2: {
-            float size = 0.04f;
-            addQuad(v, cx - 0.05f, cy, size, size, color);
-            addQuad(v, cx + 0.05f, cy, size, size, color);
-            break;
-        }
-        case 3: {
-            float size = 0.035f;
-            addQuad(v, cx - 0.05f, cy - 0.04f, size, size, color);
-            addQuad(v, cx + 0.05f, cy - 0.04f, size, size, color);
-            addQuad(v, cx,         cy + 0.04f, size, size, color);
-            break;
-        }
-        case 4: {
-            float size = 0.035f;
-            addQuad(v, cx - 0.05f, cy - 0.05f, size, size, color);
-            addQuad(v, cx + 0.05f, cy - 0.05f, size, size, color);
-            addQuad(v, cx - 0.05f, cy + 0.05f, size, size, color);
-            addQuad(v, cx + 0.05f, cy + 0.05f, size, size, color);
-            break;
-        }
-        case 5: {
-            float size = 0.03f;
-            addQuad(v, cx - 0.06f, cy - 0.06f, size, size, color);
-            addQuad(v, cx + 0.06f, cy - 0.06f, size, size, color);
-            addQuad(v, cx,         cy,         size, size, color);
-            addQuad(v, cx - 0.06f, cy + 0.06f, size, size, color);
-            addQuad(v, cx + 0.06f, cy + 0.06f, size, size, color);
-            break;
-        }
-        case 6: {
-            float size = 0.025f;
-            addQuad(v, cx - 0.05f, cy - 0.06f, size, size, color);
-            addQuad(v, cx + 0.05f, cy - 0.06f, size, size, color);
-            addQuad(v, cx - 0.05f, cy,         size, size, color);
-            addQuad(v, cx + 0.05f, cy,         size, size, color);
-            addQuad(v, cx - 0.05f, cy + 0.06f, size, size, color);
-            addQuad(v, cx + 0.05f, cy + 0.06f, size, size, color);
-            break;
-        }
-        case 7: {
-            float size = 0.022f;
-            addQuad(v, cx - 0.06f, cy - 0.06f, size, size, color);
-            addQuad(v, cx,         cy - 0.06f, size, size, color);
-            addQuad(v, cx + 0.06f, cy - 0.06f, size, size, color);
-            addQuad(v, cx,         cy,         size, size, color);
-            addQuad(v, cx - 0.06f, cy + 0.06f, size, size, color);
-            addQuad(v, cx,         cy + 0.06f, size, size, color);
-            addQuad(v, cx + 0.06f, cy + 0.06f, size, size, color);
-            break;
-        }
-        case 8: {
-            float size = 0.022f;
-            addQuad(v, cx - 0.06f, cy - 0.06f, size, size, color);
-            addQuad(v, cx,         cy - 0.06f, size, size, color);
-            addQuad(v, cx + 0.06f, cy - 0.06f, size, size, color);
-            addQuad(v, cx - 0.04f, cy,         size, size, color);
-            addQuad(v, cx + 0.04f, cy,         size, size, color);
-            addQuad(v, cx - 0.06f, cy + 0.06f, size, size, color);
-            addQuad(v, cx,         cy + 0.06f, size, size, color);
-            addQuad(v, cx + 0.06f, cy + 0.06f, size, size, color);
-            break;
-        }
-        case 9: {
-            float size = 0.022f;
-            for (int r = -1; r <= 1; r++) {
-                for (int c = -1; c <= 1; c++) {
-                    addQuad(v, cx + c * 0.06f, cy + r * 0.06f, size, size, color);
+        case 1: addQuad(v, cx, cy, itemDotSize, itemDotSize, color); break;
+        case 2: addQuad(v, cx - spacing * 0.5f, cy, itemDotSize, itemDotSize, color); addQuad(v, cx + spacing * 0.5f, cy, itemDotSize, itemDotSize, color); break;
+        case 3: addQuad(v, cx, cy - spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx - spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx + spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize, color); break;
+        case 4: addQuad(v, cx - spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx + spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx - spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx + spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize, color); break;
+        case 5: addQuad(v, cx, cy, itemDotSize, itemDotSize, color); addQuad(v, cx - spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx + spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx - spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize, color); addQuad(v, cx + spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize, color); break;
+        default: addQuad(v, cx, cy, itemDotSize, itemDotSize, color); break;
+    }
+}
+
+void GameView::renderGrid(float*& v, int nodeIndex, float cx, float cy, float totalSize, int depth) {
+    const auto& gridNode = _model.node(nodeIndex);
+    if (gridNode.type != CellType::GRID) return;
+
+    int firstChild = gridNode.data.grid.firstChild;
+    int size = gridNode.data.grid.size;
+
+    float pitch = totalSize / size;
+    float halfContent = (pitch - _gap) * 0.5f;
+    if (halfContent < 0.001f) halfContent = pitch * 0.45f;
+
+    float startX = cx - totalSize * 0.5f + pitch * 0.5f;
+    float startY = cy - totalSize * 0.5f + pitch * 0.5f;
+
+    static constexpr int MAX_PREVIEW_DEPTH = 3;
+
+    for (int r = 0; r < size; r++) {
+        for (int c = 0; c < size; c++) {
+            float childCx = startX + c * pitch;
+            float childCy = startY + r * pitch;
+
+            int cellNodeIndex = firstChild + r * size + c;
+            const auto& cellNode = _model.node(cellNodeIndex);
+
+            addQuad(v, childCx, childCy, halfContent, halfContent, _grey);
+
+            if (cellNode.type == CellType::GRID) {
+                if (depth < MAX_PREVIEW_DEPTH && pitch > _gap * 3.0f) {
+                    renderGrid(v, cellNodeIndex, childCx, childCy, pitch - _gap, depth + 1);
+                } else {
+                    addQuad(v, childCx, childCy, halfContent * 0.5f, halfContent * 0.5f, _gridBg);
                 }
+            } else if (cellNode.type == CellType::ITEM) {
+                const float* col = _elemColors[cellNode.data.item.id];
+                renderCellItems(v, childCx, childCy, cellNode.data.item.count, col);
             }
-            break;
-        }
-        default: {
-            addQuad(v, cx, cy, 0.10f, 0.10f, color);
-            return;
         }
     }
 }
 
-void GameView::render(int winW, int winH, float dragMX, float dragMY,
-                      bool showPointer, const float pointerColor[3]) {
+void GameView::render(int winW, int winH) {
     float aspect = (float)winW / (float)winH;
-    static float verts[GameModel::GRID * GameModel::GRID * 12 * 6 * 5];
+    static float verts[1024 * 1024];
     float* v = verts;
 
-    for (int r = 0; r < GameModel::GRID; r++) {
-        for (int c = 0; c < GameModel::GRID; c++) {
-            if (r == _model.dragRow() && c == _model.dragCol()) continue;
-            float cx = gridToWorldX(c);
-            float cy = gridToWorldY(r);
+    int rootNodeIndex = isFocused() ? _focusStack.top() : 0;
+    const auto& rootNode = _model.node(rootNodeIndex);
+    _currentGridSize = (rootNode.type == CellType::GRID) ? rootNode.data.grid.size : GameModel::GRID;
 
-            addQuad(v, cx, cy, _halfRender, _halfRender, _grey);
+    glUseProgram(_prog);
+    glUniform2f(_uPosLoc, _panX, _panY);
+    glUniform1f(_uZoomLoc, _zoom);
+    glUniform1f(glGetUniformLocation(_prog, "uAspect"), aspect);
 
-            const auto& n = _model.node(_model.rootChild(r, c));
-            if (n.type == CellType::ITEM) {
-                const float* col = _elemColors[n.data.item.id];
-                renderCellItems(v, cx, cy, n.data.item.count, col);
-            }
-        }
-    }
-
-    if (_model.hasDrag()) {
-        const float* col = _elemColors[_model.dragItemId()];
-        if (_model.dragRow() >= 0 && _model.dragCol() >= 0) {
-            float cx = gridToWorldX(_model.dragCol());
-            float cy = gridToWorldY(_model.dragRow());
-            addQuad(v, cx, cy, _halfRender, _halfRender, _grey);
-        }
-        renderCellItems(v, dragMX, dragMY, _model.dragAmount(), col);
-    }
-
-    if (showPointer) {
-        float indicatorSize = _halfRender * 0.5f;
-        addQuad(v, dragMX, dragMY, indicatorSize, indicatorSize, pointerColor);
-    }
+    float totalGridSize = _currentGridSize * _cellSize;
+    renderGrid(v, rootNodeIndex, 0.0f, 0.0f, totalGridSize, 0);
 
     int totalFloats = (int)(v - verts);
     if (totalFloats == 0) return;
 
-    glUseProgram(_prog);
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
     glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), verts, GL_STREAM_DRAW);
 
-    glUniform2f(_uPosLoc, _panX, _panY);
-    glUniform1f(glGetUniformLocation(_prog, "uAspect"), aspect);
-    glUniform1f(_uZoomLoc, _zoom);
     glVertexAttribPointer(_aPosLoc, 2, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float), 0);
     glEnableVertexAttribArray(_aPosLoc);
     glVertexAttribPointer(_aColorLoc, 3, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float), (void*)(2 * sizeof(float)));
@@ -189,6 +135,77 @@ void GameView::render(int winW, int winH, float dragMX, float dragMY,
     glDrawArrays(GL_TRIANGLES, 0, totalFloats / 5);
 
     glDisableVertexAttribArray(_aColorLoc);
+    glDisableVertexAttribArray(_aPosLoc);
+
+    if (_model.hasDrag()) {
+        int dragId = _model.dragItemId();
+        int dragAmount = _model.dragAmount();
+        const float* col = _elemColors[dragId];
+        renderCellItems(v, 0.0f, 0.0f, dragAmount, col);
+    }
+}
+
+bool GameView::screenToGrid(int px, int py, int winW, int winH, int& row, int& col) const {
+    float wx, wy;
+    screenToWorld(px, py, winW, winH, wx, wy);
+
+    int rootIdx = isFocused() ? _focusStack.top() : 0;
+    const auto& root = _model.node(rootIdx);
+    int size = (root.type == CellType::GRID) ? root.data.grid.size : GameModel::GRID;
+
+    float pitch = _cellSize;
+    float totalSize = size * pitch;
+    float halfContent = (pitch - _gap) * 0.5f;
+    if (halfContent < 0.001f) halfContent = pitch * 0.45f;
+
+    float startX = -totalSize * 0.5f + pitch * 0.5f;
+    float startY = -totalSize * 0.5f + pitch * 0.5f;
+
+    col = (int)((wx - startX) / pitch + 0.5f);
+    row = (int)((wy - startY) / pitch + 0.5f);
+
+    if (row < 0 || row >= size || col < 0 || col >= size) return false;
+
+    float centerX = startX + col * pitch;
+    float centerY = startY + row * pitch;
+    if (std::abs(wx - centerX) > halfContent || std::abs(wy - centerY) > halfContent)
+        return false;
+
+    return true;
+}
+
+void GameView::screenToWorld(int px, int py, int winW, int winH, float& wx, float& wy) const {
+    float aspect = (float)winW / (float)winH;
+    wx = ((2.0f * px / (float)winW) - 1.0f - _panX) / _zoom;
+    wy = ((1.0f - (2.0f * py / (float)winH)) - _panY) / aspect / _zoom;
+}
+
+float GameView::gridToWorldX(int col) const {
+    float pitch = _cellSize;
+    float totalSize = _currentGridSize * pitch;
+    return -totalSize * 0.5f + pitch * 0.5f + col * pitch;
+}
+
+float GameView::gridToWorldY(int row) const {
+    float pitch = _cellSize;
+    float totalSize = _currentGridSize * pitch;
+    return -totalSize * 0.5f + pitch * 0.5f + row * pitch;
+}
+
+void GameView::focusGrid(int nodeIndex) {
+    if (nodeIndex >= 0 && _model.node(nodeIndex).type == CellType::GRID) {
+        _focusStack.push(nodeIndex);
+    }
+}
+
+void GameView::unfocusGrid() {
+    if (!_focusStack.empty()) {
+        _focusStack.pop();
+    }
+}
+
+int GameView::currentRootNode() const {
+    return _focusStack.empty() ? 0 : _focusStack.top();
 }
 
 void GameView::zoom(float factor) {
@@ -214,32 +231,4 @@ void GameView::continuePan(int px, int py, int winW, int winH) {
 
 void GameView::endPan() {
     _isPanning = false;
-}
-
-bool GameView::screenToGrid(int px, int py, int winW, int winH, int& row, int& col) const {
-    float wx, wy;
-    screenToWorld(px, py, winW, winH, wx, wy);
-    col = (int)((wx - _gridMin) / _cellSize);
-    row = (int)((wy - _gridMin) / _cellSize);
-    if (col < 0 || col >= GameModel::GRID || row < 0 || row >= GameModel::GRID) return false;
-    float cx = _gridMin + col * _cellSize + _cellSize * 0.5f;
-    float cy = _gridMin + row * _cellSize + _cellSize * 0.5f;
-    if (wx < cx - _halfRender || wx > cx + _halfRender ||
-        wy < cy - _halfRender || wy > cy + _halfRender)
-        return false;
-    return true;
-}
-
-void GameView::screenToWorld(int px, int py, int winW, int winH, float& wx, float& wy) const {
-    float aspect = (float)winW / (float)winH;
-    wx = ((2.0f * px / (float)winW) - 1.0f - _panX) / _zoom;
-    wy = ((1.0f - (2.0f * py / (float)winH)) - _panY) / aspect / _zoom;
-}
-
-float GameView::gridToWorldX(int col) const {
-    return _gridMin + col * _cellSize + _cellSize * 0.5f;
-}
-
-float GameView::gridToWorldY(int row) const {
-    return _gridMin + row * _cellSize + _cellSize * 0.5f;
 }

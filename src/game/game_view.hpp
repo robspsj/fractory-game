@@ -1,6 +1,8 @@
 #pragma once
 #include "../gl.hpp" // IWYU pragma: keep
 #include "game_model.hpp"
+#include <vector>
+#include <stack>
 
 class GameView {
 public:
@@ -8,8 +10,7 @@ public:
     ~GameView();
 
     void initGL();
-    void render(int winW, int winH, float dragMX, float dragMY,
-                bool showPointer, const float pointerColor[3]);
+    void render(int winW, int winH);
     GLuint program() const { return _prog; }
 
     void zoom(float factor);
@@ -27,9 +28,15 @@ public:
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;
 
+    void focusGrid(int nodeIndex);
+    void unfocusGrid();
+    bool isFocused() const { return !_focusStack.empty(); }
+    int currentRootNode() const;
+
 private:
     void addQuad(float*& v, float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float*& v, float cx, float cy, int count, const float color[3]);
+    void renderGrid(float*& v, int nodeIndex, float cx, float cy, float totalSize, int depth);
 
     GameModel& _model;
 
@@ -46,8 +53,12 @@ private:
     static constexpr float _gap = 0.02f;
     float _halfRender = (_cellSize - _gap) * 0.5f;
 
+    std::stack<int> _focusStack;
+    int _currentGridSize = 0;
+
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];
     static const float _yellow[3];
     static const float _grey[3];
+    static const float _gridBg[3];
 };

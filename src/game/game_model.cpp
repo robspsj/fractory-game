@@ -123,16 +123,54 @@ void GameModel::setFullState(int* inData) {
 void GameModel::getFullState(int* outData) const {
     int first = _nodes[0].data.grid.firstChild;
     int n = _nodes[0].data.grid.size * _nodes[0].data.grid.size;
+    int subgridIdx = 0;
     for (int i = 0; i < n; i++) {
         int idx = first + i;
         if (_nodes[idx].type == CellType::ITEM) {
             outData[i * 2] = _nodes[idx].data.item.id;
             outData[i * 2 + 1] = _nodes[idx].data.item.count;
+        } else if (_nodes[idx].type == CellType::GRID) {
+            outData[i * 2] = -2;
+            outData[i * 2 + 1] = subgridIdx++;
         } else {
             outData[i * 2] = -1;
             outData[i * 2 + 1] = 0;
         }
     }
+}
+
+int GameModel::getSubgridState(int subgridSeqIndex, int* outData, int& outSize) const {
+    int first = _nodes[0].data.grid.firstChild;
+    int n = _nodes[0].data.grid.size * _nodes[0].data.grid.size;
+    int subgridIdx = 0;
+    for (int i = 0; i < n; i++) {
+        int idx = first + i;
+        if (_nodes[idx].type == CellType::GRID) {
+            if (subgridIdx == subgridSeqIndex) {
+                int childFirst = _nodes[idx].data.grid.firstChild;
+                int childSize = _nodes[idx].data.grid.size;
+                outSize = childSize;
+                int childCount = childSize * childSize;
+                for (int ci = 0; ci < childCount; ci++) {
+                    int cidx = childFirst + ci;
+                    if (_nodes[cidx].type == CellType::ITEM) {
+                        outData[ci * 2] = _nodes[cidx].data.item.id;
+                        outData[ci * 2 + 1] = _nodes[cidx].data.item.count;
+                    } else if (_nodes[cidx].type == CellType::GRID) {
+                        outData[ci * 2] = -2;
+                        outData[ci * 2 + 1] = -1;
+                    } else {
+                        outData[ci * 2] = -1;
+                        outData[ci * 2 + 1] = 0;
+                    }
+                }
+                return childCount;
+            }
+            subgridIdx++;
+        }
+    }
+    outSize = 0;
+    return 0;
 }
 
 void GameModel::getDragState(int& outId, int& outCount) {

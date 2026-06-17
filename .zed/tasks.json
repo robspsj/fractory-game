@@ -1,17 +1,17 @@
 [
   {
     "label": "Build",
-    "command": "./build.sh",
+    "command": "cmake --build build/native",
     "cwd": "/Users/roberto/Documents/Projects/fractory_cpp",
   },
   {
     "label": "Run Fractory",
-    "command": "./build.sh && ./build/native/fractory",
+    "command": "./run.sh",
     "cwd": "/Users/roberto/Documents/Projects/fractory_cpp",
   },
   {
     "label": "Run Tests",
-    "command": "./build.sh && ./build/native/fractory --test tests/test_swap.csv",
+    "command": "cmake -B build/native -S . 2>/dev/null && cmake --build build/native 2>/dev/null && ./build/native/fractory --test tests/test_swap.csv",
     "cwd": "/Users/roberto/Documents/Projects/fractory_cpp",
   },
 ]
