@@ -1,5 +1,14 @@
 # TODO
 
+## 🌟 Epic: Save State
+
+- [ ] Recursive serialization — `getFullState`/`setFullState` must handle subgrid content, not just root grid
+- [ ] `setFullState` must not orphan existing subgrid children — reuse or clean up orphaned nodes
+- [ ] Decide on save format (binary vs text, file extension, location)
+- [ ] Add save/load file I/O (SDL or platform file APIs)
+- [ ] Hook save/load into controller — keyboard shortcuts, auto-save, load on startup
+- [ ] Tests: round-trip save/load with nested subgrids
+
 ## 🔴 Bugs
 
 - [ ] Hover highlight broken in subgrid focus mode
