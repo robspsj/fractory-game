@@ -38,9 +38,10 @@ public:
     void focusOffset(int delta);
 
 private:
-    void addQuad(float*& v, float cx, float cy, float w, float h, const float color[3]);
-    void renderCellItems(float*& v, float cx, float cy, int count, const float color[3], float scale = 1.0f);
-    void renderCell(float*& v, int nodeIndex, float cx, float cy, float extent, float pitch, int depth);
+    void addQuad(float cx, float cy, float w, float h, const float color[3]);
+    void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
+    void renderGrid(int nodeIndex, float ox, float oy, float width, float pitch, int depth);
+    void renderCell(int nodeIndex, float ox, float oy, float width, float pitch, float cellSize, const float bg[3], int depth);
 
     GameModel& _model;
 
@@ -52,6 +53,8 @@ private:
     float _dragWX = 0.0f, _dragWY = 0.0f;
     bool _isPanning = false;
     int _lastPanX = 0, _lastPanY = 0;
+
+    float* _v = nullptr;
 
     static constexpr float _gridMin = -0.75f;
     static constexpr float _cellSize = 0.30f;

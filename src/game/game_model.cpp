@@ -42,7 +42,7 @@ void GameModel::initGrid(int cellIndex, int depth) {
                 child.data.item.count = std::rand() % 9 + 1;
             } else {
                 child.type = CellType::GRID;
-                child.data.grid.size = 3;
+                child.data.grid.size = std::rand() % 3 + 3;
                 _nodes.push_back(child);
                 initGrid((int)_nodes.size() - 1, depth + 1);
                 continue;
