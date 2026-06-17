@@ -1,96 +1,68 @@
 #include "game.hpp"
-#include "game_view.hpp"
 #include "../shader.hpp"
 #include "../print_state.hpp"
-#include <memory>
-#include <cstdlib>
 #include <SDL3/SDL.h>
-#include <cmath> // For std::abs
-#include <algorithm> // For std::min
+#include <cmath>
+#include <algorithm>
 
-static std::unique_ptr<GameModel> s_model;
-static std::unique_ptr<GameView> s_view;
+Game::Game(unsigned int seed) {
+    _model = std::make_unique<GameModel>();
+    _model->init(seed);
+    _view = std::make_unique<GameView>(*_model);
+    _view->initGL();
+}
 
-// Mouse state machine
-enum class MouseState {
-    NONE,
-    DOWN_PENDING, // Left button down, decision pending (drag/pan)
-    DRAGGING_ITEM,
-    PANNING,
-    // Pointer interaction states for subgrids
-    HOVERING_GRID_FOR_FOCUS, // Mouse is over a GRID cell, ready to focus/unfocus
-};
-
-static MouseState mouseState = MouseState::NONE;
-static int mouseDownX = 0, mouseDownY = 0;
-static Uint64 mouseDownTime = 0;
-
-static float dragMX = 0.0f, dragMY = 0.0f;
-
-static GameModel& model() { return *s_model; }
-static GameView& view() { return *s_view; }
-
-static void logState() {
+void Game::logState() {
     clearScreen();
-    printState(model());
+    ::printState(*_model);
 }
 
-void gameInit(unsigned int seed) {
-    s_model = std::make_unique<GameModel>();
-    s_model->init(seed);
-    s_view = std::make_unique<GameView>(*s_model);
-    s_view->initGL();
-}
-
-void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
+void Game::update(int mousePx, int mousePy, int winW, int winH) {
     bool changedState = false;
 
-    // Check mouse position for focus changes if not panning or dragging
-    if (mouseState != MouseState::PANNING && !s_model->hasDrag()) {
+    if (_mouseState != MouseState::PANNING && !_model->hasDrag()) {
         int row, col;
-        bool overGridCell = view().screenToGrid(mousePx, mousePy, winW, winH, row, col);
-        
+        bool overGridCell = _view->screenToGrid(mousePx, mousePy, winW, winH, row, col);
+
         if (overGridCell) {
-            view().setHoveredCell(row, col);
-            const auto& node = s_model->node(s_model->rootChild(row, col));
+            _view->setHoveredCell(row, col);
+            const auto& node = _model->node(_model->rootChild(row, col));
             if (node.type == CellType::GRID) {
-                if (mouseState != MouseState::HOVERING_GRID_FOR_FOCUS) {
-                    mouseState = MouseState::HOVERING_GRID_FOR_FOCUS;
+                if (_mouseState != MouseState::HOVERING_GRID_FOR_FOCUS) {
+                    _mouseState = MouseState::HOVERING_GRID_FOR_FOCUS;
                     changedState = true;
                 }
             } else {
-                if (mouseState == MouseState::HOVERING_GRID_FOR_FOCUS) {
-                    mouseState = MouseState::NONE;
+                if (_mouseState == MouseState::HOVERING_GRID_FOR_FOCUS) {
+                    _mouseState = MouseState::NONE;
                     changedState = true;
                 }
             }
         } else {
-            view().clearHoveredCell();
-            if (mouseState == MouseState::HOVERING_GRID_FOR_FOCUS) {
-                mouseState = MouseState::NONE;
+            _view->clearHoveredCell();
+            if (_mouseState == MouseState::HOVERING_GRID_FOR_FOCUS) {
+                _mouseState = MouseState::NONE;
                 changedState = true;
             }
         }
     }
 
-    if (mouseState == MouseState::DOWN_PENDING) {
-        int dx = mousePx - mouseDownX;
-        int dy = mousePy - mouseDownY;
-        // Check for significant movement or held time to decide action
+    if (_mouseState == MouseState::DOWN_PENDING) {
+        int dx = mousePx - _mouseDownX;
+        int dy = mousePy - _mouseDownY;
         if (std::abs(dx) > 5 || std::abs(dy) > 5) {
-            Uint64 heldTime = SDL_GetTicks() - mouseDownTime;
-            if (heldTime >= 250) { // Long press duration threshold for panning/focusing
-                mouseState = MouseState::PANNING;
-                view().startPan(mousePx, mousePy);
+            Uint64 heldTime = SDL_GetTicks() - _mouseDownTime;
+            if (heldTime >= 250) {
+                _mouseState = MouseState::PANNING;
+                _view->startPan(mousePx, mousePy);
                 changedState = true;
             } else {
-                // Check if we are over a grid cell to initiate drag
                 int row, col;
-                if (view().screenToGrid(mouseDownX, mouseDownY, winW, winH, row, col)) {
-                    int idx = s_model->rootChild(row, col);
-                    if (s_model->node(idx).type == CellType::ITEM) {
-                        s_model->pickUp(idx, s_model->node(idx).data.item.count);
-                        mouseState = MouseState::DRAGGING_ITEM;
+                if (_view->screenToGrid(_mouseDownX, _mouseDownY, winW, winH, row, col)) {
+                    int idx = _model->rootChild(row, col);
+                    if (_model->node(idx).type == CellType::ITEM) {
+                        _model->pickUp(idx, _model->node(idx).data.item.count);
+                        _mouseState = MouseState::DRAGGING_ITEM;
                         changedState = true;
                         logState();
                     }
@@ -99,147 +71,126 @@ void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
         }
     }
 
-    if (view().isPanning()) {
-        view().continuePan(mousePx, mousePy, winW, winH);
+    if (_view->isPanning()) {
+        _view->continuePan(mousePx, mousePy, winW, winH);
     }
 
-    // Update drag position if dragging an item
-    if (mouseState == MouseState::DRAGGING_ITEM || mouseState == MouseState::DOWN_PENDING) {
+    if (_mouseState == MouseState::DRAGGING_ITEM || _mouseState == MouseState::DOWN_PENDING) {
         float aspect = (float)winW / (float)winH;
-        view().screenToWorld(mousePx, mousePy, winW, winH, dragMX, dragMY);
-        view().setDragWorldPos(dragMX, dragMY);
+        _view->screenToWorld(mousePx, mousePy, winW, winH, _dragMX, _dragMY);
+        _view->setDragWorldPos(_dragMX, _dragMY);
     }
 
-    // If state changed, maybe need to update cursor or visual feedback
     if (changedState) {
-        // TODO: Update cursor based on mouseState
+        // TODO: Update cursor based on _mouseState
     }
 }
 
-void gameMouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
+void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
     if (button == SDL_BUTTON_MIDDLE || button == SDL_BUTTON_RIGHT) {
-        // Middle/Right click starts pan OR focus action
         int row, col;
-        if (view().screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-            // If over a grid cell, prepare to focus/unfocus
-            mouseState = MouseState::DOWN_PENDING;
-            mouseDownX = mousePx;
-            mouseDownY = mousePy;
-            mouseDownTime = SDL_GetTicks();
+        if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
+            _mouseState = MouseState::DOWN_PENDING;
+            _mouseDownX = mousePx;
+            _mouseDownY = mousePy;
+            _mouseDownTime = SDL_GetTicks();
         } else {
-            // If not over a grid cell, start panning
-            mouseState = MouseState::PANNING;
-            view().startPan(mousePx, mousePy);
+            _mouseState = MouseState::PANNING;
+            _view->startPan(mousePx, mousePy);
         }
         return;
     }
 
     if (button == SDL_BUTTON_LEFT) {
-        mouseState = MouseState::DOWN_PENDING;
-        mouseDownX = mousePx;
-        mouseDownY = mousePy;
-        mouseDownTime = SDL_GetTicks();
+        _mouseState = MouseState::DOWN_PENDING;
+        _mouseDownX = mousePx;
+        _mouseDownY = mousePy;
+        _mouseDownTime = SDL_GetTicks();
     }
 }
 
-void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
+void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
     bool stateChanged = false;
 
     if (button == SDL_BUTTON_MIDDLE || button == SDL_BUTTON_RIGHT) {
-        if (mouseState == MouseState::PANNING) {
-            view().endPan();
+        if (_mouseState == MouseState::PANNING) {
+            _view->endPan();
             stateChanged = true;
-        } else if (mouseState == MouseState::DOWN_PENDING) {
-            // This was a click that could have been for focus/unfocus
+        } else if (_mouseState == MouseState::DOWN_PENDING) {
             int row, col;
-            if (view().screenToGrid(mouseDownX, mouseDownY, winW, winH, row, col)) {
-                // Click was on a grid cell
-                if (button == SDL_BUTTON_RIGHT) { // Right click to enter/exit subgrid
-                    if (view().isFocused()) {
-                        // If focused, right-click outside a cell to unfocus
-                        if (!view().screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-                            view().unfocusGrid();
+            if (_view->screenToGrid(_mouseDownX, _mouseDownY, winW, winH, row, col)) {
+                if (button == SDL_BUTTON_RIGHT) {
+                    if (_view->isFocused()) {
+                        if (!_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
+                            _view->unfocusGrid();
                             stateChanged = true;
                         }
                     } else {
-                        // If not focused, right-click on a grid cell to focus
-                        const auto& node = s_model->node(s_model->rootChild(row, col));
+                        const auto& node = _model->node(_model->rootChild(row, col));
                         if (node.type == CellType::GRID) {
-                            view().focusGrid(s_model->rootChild(row, col));
+                            _view->focusGrid(_model->rootChild(row, col));
                             stateChanged = true;
                         }
                     }
                 }
             } else {
-                // Click was on empty space
-                if (view().isFocused()) {
-                    // Right-click on empty space to unfocus
-                    view().unfocusGrid();
+                if (_view->isFocused()) {
+                    _view->unfocusGrid();
                     stateChanged = true;
                 }
             }
         }
-        mouseState = MouseState::NONE;
+        _mouseState = MouseState::NONE;
         stateChanged = true;
     }
 
     if (button == SDL_BUTTON_LEFT) {
-        if (mouseState == MouseState::DOWN_PENDING) {
-            int dx = mousePx - mouseDownX;
-            int dy = mousePy - mouseDownY;
+        if (_mouseState == MouseState::DOWN_PENDING) {
+            int dx = mousePx - _mouseDownX;
+            int dy = mousePy - _mouseDownY;
             bool moved = std::abs(dx) > 5 || std::abs(dy) > 5;
 
             if (moved) {
-                // Dragged, so perform drop
                 int dropRow, dropCol;
-                if (view().screenToGrid(mousePx, mousePy, winW, winH, dropRow, dropCol)) {
-                    s_model->drop(s_model->rootChild(dropRow, dropCol));
+                if (_view->screenToGrid(mousePx, mousePy, winW, winH, dropRow, dropCol)) {
+                    _model->drop(_model->rootChild(dropRow, dropCol));
                 } else {
-                    // Dropped outside any valid cell, cancel drag
-                    s_model->cancelDrag();
+                    _model->cancelDrag();
                 }
                 logState();
             } else {
-                // Quick click
                 int row, col;
-                if (view().screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-                    int idx = s_model->rootChild(row, col);
-                    if (s_model->node(idx).type == CellType::ITEM) {
-                        // If not dragging, pick up item. If dragging, drop.
-                        if (!s_model->hasDrag()) {
-                             s_model->pickUp(idx, s_model->node(idx).data.item.count);
-                             logState();
+                if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
+                    int idx = _model->rootChild(row, col);
+                    if (_model->node(idx).type == CellType::ITEM) {
+                        if (!_model->hasDrag()) {
+                            _model->pickUp(idx, _model->node(idx).data.item.count);
+                            logState();
                         } else {
-                             s_model->drop(s_model->rootChild(row, col));
-                             logState();
+                            _model->drop(_model->rootChild(row, col));
+                            logState();
                         }
-                    } else if (s_model->node(idx).type == CellType::GRID && !view().isFocused()) {
-                        // If it's a grid and not focused, maybe focus on click too?
-                        // For now, sticking to right/middle click for focus.
                     }
                 } else {
-                    // Clicked on empty space - if dragging, drop it here
-                    if (s_model->hasDrag()) {
-                        // Try to find nearest cell, or just cancel if no grid.
-                        // For simplicity, if dropped on empty space outside a grid, cancel drag.
-                        s_model->cancelDrag();
+                    if (_model->hasDrag()) {
+                        _model->cancelDrag();
                         logState();
                     }
                 }
             }
-        } else if (mouseState == MouseState::DRAGGING_ITEM) {
+        } else if (_mouseState == MouseState::DRAGGING_ITEM) {
             int row, col;
-            if (view().screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-                s_model->drop(s_model->rootChild(row, col));
+            if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
+                _model->drop(_model->rootChild(row, col));
             } else {
-                s_model->cancelDrag();
+                _model->cancelDrag();
             }
             logState();
-        } else if (mouseState == MouseState::PANNING) {
-            view().endPan();
+        } else if (_mouseState == MouseState::PANNING) {
+            _view->endPan();
         }
         stateChanged = true;
-        mouseState = MouseState::NONE;
+        _mouseState = MouseState::NONE;
     }
 
     if (stateChanged) {
@@ -247,49 +198,31 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
     }
 }
 
-void gameMouseWheel(float dx, float dy) {
-    // Zoom is now managed by the camera, potentially relative to focus
-    if (dy > 0) view().zoom(1.1f);
-    else if (dy < 0) view().zoom(1.0f / 1.1f);
+void Game::mouseWheel(float dx, float dy) {
+    if (dy > 0) _view->zoom(1.1f);
+    else if (dy < 0) _view->zoom(1.0f / 1.1f);
 }
 
-void gameRender(int winW, int winH) {
-    bool showPointer = (mouseState != MouseState::NONE && mouseState != MouseState::DOWN_PENDING);
-    const float* pColor = nullptr;
-
-    if (showPointer) {
-        static const float white[] = {1.0f, 1.0f, 1.0f};
-        static const float yellow[] = {1.0f, 1.0f, 0.0f};
-        static const float grey[] = {0.5f, 0.5f, 0.5f};
-
-        if (mouseState == MouseState::DRAGGING_ITEM) {
-            pColor = white;
-        } else if (mouseState == MouseState::PANNING) {
-            pColor = yellow;
-        } else {
-            pColor = grey;
-        }
-    }
-
-    view().render(winW, winH);
+void Game::render(int winW, int winH) {
+    _view->render(winW, winH);
 }
 
-GLuint gameProgram() {
-    return view().program();
+GLuint Game::program() const {
+    return _view->program();
 }
 
-void gameSetFullState(int* inData) {
-    model().setFullState(inData);
+void Game::setFullState(int* inData) {
+    _model->setFullState(inData);
 }
 
-void gameGetFullState(int* outData) {
-    model().getFullState(outData);
+void Game::getFullState(int* outData) {
+    _model->getFullState(outData);
 }
 
-void gamePrintState() {
-    printState(model());
+void Game::printState() {
+    ::printState(*_model);
 }
 
-void gameGetDragState(int& outId, int& outCount) {
-    model().getDragState(outId, outCount);
+void Game::getDragState(int& outId, int& outCount) {
+    _model->getDragState(outId, outCount);
 }

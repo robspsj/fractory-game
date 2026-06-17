@@ -6,12 +6,14 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <memory>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #endif
 
+static std::unique_ptr<Game> s_game;
 static int winW = 800, winH = 600;
 static Uint64 lastFpsTime = 0;
 static int frameCount = 0;
@@ -52,7 +54,7 @@ static void drawFpsOverlay() {
     float verts[32 * 24];
     int len;
     drawText((float)x, 8.0f, fpsText, 2, verts, &len);
-    if (len) drawTextGl(verts, len, gameProgram(), winW, winH);
+    if (len) drawTextGl(verts, len, s_game->program(), winW, winH);
 }
 
 #ifdef __EMSCRIPTEN__
@@ -68,15 +70,15 @@ static void frame() {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT) emscripten_cancel_main_loop();
-        if (e.type == SDL_EVENT_MOUSE_MOTION) gameUpdate((int)e.motion.x, (int)e.motion.y, winW, winH);
-        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) gameMouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-        if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) gameMouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-        if (e.type == SDL_EVENT_MOUSE_WHEEL) gameMouseWheel(e.wheel.x, e.wheel.y);
+        if (e.type == SDL_EVENT_MOUSE_MOTION) s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) s_game->mouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+        if (e.type == SDL_EVENT_MOUSE_WHEEL) s_game->mouseWheel(e.wheel.x, e.wheel.y);
     }
 
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    gameRender(w, h);
+    s_game->render(w, h);
     drawFpsOverlay();
     SDL_GL_SwapWindow(window);
 }
@@ -95,10 +97,10 @@ int main() {
     if (!ctx) return 1;
     SDL_GL_SetSwapInterval(0);
 
-    gameInit();
+    s_game = std::make_unique<Game>();
     clearScreen();
-    gamePrintState();
-    initFont(gameProgram());
+    s_game->printState();
+    initFont(s_game->program());
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
     resizeCanvas(w, h);
@@ -123,10 +125,10 @@ int main(int argc, char* argv[]) {
     SDL_GLContext ctx = SDL_GL_CreateContext(win);
     SDL_GL_SetSwapInterval(0);
 
-    gameInit();
+    s_game = std::make_unique<Game>();
     clearScreen();
-    gamePrintState();
-    initFont(gameProgram());
+    s_game->printState();
+    initFont(s_game->program());
 
     int vw, vh;
     SDL_GetWindowSize(win, &vw, &vh);
@@ -138,16 +140,16 @@ int main(int argc, char* argv[]) {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) quit = true;
             if (e.type == SDL_EVENT_WINDOW_RESIZED) resize(e.window.data1, e.window.data2);
-            if (e.type == SDL_EVENT_MOUSE_MOTION) gameUpdate((int)e.motion.x, (int)e.motion.y, winW, winH);
+            if (e.type == SDL_EVENT_MOUSE_MOTION) s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
             if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-                gameMouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+                s_game->mouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
             }
-            if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) gameMouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-            if (e.type == SDL_EVENT_MOUSE_WHEEL) gameMouseWheel(e.wheel.x, e.wheel.y);
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+            if (e.type == SDL_EVENT_MOUSE_WHEEL) s_game->mouseWheel(e.wheel.x, e.wheel.y);
         }
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        gameRender(winW, winH);
+        s_game->render(winW, winH);
         drawFpsOverlay();
         SDL_GL_SwapWindow(win);
     }
