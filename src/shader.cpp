@@ -31,15 +31,15 @@ void main() { gl_FragColor = vec4(vColor, 1.0); }
 #endif
 
 int compile(GLenum type, const char *src) {
-    GLuint s = glCreateShader(type);
-    glShaderSource(s, 1, &src, 0);
-    glCompileShader(s);
-    GLint ok;
-    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
-    if (!ok) {
-        char log[512];
-        glGetShaderInfoLog(s, sizeof(log), 0, log);
-        fprintf(stderr, "shader error: %s\n", log);
-    }
-    return s;
+  GLuint s = glCreateShader(type);
+  glShaderSource(s, 1, &src, 0);
+  glCompileShader(s);
+  GLint ok;
+  glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+  if (!ok) {
+    char log[512];
+    glGetShaderInfoLog(s, sizeof(log), 0, log);
+    fprintf(stderr, "shader error: %s\n", log);
+  }
+  return s;
 }
