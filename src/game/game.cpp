@@ -1,6 +1,7 @@
 #include "game.hpp"
 #include "game_view.hpp"
 #include "../shader.hpp"
+#include "../print_state.hpp"
 #include <memory>
 #include <cstdlib>
 #include <SDL3/SDL.h>
@@ -28,6 +29,11 @@ static float dragMX = 0.0f, dragMY = 0.0f;
 
 static GameModel& model() { return *s_model; }
 static GameView& view() { return *s_view; }
+
+static void logState() {
+    clearScreen();
+    printState(model());
+}
 
 void gameInit(unsigned int seed) {
     s_model = std::make_unique<GameModel>();
@@ -85,6 +91,7 @@ void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
                         s_model->pickUp(idx, s_model->node(idx).data.item.count);
                         mouseState = MouseState::DRAGGING_ITEM;
                         changedState = true;
+                        logState();
                     }
                 }
             }
@@ -99,6 +106,7 @@ void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
     if (mouseState == MouseState::DRAGGING_ITEM || mouseState == MouseState::DOWN_PENDING) {
         float aspect = (float)winW / (float)winH;
         view().screenToWorld(mousePx, mousePy, winW, winH, dragMX, dragMY);
+        view().setDragWorldPos(dragMX, dragMY);
     }
 
     // If state changed, maybe need to update cursor or visual feedback
@@ -189,6 +197,7 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
                     // Dropped outside any valid cell, cancel drag
                     s_model->cancelDrag();
                 }
+                logState();
             } else {
                 // Quick click
                 int row, col;
@@ -198,8 +207,10 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
                         // If not dragging, pick up item. If dragging, drop.
                         if (!s_model->hasDrag()) {
                              s_model->pickUp(idx, s_model->node(idx).data.item.count);
+                             logState();
                         } else {
                              s_model->drop(s_model->rootChild(row, col));
+                             logState();
                         }
                     } else if (s_model->node(idx).type == CellType::GRID && !view().isFocused()) {
                         // If it's a grid and not focused, maybe focus on click too?
@@ -211,6 +222,7 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
                         // Try to find nearest cell, or just cancel if no grid.
                         // For simplicity, if dropped on empty space outside a grid, cancel drag.
                         s_model->cancelDrag();
+                        logState();
                     }
                 }
             }
@@ -221,6 +233,7 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
             } else {
                 s_model->cancelDrag();
             }
+            logState();
         } else if (mouseState == MouseState::PANNING) {
             view().endPan();
         }
@@ -238,14 +251,6 @@ void gameMouseWheel(float dx, float dy) {
     if (dy > 0) view().zoom(1.1f);
     else if (dy < 0) view().zoom(1.0f / 1.1f);
 }
-
-static const float _dragColors[5][3] = {
-    {0.15f, 0.50f, 0.90f},
-    {0.90f, 0.30f, 0.30f},
-    {0.20f, 0.80f, 0.35f},
-    {0.95f, 0.85f, 0.15f},
-    {0.80f, 0.30f, 0.85f},
-};
 
 void gameRender(int winW, int winH) {
     bool showPointer = (mouseState != MouseState::NONE && mouseState != MouseState::DOWN_PENDING);
@@ -266,12 +271,6 @@ void gameRender(int winW, int winH) {
     }
 
     view().render(winW, winH);
-
-    if (s_model->hasDrag()) {
-        int dragId = s_model->dragItemId();
-        int dragAmount = s_model->dragAmount();
-        const float* col = _dragColors[dragId];
-    }
 }
 
 GLuint gameProgram() {
@@ -284,6 +283,10 @@ void gameSetFullState(int* inData) {
 
 void gameGetFullState(int* outData) {
     model().getFullState(outData);
+}
+
+void gamePrintState() {
+    printState(model());
 }
 
 void gameGetDragState(int& outId, int& outCount) {

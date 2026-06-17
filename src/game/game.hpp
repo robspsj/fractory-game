@@ -9,6 +9,7 @@ void gameMouseWheel(float dx, float dy);
 void gameRender(int winW, int winH);
 GLuint gameProgram();
 
+void gamePrintState();
 void gameSetFullState(int* inData);
 void gameGetFullState(int* outData);
 void gameGetDragState(int& outId, int& outCount);

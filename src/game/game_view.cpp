@@ -64,41 +64,46 @@ void GameView::renderCellItems(float*& v, float cx, float cy, int count, const f
     }
 }
 
-void GameView::renderGrid(float*& v, int nodeIndex, float cx, float cy, float totalSize, int depth) {
-    const auto& gridNode = _model.node(nodeIndex);
-    if (gridNode.type != CellType::GRID) return;
+void GameView::renderCell(float*& v, int nodeIndex, float cx, float cy, float cellSize, int depth) {
+    const auto& cell = _model.node(nodeIndex);
 
-    int firstChild = gridNode.data.grid.firstChild;
-    int size = gridNode.data.grid.size;
+    if (cell.type == CellType::ITEM) {
+        const float* col = _elemColors[cell.data.item.id];
+        renderCellItems(v, cx, cy, cell.data.item.count, col);
+    } else if (cell.type == CellType::GRID) {
+        static constexpr int MAX_PREVIEW_DEPTH = 3;
 
-    float pitch = totalSize / size;
-    float halfContent = (pitch - _gap) * 0.5f;
-    if (halfContent < 0.001f) halfContent = pitch * 0.45f;
+        int firstChild = cell.data.grid.firstChild;
+        int size = cell.data.grid.size;
 
-    float startX = cx - totalSize * 0.5f + pitch * 0.5f;
-    float startY = cy - totalSize * 0.5f + pitch * 0.5f;
+        float pitch = cellSize / size;
+        float halfContent = (pitch - _gap) * 0.5f;
+        if (halfContent < 0.001f) halfContent = pitch * 0.45f;
 
-    static constexpr int MAX_PREVIEW_DEPTH = 3;
+        float startX = cx - cellSize * 0.5f + pitch * 0.5f;
+        float startY = cy - cellSize * 0.5f + pitch * 0.5f;
 
-    for (int r = 0; r < size; r++) {
-        for (int c = 0; c < size; c++) {
-            float childCx = startX + c * pitch;
-            float childCy = startY + r * pitch;
+        for (int r = 0; r < size; r++) {
+            for (int c = 0; c < size; c++) {
+                float childCx = startX + c * pitch;
+                float childCy = startY + r * pitch;
 
-            int cellNodeIndex = firstChild + r * size + c;
-            const auto& cellNode = _model.node(cellNodeIndex);
+                int childIndex = firstChild + r * size + c;
+                const auto& childNode = _model.node(childIndex);
 
-            addQuad(v, childCx, childCy, halfContent, halfContent, _grey);
-
-            if (cellNode.type == CellType::GRID) {
-                if (depth < MAX_PREVIEW_DEPTH && pitch > _gap * 3.0f) {
-                    renderGrid(v, cellNodeIndex, childCx, childCy, pitch - _gap, depth + 1);
-                } else {
-                    addQuad(v, childCx, childCy, halfContent * 0.5f, halfContent * 0.5f, _gridBg);
+                if (childNode.type == CellType::ITEM) {
+                    addQuad(v, childCx, childCy, halfContent, halfContent, _grey);
+                    const float* col = _elemColors[childNode.data.item.id];
+                    renderCellItems(v, childCx, childCy, childNode.data.item.count, col);
+                } else if (childNode.type == CellType::EMPTY) {
+                    addQuad(v, childCx, childCy, halfContent, halfContent, _grey);
+                } else if (childNode.type == CellType::GRID) {
+                    if (depth + 1 < MAX_PREVIEW_DEPTH && pitch > _gap * 3.0f) {
+                        renderCell(v, childIndex, childCx, childCy, pitch - _gap, depth + 1);
+                    } else {
+                        addQuad(v, childCx, childCy, halfContent * 0.5f, halfContent * 0.5f, _gridBg);
+                    }
                 }
-            } else if (cellNode.type == CellType::ITEM) {
-                const float* col = _elemColors[cellNode.data.item.id];
-                renderCellItems(v, childCx, childCy, cellNode.data.item.count, col);
             }
         }
     }
@@ -119,7 +124,14 @@ void GameView::render(int winW, int winH) {
     glUniform1f(glGetUniformLocation(_prog, "uAspect"), aspect);
 
     float totalGridSize = _currentGridSize * _cellSize;
-    renderGrid(v, rootNodeIndex, 0.0f, 0.0f, totalGridSize, 0);
+    renderCell(v, rootNodeIndex, 0.0f, 0.0f, totalGridSize, 0);
+
+    if (_model.hasDrag()) {
+        int dragId = _model.dragItemId();
+        int dragAmount = _model.dragAmount();
+        const float* col = _elemColors[dragId];
+        renderCellItems(v, _dragWX, _dragWY, dragAmount, col);
+    }
 
     int totalFloats = (int)(v - verts);
     if (totalFloats == 0) return;
@@ -136,13 +148,6 @@ void GameView::render(int winW, int winH) {
 
     glDisableVertexAttribArray(_aColorLoc);
     glDisableVertexAttribArray(_aPosLoc);
-
-    if (_model.hasDrag()) {
-        int dragId = _model.dragItemId();
-        int dragAmount = _model.dragAmount();
-        const float* col = _elemColors[dragId];
-        renderCellItems(v, 0.0f, 0.0f, dragAmount, col);
-    }
 }
 
 bool GameView::screenToGrid(int px, int py, int winW, int winH, int& row, int& col) const {

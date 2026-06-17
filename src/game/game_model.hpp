@@ -65,6 +65,7 @@ public:
     void getFullState(int* outData) const;
     int getSubgridState(int subgridSeqIndex, int* outData, int& outSize) const;
     void getDragState(int& outId, int& outCount);
+    int totalNodes() const { return (int)_nodes.size(); }
 
 private:
     std::vector<Cell> _nodes;

@@ -11,6 +11,7 @@ public:
 
     void initGL();
     void render(int winW, int winH);
+    void setDragWorldPos(float wx, float wy) { _dragWX = wx; _dragWY = wy; }
     GLuint program() const { return _prog; }
 
     void zoom(float factor);
@@ -36,7 +37,7 @@ public:
 private:
     void addQuad(float*& v, float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float*& v, float cx, float cy, int count, const float color[3]);
-    void renderGrid(float*& v, int nodeIndex, float cx, float cy, float totalSize, int depth);
+    void renderCell(float*& v, int nodeIndex, float cx, float cy, float cellSize, int depth);
 
     GameModel& _model;
 
@@ -45,6 +46,7 @@ private:
 
     float _zoom = 1.0f;
     float _panX = 0.0f, _panY = 0.0f;
+    float _dragWX = 0.0f, _dragWY = 0.0f;
     bool _isPanning = false;
     int _lastPanX = 0, _lastPanY = 0;
 

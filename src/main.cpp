@@ -1,5 +1,6 @@
 #include "game/game.hpp"
 #include "font.hpp"
+#include "print_state.hpp"
 #include "test_runner.hpp"
 #include <SDL3/SDL.h>
 #include <cstdio>
@@ -95,6 +96,8 @@ int main() {
     SDL_GL_SetSwapInterval(0);
 
     gameInit();
+    clearScreen();
+    gamePrintState();
     initFont(gameProgram());
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
@@ -121,6 +124,8 @@ int main(int argc, char* argv[]) {
     SDL_GL_SetSwapInterval(0);
 
     gameInit();
+    clearScreen();
+    gamePrintState();
     initFont(gameProgram());
 
     int vw, vh;

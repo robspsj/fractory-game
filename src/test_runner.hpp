@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iostream>
 #include "game/game_model.hpp"
+#include "print_state.hpp"
 
 struct TestStep {
     std::string type;
@@ -83,61 +84,6 @@ public:
     }
 
 private:
-    static void printState(const GameModel& model) {
-        int data[GameModel::GRID * GameModel::GRID * 2];
-        model.getFullState(data);
-
-        int dragId = model.dragItemId();
-        int dragAmount = model.dragAmount();
-
-        if (dragId != -1) {
-            std::cout << "Dragging: [" << dragId << ":" << dragAmount << "]" << std::endl;
-        } else {
-            std::cout << "Dragging: None" << std::endl;
-        }
-
-        int maxSubgridIdx = -1;
-        for (int i = 0; i < GameModel::GRID; ++i) {
-            for (int j = 0; j < GameModel::GRID; ++j) {
-                int id = data[(i * GameModel::GRID + j) * 2];
-                int count = data[(i * GameModel::GRID + j) * 2 + 1];
-                if (id == -2) {
-                    char letter = 'a' + count;
-                    if (count > maxSubgridIdx) maxSubgridIdx = count;
-                    std::cout << "[s:" << letter << "] ";
-                } else if (id == -1) {
-                    std::cout << "[___] ";
-                } else {
-                    std::cout << "[" << id << ":" << count << "] ";
-                }
-            }
-            std::cout << std::endl;
-        }
-
-        for (int s = 0; s <= maxSubgridIdx; s++) {
-            char letter = 'a' + s;
-            std::cout << std::endl << "Subgrid " << letter << ":" << std::endl;
-            int subData[9 * 2];
-            int subSize;
-            model.getSubgridState(s, subData, subSize);
-            for (int i = 0; i < subSize; i++) {
-                for (int j = 0; j < subSize; j++) {
-                    int idx = i * subSize + j;
-                    int id = subData[idx * 2];
-                    int count = subData[idx * 2 + 1];
-                    if (id == -2) {
-                        std::cout << "[s:_] ";
-                    } else if (id == -1) {
-                        std::cout << "[___] ";
-                    } else {
-                        std::cout << "[" << id << ":" << count << "] ";
-                    }
-                }
-                std::cout << std::endl;
-            }
-        }
-    }
-
     static void loadState(GameModel& model, const std::string& stateStr) {
         int gridData[GameModel::GRID * GameModel::GRID * 2];
         std::stringstream ss(stateStr);
