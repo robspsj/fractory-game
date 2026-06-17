@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --- Web (Emscripten) ---
 if(EMSCRIPTEN)
-    add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/print_state.cpp src/game/game.cpp src/game/game_model.cpp src/game/game_view.cpp)
+    add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/print_state.cpp src/test_runner.cpp src/game/game.cpp src/game/game_model.cpp src/game/game_view.cpp)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=3 -Os -Wno-experimental")
     target_link_options(fractory PRIVATE
@@ -26,7 +26,7 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED sdl3)
 
-add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/print_state.cpp src/game/game.cpp src/game/game_model.cpp src/game/game_view.cpp)
+add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/print_state.cpp src/test_runner.cpp src/game/game.cpp src/game/game_model.cpp src/game/game_view.cpp)
 target_include_directories(fractory PRIVATE ${SDL3_INCLUDE_DIRS})
 target_link_directories(fractory PRIVATE ${SDL3_LIBRARY_DIRS})
 target_link_libraries(fractory PRIVATE ${SDL3_LIBRARIES} ${CMAKE_DL_LIBS})

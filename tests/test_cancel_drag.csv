@@ -1,0 +1,23 @@
+# Initial state: cell[1,2] has item id=0 count=2
+init:-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,0:2,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+
+# Verify initial state
+expect_cell,1,2,0,2
+expect_drag,-1,0
+
+# Pick up item from [1,2] — source becomes empty
+pickup,1,2
+expect_drag,0,2
+expect_cell,1,2,-1,0
+
+# Cancel the drag — item returns to source
+cancel
+expect_drag,-1,0
+expect_cell,1,2,0,2
+
+# Pick up and cancel again to confirm the model stays consistent
+pickup,1,2
+expect_drag,0,2
+cancel
+expect_drag,-1,0
+expect_cell,1,2,0,2

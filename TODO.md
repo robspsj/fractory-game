@@ -41,12 +41,12 @@
 
 ## 🟢 Test Coverage Gaps
 
-- [ ] No tests verify GRID structural integrity after a swap
-- [ ] No tests for `cancelDrag()`
-- [ ] No tests for focused subgrid interaction (enter/exit, hover, pickup/drop inside subgrid)
+- [x] No tests verify GRID structural integrity after a swap
+- [x] No tests for `cancelDrag()`
+- [ ] No tests for focused subgrid interaction (enter/exit, hover, pickup/drop inside subgrid) — requires view/controller integration, can't test with model-only CSV runner
 
 ## 🟣 Organization / Consistency
 
-- [ ] `test_runner.hpp` is header-only while everything else uses .hpp/.cpp — inconsistent pattern
+- [x] `test_runner.hpp` is header-only while everything else uses .hpp/.cpp — inconsistent pattern
 - [x] `game.hpp` exposes C-style free functions wrapping a C++ class — obscures the object-oriented design
 - [ ] `serve.sh` is duplicated at repo root and in `tools/`
