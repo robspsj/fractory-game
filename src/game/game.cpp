@@ -25,9 +25,6 @@ static GameView& view() { return *s_view; }
 
 void gameInit(unsigned int seed) {
     s_model = std::make_unique<GameModel>();
-    if (seed == 42) {
-        s_model->setTestMode(true);
-    }
     s_model->init(seed);
     s_view = std::make_unique<GameView>(*s_model);
     s_view->initGL();
@@ -46,8 +43,9 @@ void gameUpdate(int mousePx, int mousePy, int winW, int winH) {
                 mouseState = MouseState::DRAGGING_ITEM;
                 int row, col;
                 if (view().screenToGrid(mouseDownX, mouseDownY, winW, winH, row, col)) {
-                    if (model().cell(row, col).type == CellType::ITEM) {
-                        model().pickUp(row, col, model().cell(row, col).data.item.count);
+                    int idx = model().rootChild(row, col);
+                    if (model().node(idx).type == CellType::ITEM) {
+                        model().pickUp(idx, model().node(idx).data.item.count);
                     }
                 }
             }
@@ -70,19 +68,10 @@ void gameMouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
     }
 
     if (button == SDL_BUTTON_LEFT) {
-        if (model().isTestMode()) {
-            int row, col;
-            if (view().screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-                if (model().cell(row, col).type == CellType::ITEM) {
-                    model().pickUp(row, col, model().cell(row, col).data.item.count);
-                }
-            }
-        } else {
-            mouseState = MouseState::DOWN_PENDING;
-            mouseDownX = mousePx;
-            mouseDownY = mousePy;
-            mouseDownTime = SDL_GetTicks();
-        }
+        mouseState = MouseState::DOWN_PENDING;
+        mouseDownX = mousePx;
+        mouseDownY = mousePy;
+        mouseDownTime = SDL_GetTicks();
     }
 }
 
@@ -93,49 +82,45 @@ void gameMouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
     }
 
     if (button == SDL_BUTTON_LEFT) {
-        if (model().isTestMode()) {
-            int row, col;
-            view().screenToGrid(mousePx, mousePy, winW, winH, row, col);
-            model().drop(row, col);
-        } else {
-            if (mouseState == MouseState::DOWN_PENDING) {
-                int dx = mousePx - mouseDownX;
-                int dy = mousePy - mouseDownY;
-                bool moved = std::abs(dx) > 5 || std::abs(dy) > 5;
+        if (mouseState == MouseState::DOWN_PENDING) {
+            int dx = mousePx - mouseDownX;
+            int dy = mousePy - mouseDownY;
+            bool moved = std::abs(dx) > 5 || std::abs(dy) > 5;
 
-                if (moved) {
-                    int row, col;
-                    if (view().screenToGrid(mouseDownX, mouseDownY, winW, winH, row, col)) {
-                        if (model().cell(row, col).type == CellType::ITEM) {
-                            model().pickUp(row, col, model().cell(row, col).data.item.count);
-                        }
-                    }
-                    int dropRow, dropCol;
-                    view().screenToGrid(mousePx, mousePy, winW, winH, dropRow, dropCol);
-                    model().drop(dropRow, dropCol);
-                } else {
-                    if (!model().hasDrag()) {
-                        int row, col;
-                        if (view().screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-                            if (model().cell(row, col).type == CellType::ITEM) {
-                                model().pickUp(row, col, model().cell(row, col).data.item.count);
-                            }
-                        }
-                    } else {
-                        int row, col;
-                        view().screenToGrid(mousePx, mousePy, winW, winH, row, col);
-                        model().drop(row, col);
+            if (moved) {
+                int row, col;
+                if (view().screenToGrid(mouseDownX, mouseDownY, winW, winH, row, col)) {
+                    int idx = model().rootChild(row, col);
+                    if (model().node(idx).type == CellType::ITEM) {
+                        model().pickUp(idx, model().node(idx).data.item.count);
                     }
                 }
-            } else if (mouseState == MouseState::DRAGGING_ITEM) {
-                int row, col;
-                view().screenToGrid(mousePx, mousePy, winW, winH, row, col);
-                model().drop(row, col);
-            } else if (mouseState == MouseState::PANNING) {
-                view().endPan();
+                int dropRow, dropCol;
+                view().screenToGrid(mousePx, mousePy, winW, winH, dropRow, dropCol);
+                model().drop(model().rootChild(dropRow, dropCol));
+            } else {
+                if (!model().hasDrag()) {
+                    int row, col;
+                    if (view().screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
+                        int idx = model().rootChild(row, col);
+                        if (model().node(idx).type == CellType::ITEM) {
+                            model().pickUp(idx, model().node(idx).data.item.count);
+                        }
+                    }
+                } else {
+                    int row, col;
+                    view().screenToGrid(mousePx, mousePy, winW, winH, row, col);
+                    model().drop(model().rootChild(row, col));
+                }
             }
-            mouseState = MouseState::NONE;
+        } else if (mouseState == MouseState::DRAGGING_ITEM) {
+            int row, col;
+            view().screenToGrid(mousePx, mousePy, winW, winH, row, col);
+            model().drop(model().rootChild(row, col));
+        } else if (mouseState == MouseState::PANNING) {
+            view().endPan();
         }
+        mouseState = MouseState::NONE;
     }
 }
 

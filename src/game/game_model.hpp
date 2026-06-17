@@ -4,7 +4,7 @@
 enum class CellType {
     EMPTY,
     ITEM,
-    SUBGRID
+    GRID
 };
 
 struct ItemData {
@@ -12,8 +12,8 @@ struct ItemData {
     int count;
 };
 
-struct SubgridData {
-    void* data;
+struct GridData {
+    int firstChild;
     int size;
 };
 
@@ -21,7 +21,7 @@ struct Cell {
     CellType type;
     union {
         ItemData item;
-        SubgridData subgrid;
+        GridData grid;
     } data;
 };
 
@@ -34,32 +34,40 @@ public:
 
     void init(unsigned int seed = 0);
 
-    const Cell& cell(int row, int col) const;
-    Cell& cell(int row, int col);
+    const Cell& node(int index) const { return _nodes[index]; }
+    Cell& node(int index) { return _nodes[index]; }
 
-    bool hasDrag() const { return _dragItemId != -1; }
-    int dragRow() const { return _dragRow; }
-    int dragCol() const { return _dragCol; }
+    int rootChild(int row, int col) const {
+        return _nodes[0].data.grid.firstChild + row * _nodes[0].data.grid.size + col;
+    }
+
+    bool hasDrag() const { return _dragSrcIndex != -1; }
+    int dragSrcIndex() const { return _dragSrcIndex; }
     int dragItemId() const { return _dragItemId; }
     int dragAmount() const { return _dragAmount; }
-    int dragSrcRow() const { return _dragRow; }
-    int dragSrcCol() const { return _dragCol; }
 
-    void pickUp(int row, int col, int amount);
-    void drop(int row, int col);
+    int dragRow() const {
+        if (_dragSrcIndex < 0) return -1;
+        int offset = _dragSrcIndex - _nodes[0].data.grid.firstChild;
+        return offset / _nodes[0].data.grid.size;
+    }
+    int dragCol() const {
+        if (_dragSrcIndex < 0) return -1;
+        int offset = _dragSrcIndex - _nodes[0].data.grid.firstChild;
+        return offset % _nodes[0].data.grid.size;
+    }
+
+    void pickUp(int nodeIndex, int amount);
+    void drop(int nodeIndex);
     void cancelDrag();
 
     void setFullState(int* inData);
-    void getFullState(int* outData);
+    void getFullState(int* outData) const;
     void getDragState(int& outId, int& outCount);
 
-    bool isTestMode() const { return _isTestMode; }
-    void setTestMode(bool v) { _isTestMode = v; }
-
 private:
-    std::vector<Cell> _cells;
-    int _dragRow = -1, _dragCol = -1;
+    std::vector<Cell> _nodes;
+    int _dragSrcIndex = -1;
     int _dragAmount = 0;
     int _dragItemId = -1;
-    bool _isTestMode = false;
 };

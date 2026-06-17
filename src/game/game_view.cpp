@@ -148,9 +148,10 @@ void GameView::render(int winW, int winH, float dragMX, float dragMY,
 
             addQuad(v, cx, cy, _halfRender, _halfRender, _grey);
 
-            if (_model.cell(r, c).type == CellType::ITEM) {
-                const float* col = _elemColors[_model.cell(r, c).data.item.id];
-                renderCellItems(v, cx, cy, _model.cell(r, c).data.item.count, col);
+            const auto& n = _model.node(_model.rootChild(r, c));
+            if (n.type == CellType::ITEM) {
+                const float* col = _elemColors[n.data.item.id];
+                renderCellItems(v, cx, cy, n.data.item.count, col);
             }
         }
     }
