@@ -106,14 +106,7 @@ int main() {
 #else
 int main(int argc, char* argv[]) {
     if (argc >= 3 && std::string(argv[1]) == "--test") {
-        SDL_Init(SDL_INIT_VIDEO);
-        SDL_Window *win = SDL_CreateWindow("test", 1, 1, SDL_WINDOW_HIDDEN | SDL_WINDOW_OPENGL);
-        SDL_GLContext ctx = SDL_GL_CreateContext(win);
-        gameInit(42);
-        bool success = TestRunner::runTest(argv[2]);
-        SDL_GL_DestroyContext(ctx);
-        SDL_DestroyWindow(win);
-        SDL_Quit();
+        bool success = ModelTestRunner::runTest(argv[2]);
         return success ? 0 : 1;
     }
 
