@@ -4,6 +4,11 @@ project(fractory CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(FRACTORY_DEBUG "Enable debug commands" OFF)
+if(FRACTORY_DEBUG)
+    add_compile_definitions(FRACTORY_DEBUG)
+endif()
+
 # --- Web (Emscripten) ---
 if(EMSCRIPTEN)
     add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/print_state.cpp src/test_runner.cpp src/game/game.cpp src/game/game_model.cpp src/game/game_view.cpp)

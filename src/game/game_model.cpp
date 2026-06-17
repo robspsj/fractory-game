@@ -11,6 +11,7 @@ void GameModel::init(unsigned int seed) {
 
     Cell root;
     root.type = CellType::GRID;
+    root.parent = -1;
     root.data.grid.firstChild = 1;
     root.data.grid.size = GRID;
     _nodes.push_back(root);
@@ -21,6 +22,7 @@ void GameModel::init(unsigned int seed) {
 
     for (int i = 0; i < GRID * GRID; i++) {
         Cell c;
+        c.parent = 0;
         int randVal = std::rand() % 100;
         if (randVal < 50) {
             c.type = CellType::EMPTY;
@@ -42,7 +44,15 @@ void GameModel::init(unsigned int seed) {
             _nodes[idx].data.grid.firstChild = (int)_nodes.size();
             for (int j = 0; j < 9; j++) {
                 Cell child;
-                child.type = CellType::EMPTY;
+                child.parent = idx;
+                int randVal = std::rand() % 100;
+                if (randVal < 50) {
+                    child.type = CellType::EMPTY;
+                } else {
+                    child.type = CellType::ITEM;
+                    child.data.item.id = std::rand() % ELEMS;
+                    child.data.item.count = std::rand() % 9 + 1;
+                }
                 _nodes.push_back(child);
             }
         }
@@ -123,6 +133,7 @@ void GameModel::setFullState(int* inData) {
                 _nodes[idx].data.grid.size = 3;
                 for (int j = 0; j < 9; j++) {
                     Cell child;
+                    child.parent = idx;
                     child.type = CellType::EMPTY;
                     _nodes.push_back(child);
                 }

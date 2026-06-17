@@ -12,6 +12,7 @@ public:
     void mouseDown(int button, int mousePx, int mousePy, int winW, int winH);
     void mouseUp(int button, int mousePx, int mousePy, int winW, int winH);
     void mouseWheel(float dx, float dy);
+    void keyDown(SDL_Keycode key, SDL_Keymod mod);
     void render(int winW, int winH);
     GLuint program() const;
 

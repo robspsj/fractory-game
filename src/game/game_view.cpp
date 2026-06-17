@@ -18,7 +18,10 @@ const float GameView::_grey[3] = {0.5f, 0.5f, 0.5f};
 const float GameView::_hoverBg[3] = {0.7f, 0.7f, 0.7f};
 const float GameView::_gridBg[3] = {0.8f, 0.2f, 0.2f};
 
-GameView::GameView(GameModel& model) : _model(model) {}
+GameView::GameView(GameModel& model) : _model(model) {
+    const auto& cell = _model.node(_anchorIndex);
+    _anchorSize = (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
+}
 
 GameView::~GameView() {
     if (_prog) glDeleteProgram(_prog);
@@ -122,18 +125,14 @@ void GameView::render(int winW, int winH) {
     static float verts[1024 * 1024];
     float* v = verts;
 
-    int rootNodeIndex = isFocused() ? _focusStack.top() : 0;
-    const auto& rootNode = _model.node(rootNodeIndex);
-    _currentGridSize = (rootNode.type == CellType::GRID) ? rootNode.data.grid.size : GameModel::GRID;
-
     glUseProgram(_prog);
     glUniform2f(_uPosLoc, _panX, _panY);
     glUniform1f(_uZoomLoc, _zoom);
     glUniform1f(glGetUniformLocation(_prog, "uAspect"), aspect);
 
     float pitch = _cellSize;
-    float extent = _currentGridSize * pitch - _gap;
-    renderCell(v, rootNodeIndex, 0.0f, 0.0f, extent, pitch, 0);
+    float extent = _anchorSize * pitch - _gap;
+    renderCell(v, _anchorIndex, 0.0f, 0.0f, extent, pitch, 0);
 
     if (_model.hasDrag()) {
         int dragId = _model.dragItemId();
@@ -163,9 +162,7 @@ bool GameView::screenToGrid(int px, int py, int winW, int winH, int& row, int& c
     float wx, wy;
     screenToWorld(px, py, winW, winH, wx, wy);
 
-    int rootIdx = isFocused() ? _focusStack.top() : 0;
-    const auto& root = _model.node(rootIdx);
-    int size = (root.type == CellType::GRID) ? root.data.grid.size : GameModel::GRID;
+    int size = _anchorSize;
 
     float pitch = _cellSize;
     float totalSize = size * pitch;
@@ -196,30 +193,39 @@ void GameView::screenToWorld(int px, int py, int winW, int winH, float& wx, floa
 
 float GameView::gridToWorldX(int col) const {
     float pitch = _cellSize;
-    float totalSize = _currentGridSize * pitch;
+    float totalSize = _anchorSize * pitch;
     return -totalSize * 0.5f + pitch * 0.5f + col * pitch;
 }
 
 float GameView::gridToWorldY(int row) const {
     float pitch = _cellSize;
-    float totalSize = _currentGridSize * pitch;
+    float totalSize = _anchorSize * pitch;
     return totalSize * 0.5f - pitch * 0.5f - row * pitch;
 }
 
 void GameView::focusGrid(int nodeIndex) {
     if (nodeIndex >= 0 && _model.node(nodeIndex).type == CellType::GRID) {
         _focusStack.push(nodeIndex);
+        _anchorIndex = nodeIndex;
+        const auto& cell = _model.node(_anchorIndex);
+        _anchorSize = (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
     }
 }
 
 void GameView::unfocusGrid() {
     if (!_focusStack.empty()) {
         _focusStack.pop();
+        _anchorIndex = _focusStack.empty() ? 0 : _focusStack.top();
+        const auto& cell = _model.node(_anchorIndex);
+        _anchorSize = (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
     }
 }
 
-int GameView::currentRootNode() const {
-    return _focusStack.empty() ? 0 : _focusStack.top();
+void GameView::focusOffset(int delta) {
+    int total = _model.totalNodes();
+    _anchorIndex = std::clamp(_anchorIndex + delta, 0, total - 1);
+    const auto& cell = _model.node(_anchorIndex);
+    _anchorSize = (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
 }
 
 void GameView::zoom(float factor) {

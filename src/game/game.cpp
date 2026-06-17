@@ -198,6 +198,17 @@ void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
     }
 }
 
+void Game::keyDown(SDL_Keycode key, SDL_Keymod mod) {
+    (void)mod;
+#ifdef FRACTORY_DEBUG
+    if (key == SDLK_EQUALS || key == SDLK_PLUS) {
+        _view->focusOffset(1);
+    } else if (key == SDLK_MINUS) {
+        _view->focusOffset(-1);
+    }
+#endif
+}
+
 void Game::mouseWheel(float dx, float dy) {
     if (dy > 0) _view->zoom(1.1f);
     else if (dy < 0) _view->zoom(1.0f / 1.1f);

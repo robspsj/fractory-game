@@ -19,6 +19,7 @@ struct GridData {
 
 struct Cell {
     CellType type;
+    int parent = -1;
     union {
         ItemData item;
         GridData grid;

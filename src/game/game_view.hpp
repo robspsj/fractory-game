@@ -34,7 +34,8 @@ public:
     void focusGrid(int nodeIndex);
     void unfocusGrid();
     bool isFocused() const { return !_focusStack.empty(); }
-    int currentRootNode() const;
+    int anchorIndex() const { return _anchorIndex; }
+    void focusOffset(int delta);
 
 private:
     void addQuad(float*& v, float cx, float cy, float w, float h, const float color[3]);
@@ -58,7 +59,8 @@ private:
     float _halfRender = (_cellSize - _gap) * 0.5f;
 
     std::stack<int> _focusStack;
-    int _currentGridSize = 0;
+    int _anchorIndex = 0;
+    int _anchorSize = 0;
     int _hoverRow = -1, _hoverCol = -1;
 
     static const float _elemColors[GameModel::ELEMS][3];
