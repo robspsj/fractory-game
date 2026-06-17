@@ -12,55 +12,44 @@ void GameModel::init(unsigned int seed) {
     Cell root;
     root.type = CellType::GRID;
     root.parent = -1;
-    root.data.grid.firstChild = 1;
     root.data.grid.size = GRID;
     _nodes.push_back(root);
 
-    int subgridCount = 0;
-    int gridPositions[25];
-    for (int i = 0; i < 25; i++) gridPositions[i] = -1;
-
-    for (int i = 0; i < GRID * GRID; i++) {
-        Cell c;
-        c.parent = 0;
-        int randVal = std::rand() % 100;
-        if (randVal < 50) {
-            c.type = CellType::EMPTY;
-        } else if (randVal < 90 || subgridCount >= 20) {
-            c.type = CellType::ITEM;
-            c.data.item.id = std::rand() % ELEMS;
-            c.data.item.count = std::rand() % 9 + 1;
-        } else {
-            c.type = CellType::GRID;
-            c.data.grid.size = 3;
-            gridPositions[i] = subgridCount++;
-        }
-        _nodes.push_back(c);
-    }
-
-    for (int i = 0; i < GRID * GRID; i++) {
-        if (gridPositions[i] >= 0) {
-            int idx = root.data.grid.firstChild + i;
-            _nodes[idx].data.grid.firstChild = (int)_nodes.size();
-            for (int j = 0; j < 9; j++) {
-                Cell child;
-                child.parent = idx;
-                int randVal = std::rand() % 100;
-                if (randVal < 50) {
-                    child.type = CellType::EMPTY;
-                } else {
-                    child.type = CellType::ITEM;
-                    child.data.item.id = std::rand() % ELEMS;
-                    child.data.item.count = std::rand() % 9 + 1;
-                }
-                _nodes.push_back(child);
-            }
-        }
-    }
+    initGrid(0, 0);
 
     _dragSrcIndex = -1;
     _dragAmount = 0;
     _dragItemId = -1;
+}
+
+void GameModel::initGrid(int cellIndex, int depth) {
+    auto& cell = _nodes[cellIndex];
+    int size = cell.data.grid.size;
+    cell.data.grid.firstChild = (int)_nodes.size();
+
+    for (int i = 0; i < size * size; i++) {
+        Cell child;
+        child.parent = cellIndex;
+        int randVal = std::rand() % 100;
+
+        if (randVal < 50) {
+            child.type = CellType::EMPTY;
+        } else {
+            int itemThreshold = (depth == 0) ? 85 : (depth == 1) ? 90 : (depth == 2) ? 95 : 100;
+            if (randVal < itemThreshold) {
+                child.type = CellType::ITEM;
+                child.data.item.id = std::rand() % ELEMS;
+                child.data.item.count = std::rand() % 9 + 1;
+            } else {
+                child.type = CellType::GRID;
+                child.data.grid.size = 3;
+                _nodes.push_back(child);
+                initGrid((int)_nodes.size() - 1, depth + 1);
+                continue;
+            }
+        }
+        _nodes.push_back(child);
+    }
 }
 
 void GameModel::pickUp(int nodeIndex, int amount) {

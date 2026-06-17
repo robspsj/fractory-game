@@ -39,7 +39,7 @@ public:
 
 private:
     void addQuad(float*& v, float cx, float cy, float w, float h, const float color[3]);
-    void renderCellItems(float*& v, float cx, float cy, int count, const float color[3]);
+    void renderCellItems(float*& v, float cx, float cy, int count, const float color[3], float scale = 1.0f);
     void renderCell(float*& v, int nodeIndex, float cx, float cy, float extent, float pitch, int depth);
 
     GameModel& _model;

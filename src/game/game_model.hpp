@@ -69,6 +69,8 @@ public:
     int totalNodes() const { return (int)_nodes.size(); }
 
 private:
+    void initGrid(int cellIndex, int depth);
+
     std::vector<Cell> _nodes;
     int _dragSrcIndex = -1;
     int _dragAmount = 0;

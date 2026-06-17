@@ -54,9 +54,9 @@ void GameView::addQuad(float*& v, float cx, float cy, float w, float h, const fl
     }
 }
 
-void GameView::renderCellItems(float*& v, float cx, float cy, int count, const float color[3]) {
+void GameView::renderCellItems(float*& v, float cx, float cy, int count, const float color[3], float scale) {
     if (count <= 0) return;
-    float itemDotSize = 0.05f;
+    float itemDotSize = 0.05f * scale;
     float spacing = itemDotSize * 2.5f;
     switch (count) {
         case 1: addQuad(v, cx, cy, itemDotSize, itemDotSize, color); break;
@@ -102,7 +102,7 @@ void GameView::renderCell(float*& v, int nodeIndex, float cx, float cy, float ex
                 if (childNode.type == CellType::ITEM) {
                     addQuad(v, childCx, childCy, halfContent, halfContent, bg);
                     const float* col = _elemColors[childNode.data.item.id];
-                    renderCellItems(v, childCx, childCy, childNode.data.item.count, col);
+                    renderCellItems(v, childCx, childCy, childNode.data.item.count, col, pitch / _cellSize);
                 } else if (childNode.type == CellType::EMPTY) {
                     addQuad(v, childCx, childCy, halfContent, halfContent, bg);
                 } else if (childNode.type == CellType::GRID) {
