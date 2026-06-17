@@ -33,6 +33,11 @@
 
 ## 🟡 Design / Correctness Issues
 
+- [ ] Enable targeting subgrid cells with swap
+  - `drop()` in the controller always uses `model.rootChild(row, col)` which maps to root grid cells only. To pick up from or drop onto cells inside a focused subgrid, the controller must resolve coordinates through the focus stack and compute the correct node index into the subgrid's children.
+  - Requires: passing current focus state to `screenToGrid` / adding a `focusedNodeIndex()` helper on the view, then using that offset when computing drop targets.
+  - Files: `src/game/game.cpp`, `src/game/game_view.cpp`, `src/game/game_model.cpp`
+
 - [ ] Dropping onto a GRID cell swaps it destructively
   - `drop()` swap logic treats GRID same as an ITEM with non-matching ID: overwrites the GRID with the dragged ITEM and moves the GRID (with its `firstChild` pointer) to the drag source. A subgrid can be trivially destroyed and its children end up owned by a semantically wrong parent.
   - File: `src/game/game_model.cpp:82-89`
