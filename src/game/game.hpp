@@ -1,6 +1,5 @@
 #pragma once
-#include "game_model.hpp"
-#include "game_view.hpp"
+#include "../gl.hpp"
 
 void gameInit(unsigned int seed = 0);
 void gameUpdate(int mousePx, int mousePy, int winW, int winH);

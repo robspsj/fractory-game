@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "game_view.hpp"
 #include <memory>
 #include <cstdlib>
 #include <SDL3/SDL.h>
