@@ -27,11 +27,20 @@ void GameModel::init(unsigned int seed) {
             c.data.item.count = std::rand() % 9 + 1;
         } else {
             c.type = CellType::GRID;
-            c.data.grid.firstChild = -1;
+            c.data.grid.firstChild = (int)_nodes.size() + 1;
             c.data.grid.size = 3;
             subgridCount++;
         }
         _nodes.push_back(c);
+
+        if (c.type == CellType::GRID) {
+            int childCount = c.data.grid.size * c.data.grid.size;
+            for (int j = 0; j < childCount; j++) {
+                Cell child;
+                child.type = CellType::EMPTY;
+                _nodes.push_back(child);
+            }
+        }
     }
 
     _dragSrcIndex = -1;
