@@ -20,21 +20,19 @@ static const char *_itemColors[GameModel::ELEMS] = {
 
 static void printCell(std::ostream &os, int arrayIdx, const Cell &cell,
                       int idxWidth, int subgridLetterIdx) {
-  int contentWidth = idxWidth + 4;
+  int contentWidth = 3;
   switch (cell.type) {
   case CellType::ITEM:
-    os << "[" << std::setw(idxWidth) << arrayIdx << ":"
+    os << "["
        << _itemColors[cell.data.item.id] << cell.data.item.id << "\033[0m"
        << ":" << cell.data.item.count << "]";
     break;
   case CellType::GRID: {
-    os << "{" << std::setw(idxWidth) << arrayIdx
-       << ":\033[1m#\033[0m:" << subgridLetterIdx << "}";
+    os << "{" << "\033[1m#\033[0m:" << subgridLetterIdx << "}";
     break;
   }
   default: {
     std::ostringstream content;
-    content << std::setw(idxWidth) << arrayIdx << ":";
     int pad = contentWidth - (int)content.tellp();
     for (int i = 0; i < pad; i++)
       content << "_";
