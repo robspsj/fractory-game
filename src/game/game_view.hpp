@@ -40,7 +40,9 @@ public:
 private:
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
-    void renderGrid(int nodeIndex, float ox, float oy, float width, float pitch, int depth);
+    void renderEmpty(float ox, float oy, float cellSize, const float bg[3]);
+    void renderItem(float ox, float oy, float cellSize, int itemId, int count, const float bg[3], float scale);
+    void renderGrid(int nodeIndex, float ox, float oy, float width, float pitch, float cellSize, int depth);
     void renderCell(int nodeIndex, float ox, float oy, float width, float pitch, float cellSize, const float bg[3], int depth);
 
     GameModel& _model;

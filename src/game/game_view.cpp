@@ -18,7 +18,7 @@ const float GameView::_hoverBg[3] = {0.7f, 0.7f, 0.7f};
 const float GameView::_gridBg[3] = {0.8f, 0.2f, 0.2f};
 
 GameView::GameView(GameModel &model) : _model(model) {
-  const auto &cell = _model.node(_anchorIndex);
+  const Cell &cell = _model.node(_anchorIndex);
   _anchorSize =
       (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
 }
@@ -108,17 +108,41 @@ void GameView::renderCellItems(float cx, float cy, int count,
   }
 }
 
+void GameView::renderEmpty(float ox, float oy, float cellSize,
+                           const float bg[3]) {
+  float half = cellSize * 0.5f;
+  addQuad(ox + half, oy + half, half, half, bg);
+}
+
+void GameView::renderItem(float ox, float oy, float cellSize, int itemId,
+                          int count, const float bg[3], float scale) {
+  float half = cellSize * 0.5f;
+  addQuad(ox + half, oy + half, half, half, bg);
+  const float *col = _elemColors[itemId];
+  renderCellItems(ox + half, oy + half, count, col, scale);
+}
+
 void GameView::renderGrid(int nodeIndex, float ox, float oy, float width,
-                          float pitch, int depth) {
-  const auto &cell = _model.node(nodeIndex);
+                          float pitch, float cellSize, int depth) {
+  const Cell &cell = _model.node(nodeIndex);
+
+  if (!(pitch > _gap * 3.0f && depth < MAX_PREVIEW_DEPTH)) {
+    if (cellSize > 0) {
+      float cx = ox + cellSize * 0.5f;
+      float cy = oy + cellSize * 0.5f;
+      addQuad(cx, cy, cellSize * 0.25f, cellSize * 0.25f, _gridBg);
+    }
+    return;
+  }
+
   int firstChild = cell.data.grid.firstChild;
   int size = cell.data.grid.size;
 
-  float cellSize = pitch - _gap;
-  float half = cellSize * 0.5f;
+  float cs = pitch - _gap;
+  float half = cs * 0.5f;
   if (half < 0.001f)
     half = pitch * 0.45f;
-  cellSize = half * 2.0f;
+  cs = half * 2.0f;
 
   float startX = ox + half;
   float startY = oy + width - half;
@@ -133,7 +157,7 @@ void GameView::renderGrid(int nodeIndex, float ox, float oy, float width,
       const float *bg = (childIndex == hoverIdx) ? _hoverBg : _grey;
 
       if (depth + 1 < MAX_PREVIEW_DEPTH && pitch > _gap * 3.0f) {
-        const auto &childNode = _model.node(childIndex);
+        const Cell &childNode = _model.node(childIndex);
         if (childNode.type == CellType::GRID) {
           int childSize = childNode.data.grid.size;
           float childPitch = pitch / childSize;
@@ -144,7 +168,7 @@ void GameView::renderGrid(int nodeIndex, float ox, float oy, float width,
           continue;
         }
       }
-      renderCell(childIndex, childCx - half, childCy - half, 0, 0, cellSize, bg,
+      renderCell(childIndex, childCx - half, childCy - half, 0, 0, cs, bg,
                  depth + 1);
     }
   }
@@ -153,25 +177,18 @@ void GameView::renderGrid(int nodeIndex, float ox, float oy, float width,
 void GameView::renderCell(int nodeIndex, float ox, float oy, float width,
                           float pitch, float cellSize, const float bg[3],
                           int depth) {
-  const auto &cell = _model.node(nodeIndex);
-
-  if (cell.type == CellType::EMPTY) {
-    float half = cellSize * 0.5f;
-    addQuad(ox + half, oy + half, half, half, bg);
-  } else if (cell.type == CellType::ITEM) {
-    float half = cellSize * 0.5f;
-    addQuad(ox + half, oy + half, half, half, bg);
-    const float *col = _elemColors[cell.data.item.id];
-    renderCellItems(ox + half, oy + half, cell.data.item.count, col,
-                    pitch > 0 ? pitch / _cellSize : 1.0f);
-  } else if (cell.type == CellType::GRID) {
-    if (pitch > _gap * 3.0f && depth < MAX_PREVIEW_DEPTH) {
-      renderGrid(nodeIndex, ox, oy, width, pitch, depth);
-    } else if (cellSize > 0) {
-      float cx = ox + cellSize * 0.5f;
-      float cy = oy + cellSize * 0.5f;
-      addQuad(cx, cy, cellSize * 0.25f, cellSize * 0.25f, _gridBg);
-    }
+  const Cell &cell = _model.node(nodeIndex);
+  switch (cell.type) {
+  case CellType::EMPTY:
+    renderEmpty(ox, oy, cellSize, bg);
+    break;
+  case CellType::ITEM:
+    renderItem(ox, oy, cellSize, cell.data.item.id, cell.data.item.count, bg,
+               pitch > 0 ? pitch / _cellSize : 1.0f);
+    break;
+  case CellType::GRID:
+    renderGrid(nodeIndex, ox, oy, width, pitch, cellSize, depth);
+    break;
   }
 }
 
@@ -272,7 +289,7 @@ void GameView::focusGrid(int nodeIndex) {
   if (nodeIndex >= 0 && _model.node(nodeIndex).type == CellType::GRID) {
     _focusStack.push(nodeIndex);
     _anchorIndex = nodeIndex;
-    const auto &cell = _model.node(_anchorIndex);
+    const Cell &cell = _model.node(_anchorIndex);
     _anchorSize =
         (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
   }
@@ -282,7 +299,7 @@ void GameView::unfocusGrid() {
   if (!_focusStack.empty()) {
     _focusStack.pop();
     _anchorIndex = _focusStack.empty() ? 0 : _focusStack.top();
-    const auto &cell = _model.node(_anchorIndex);
+    const Cell &cell = _model.node(_anchorIndex);
     _anchorSize =
         (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
   }
@@ -291,7 +308,7 @@ void GameView::unfocusGrid() {
 void GameView::focusOffset(int delta) {
   int total = _model.totalNodes();
   _anchorIndex = std::clamp(_anchorIndex + delta, 0, total - 1);
-  const auto &cell = _model.node(_anchorIndex);
+  const Cell &cell = _model.node(_anchorIndex);
   _anchorSize =
       (cell.type == CellType::GRID) ? cell.data.grid.size : GameModel::GRID;
 }
