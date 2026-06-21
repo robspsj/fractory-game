@@ -81,7 +81,8 @@ static void frame() {
       s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW,
                       winH);
     if (e.type == SDL_EVENT_MOUSE_WHEEL)
-      s_game->mouseWheel(e.wheel.x, e.wheel.y);
+      s_game->mouseWheel(e.wheel.x, e.wheel.y, (int)e.wheel.mouse_x,
+                         (int)e.wheel.mouse_y, winW, winH);
     if (e.type == SDL_EVENT_KEY_DOWN)
       s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod);
   }
@@ -196,7 +197,8 @@ int main(int argc, char *argv[]) {
         s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW,
                         winH);
       if (e.type == SDL_EVENT_MOUSE_WHEEL)
-        s_game->mouseWheel(e.wheel.x, e.wheel.y);
+        s_game->mouseWheel(e.wheel.x, e.wheel.y, (int)e.wheel.mouse_x,
+                           (int)e.wheel.mouse_y, winW, winH);
       if (e.type == SDL_EVENT_KEY_DOWN)
         s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod);
     }

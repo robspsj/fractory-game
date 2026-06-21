@@ -1,5 +1,6 @@
 #include "font.hpp"
 #include "shader.hpp"
+#include <cstdio>
 #include <cstring>
 
 #define FONT_W 8
@@ -68,19 +69,37 @@ void initFont(GLuint mainProg) {
   }
   glGenTextures(1, &fontTex);
   glBindTexture(GL_TEXTURE_2D, fontTex);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, NUM_GLYPH * FONT_W, FONT_H, 0,
                GL_LUMINANCE, GL_UNSIGNED_BYTE, tex);
+  {
+    GLenum err = glGetError();
+    if (err)
+      fprintf(stderr, "GL error after glTexImage2D: 0x%x\n", err);
+  }
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
   textProg = glCreateProgram();
-  glBindAttribLocation(textProg, 1, "aPos");
-  glBindAttribLocation(textProg, 2, "aTex");
+  glBindAttribLocation(textProg, 0, "aPos");
+  glBindAttribLocation(textProg, 1, "aTex");
   glAttachShader(textProg, compile(GL_VERTEX_SHADER, textVertSrc));
   glAttachShader(textProg, compile(GL_FRAGMENT_SHADER, textFragSrc));
   glLinkProgram(textProg);
+  {
+    GLint linked;
+    glGetProgramiv(textProg, GL_LINK_STATUS, &linked);
+    if (!linked) {
+      char log[512];
+      glGetProgramInfoLog(textProg, sizeof(log), 0, log);
+      fprintf(stderr, "text program link error: %s\n", log);
+    }
+    GLenum err = glGetError();
+    if (err)
+      fprintf(stderr, "GL error after text prog link: 0x%x\n", err);
+  }
   glUseProgram(textProg);
   textUScreen = glGetUniformLocation(textProg, "uScreen");
   glUniform1i(glGetUniformLocation(textProg, "uTex"), 0);
@@ -92,6 +111,11 @@ void initFont(GLuint mainProg) {
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  {
+    GLenum err = glGetError();
+    if (err)
+      fprintf(stderr, "GL error after blend enable: 0x%x\n", err);
+  }
 
   glUseProgram(mainProg);
 }
@@ -161,16 +185,31 @@ void drawTextGl(const float *verts, int len, GLuint mainProg, int w, int h) {
   glBindBuffer(GL_ARRAY_BUFFER, textVbo);
   glBufferData(GL_ARRAY_BUFFER, len * 24 * sizeof(float), verts,
                GL_STREAM_DRAW);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * (int)sizeof(float), 0);
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * (int)sizeof(float),
+  {
+    GLenum err = glGetError();
+    if (err)
+      fprintf(stderr, "GL error after text buffer data: 0x%x\n", err);
+  }
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * (int)sizeof(float), 0);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * (int)sizeof(float),
                         (void *)(2LL * sizeof(float)));
-  glEnableVertexAttribArray(2);
+  glEnableVertexAttribArray(1);
+  {
+    GLenum err = glGetError();
+    if (err)
+      fprintf(stderr, "GL error after text attrib setup: 0x%x\n", err);
+  }
 
   glDrawArrays(GL_TRIANGLES, 0, 6 * len);
+  {
+    GLenum err = glGetError();
+    if (err)
+      fprintf(stderr, "GL error after text draw: 0x%x\n", err);
+  }
 
+  glDisableVertexAttribArray(0);
   glDisableVertexAttribArray(1);
-  glDisableVertexAttribArray(2);
 
   glUseProgram(mainProg);
 }

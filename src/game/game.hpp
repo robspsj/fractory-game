@@ -11,7 +11,7 @@ public:
   void update(int mousePx, int mousePy, int winW, int winH);
   void mouseDown(int button, int mousePx, int mousePy, int winW, int winH);
   void mouseUp(int button, int mousePx, int mousePy, int winW, int winH);
-  void mouseWheel(float dx, float dy);
+  void mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW, int winH);
   void keyDown(SDL_Keycode key, SDL_Keymod mod);
   void render(int winW, int winH);
   GLuint program() const;
@@ -24,9 +24,6 @@ public:
 private:
   enum class MouseState {
     NONE,
-    DOWN_PENDING,
-    DRAGGING_ITEM,
-    PANNING,
     HOVERING_GRID_FOR_FOCUS,
   };
 
@@ -36,7 +33,5 @@ private:
   std::unique_ptr<GameView> _view;
 
   MouseState _mouseState = MouseState::NONE;
-  int _mouseDownX = 0, _mouseDownY = 0;
-  Uint64 _mouseDownTime = 0;
   float _dragMX = 0.0f, _dragMY = 0.0f;
 };

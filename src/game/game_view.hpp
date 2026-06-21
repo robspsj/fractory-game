@@ -16,7 +16,7 @@ public:
     void clearHoveredCell() { _hoverRow = -1; _hoverCol = -1; }
     GLuint program() const { return _prog; }
 
-    void zoom(float factor);
+    void zoom(float factor, float mouseNX, float mouseNY);
     float zoomFactor() const { return _zoom; }
     const float* panPtr() const { return &_panX; }
 
@@ -40,10 +40,10 @@ public:
 private:
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
-    void renderEmpty(float ox, float oy, float cellSize, const float bg[3]);
-    void renderItem(float ox, float oy, float cellSize, int itemId, int count, const float bg[3], float scale);
-    void renderGrid(int nodeIndex, float ox, float oy, float width, float cellSize, int depth);
-    void renderCell(int nodeIndex, float ox, float oy, float width, float cellSize, const float bg[3], int depth);
+    void renderEmpty(float ox, float oy, float cellSize);
+    void renderItem(float ox, float oy, float cellSize, int itemId, int count, float scale);
+    void renderGrid(int nodeIndex, float ox, float oy, float contentWidth, int depth);
+    void renderCell(int nodeIndex, float ox, float oy, float cellSize, int depth);
 
     GameModel& _model;
 
@@ -60,8 +60,7 @@ private:
 
     static constexpr float _gridMin = -0.75f;
     static constexpr float _cellSize = 0.30f;
-    static constexpr float _gap = 0.02f;
-    float _halfRender = (_cellSize - _gap) * 0.5f;
+    static constexpr float _gapRatio = 0.0714f;
 
     std::stack<int> _focusStack;
     int _anchorIndex = 0;
@@ -72,6 +71,5 @@ private:
     static const float _white[3];
     static const float _yellow[3];
     static const float _grey[3];
-    static const float _hoverBg[3];
     static const float _gridBg[3];
 };
