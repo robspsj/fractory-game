@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstring>
 
-static constexpr int MAX_PREVIEW_DEPTH = 3;
+static constexpr int MAX_PREVIEW_DEPTH = 10;
 
 const float GameView::_elemColors[GameModel::ELEMS][3] = {
     {0.15f, 0.50f, 0.90f}, {0.90f, 0.30f, 0.30f}, {0.20f, 0.80f, 0.35f},
@@ -62,6 +62,7 @@ void GameView::addQuad(float cx, float cy, float w, float h,
 
 void GameView::renderCellItems(float cx, float cy, int count,
                                const float color[3], float scale) {
+  return;
   if (count <= 0)
     return;
   float itemDotSize = 0.05f * scale;
