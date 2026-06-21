@@ -45,7 +45,7 @@ void GameModel::init(unsigned int seed) {
 void GameModel::populateWithSubgrid(int cellIndex, int size) {
   auto &cell = _nodes[cellIndex];
   cell.type = CellType::GRID;
-  cell.data.grid.size = size;
+  cell.data.grid.gridDimension = size;
   cell.data.grid.firstChild = (int)_nodes.size();
 
   for (int j = 0; j < size * size; j++) {
@@ -119,7 +119,7 @@ void GameModel::cancelDrag() {
 
 void GameModel::setFullState(int *inData) {
   int first = _nodes[0].data.grid.firstChild;
-  int n = _nodes[0].data.grid.size * _nodes[0].data.grid.size;
+  int n = _nodes[0].data.grid.gridDimension * _nodes[0].data.grid.gridDimension;
   for (int i = 0; i < n; i++) {
     int idx = first + i;
     int id = inData[i * 2];
@@ -128,7 +128,7 @@ void GameModel::setFullState(int *inData) {
       if (_nodes[idx].type != CellType::GRID) {
         _nodes[idx].type = CellType::GRID;
         _nodes[idx].data.grid.firstChild = (int)_nodes.size();
-        _nodes[idx].data.grid.size = 3;
+        _nodes[idx].data.grid.gridDimension = 3;
         for (int j = 0; j < 9; j++) {
           Cell child;
           child.parent = idx;
@@ -148,7 +148,7 @@ void GameModel::setFullState(int *inData) {
 
 void GameModel::getFullState(int *outData) const {
   int first = _nodes[0].data.grid.firstChild;
-  int n = _nodes[0].data.grid.size * _nodes[0].data.grid.size;
+  int n = _nodes[0].data.grid.gridDimension * _nodes[0].data.grid.gridDimension;
   int subgridIdx = 0;
   for (int i = 0; i < n; i++) {
     int idx = first + i;
@@ -168,14 +168,14 @@ void GameModel::getFullState(int *outData) const {
 int GameModel::getSubgridState(int subgridSeqIndex, int *outData,
                                int &outSize) const {
   int first = _nodes[0].data.grid.firstChild;
-  int n = _nodes[0].data.grid.size * _nodes[0].data.grid.size;
+  int n = _nodes[0].data.grid.gridDimension * _nodes[0].data.grid.gridDimension;
   int subgridIdx = 0;
   for (int i = 0; i < n; i++) {
     int idx = first + i;
     if (_nodes[idx].type == CellType::GRID) {
       if (subgridIdx == subgridSeqIndex) {
         int childFirst = _nodes[idx].data.grid.firstChild;
-        int childSize = _nodes[idx].data.grid.size;
+        int childSize = _nodes[idx].data.grid.gridDimension;
         outSize = childSize;
         int childCount = childSize * childSize;
         for (int ci = 0; ci < childCount; ci++) {

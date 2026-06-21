@@ -69,7 +69,7 @@ void printState(const GameModel &model) {
     const Cell &gridCell = model.node(i);
     if (gridCell.type == CellType::GRID) {
         subgridCount++;
-        int subSize = gridCell.data.grid.size;
+        int subSize = gridCell.data.grid.gridDimension;
         int subFirst = gridCell.data.grid.firstChild;
         std::cout << std::endl << "Subgrid " << subgridCount << ": " << std::endl;
 

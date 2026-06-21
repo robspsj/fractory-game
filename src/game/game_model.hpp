@@ -10,7 +10,7 @@ struct ItemData {
 
 struct GridData {
   int firstChild;
-  int size;
+  int gridDimension;
 };
 
 struct Cell {
@@ -36,7 +36,7 @@ public:
   Cell &node(int index) { return _nodes[index]; }
 
   int rootChild(int row, int col) const {
-    return _nodes[0].data.grid.firstChild + row * _nodes[0].data.grid.size +
+    return _nodes[0].data.grid.firstChild + row * _nodes[0].data.grid.gridDimension +
            col;
   }
 
@@ -49,13 +49,13 @@ public:
     if (_dragSrcIndex < 0)
       return -1;
     int offset = _dragSrcIndex - _nodes[0].data.grid.firstChild;
-    return offset / _nodes[0].data.grid.size;
+    return offset / _nodes[0].data.grid.gridDimension;
   }
   int dragCol() const {
     if (_dragSrcIndex < 0)
       return -1;
     int offset = _dragSrcIndex - _nodes[0].data.grid.firstChild;
-    return offset % _nodes[0].data.grid.size;
+    return offset % _nodes[0].data.grid.gridDimension;
   }
 
   void pickUp(int nodeIndex, int amount);
