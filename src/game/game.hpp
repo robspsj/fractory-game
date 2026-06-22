@@ -16,6 +16,7 @@ public:
   void keyDown(SDL_Keycode key, SDL_Keymod mod);
   void render(int winW, int winH);
   GLuint program() const;
+  float zoomFactor() const;
 
   void setFullState(int *inData);
   void getFullState(int *outData);

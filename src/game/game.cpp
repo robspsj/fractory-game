@@ -111,6 +111,7 @@ void Game::mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW,
 void Game::render(int winW, int winH) { _view->render(winW, winH); }
 
 GLuint Game::program() const { return _view->program(); }
+float Game::zoomFactor() const { return _view->zoomFactor(); }
 
 void Game::setFullState(int *inData) { _model->setFullState(inData); }
 
