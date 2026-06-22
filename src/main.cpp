@@ -5,6 +5,7 @@
 #include "test_runner.hpp"
 #include <SDL3/SDL.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -155,7 +156,12 @@ static bool loadWindowState(int &x, int &y, int &w, int &h) {
 
 int main(int argc, char *argv[]) {
   if (argc >= 3 && std::string(argv[1]) == "--test") {
-    bool success = ModelTestRunner::runTest(argv[2]);
+    int gridLimit = 100;
+    for (int a = 3; a + 1 < argc; a++) {
+      if (std::string(argv[a]) == "--grid-limit")
+        gridLimit = std::atoi(argv[a + 1]);
+    }
+    bool success = ModelTestRunner::runTest(argv[2], gridLimit);
     return success ? 0 : 1;
   }
 

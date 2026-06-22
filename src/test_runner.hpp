@@ -12,7 +12,7 @@ struct TestStep {
 
 class ModelTestRunner {
 public:
-  static bool runTest(const std::string &filepath);
+  static bool runTest(const std::string &filepath, int gridLimit = 100);
 
 private:
   static void loadState(class GameModel &model, const std::string &stateStr);

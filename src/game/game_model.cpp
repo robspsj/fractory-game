@@ -29,7 +29,7 @@ void GameModel::init(const Config &cfg) {
     int randVal = std::rand() % 100;
     if (randVal < emptyChance) {
       cell.type = CellType::EMPTY;
-    } else if (randVal < emptyChance + itemChance || gridCount >= MAX_GRIDS) {
+    } else if (randVal < emptyChance + itemChance || gridCount >= cfg.gridLimit) {
       cell.type = CellType::ITEM;
       cell.data.item.id = std::rand() % ELEMS;
       cell.data.item.count = std::rand() % 4 + 1;

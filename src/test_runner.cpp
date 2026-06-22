@@ -5,12 +5,12 @@
 #include <iostream>
 #include <sstream>
 
-bool ModelTestRunner::runTest(const std::string &filepath) {
+bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
   GameModel model;
   std::string initialState;
   std::vector<TestStep> steps = loadSteps(filepath, initialState);
 
-  Config cfg(42, 50);
+  Config cfg(42, 50, gridLimit);
   model.init(cfg);
   if (!initialState.empty()) {
     loadState(model, initialState);
