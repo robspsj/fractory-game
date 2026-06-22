@@ -1,5 +1,6 @@
 #pragma once
 #include "../gl.hpp" // IWYU pragma: keep
+#include "config.hpp"
 #include "game_model.hpp"
 #include "game_view.hpp"
 #include <SDL3/SDL.h>
@@ -7,7 +8,7 @@
 
 class Game {
 public:
-  Game(unsigned int seed = 0);
+  Game(const Config &cfg = Config{});
   void update(int mousePx, int mousePy, int winW, int winH);
   void mouseDown(int button, int mousePx, int mousePy, int winW, int winH);
   void mouseUp(int button, int mousePx, int mousePy, int winW, int winH);
@@ -16,7 +17,6 @@ public:
   void render(int winW, int winH);
   GLuint program() const;
 
-  void printState();
   void setFullState(int *inData);
   void getFullState(int *outData);
   void getDragState(int &outId, int &outCount);
@@ -26,8 +26,6 @@ private:
     NONE,
     HOVERING_GRID_FOR_FOCUS,
   };
-
-  void logState();
 
   std::unique_ptr<GameModel> _model;
   std::unique_ptr<GameView> _view;

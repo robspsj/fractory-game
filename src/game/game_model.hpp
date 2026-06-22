@@ -1,4 +1,5 @@
 #pragma once
+#include "config.hpp"
 #include <vector>
 
 enum class CellType { EMPTY, ITEM, GRID };
@@ -26,11 +27,11 @@ class GameModel {
 public:
   static constexpr int GRID = 5;
   static constexpr int ELEMS = 5;
-  static constexpr int MAX_GRIDS = 10;
+  static constexpr int MAX_GRIDS = 6000;
 
   GameModel() = default;
 
-  void init(unsigned int seed = 0);
+  void init(const Config &cfg);
 
   const Cell &node(int index) const { return _nodes[index]; }
   Cell &node(int index) { return _nodes[index]; }

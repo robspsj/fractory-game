@@ -3,11 +3,13 @@
 #include <cstdlib>
 #include <ctime>
 
-void GameModel::init(unsigned int seed) {
-  if (seed != 0)
-    std::srand(seed);
+void GameModel::init(const Config &cfg) {
+  if (cfg.seed != 0)
+    std::srand(cfg.seed);
   else
     std::srand((unsigned)std::time(nullptr));
+
+  int gridChance = cfg.gridChance;
 
   _nodes.clear();
 
@@ -17,14 +19,17 @@ void GameModel::init(unsigned int seed) {
   populateWithSubgrid(0, GRID);
   int gridCount = 1;
 
+  int itemChance = (100 - gridChance) / 2;
+  int emptyChance = 100 - gridChance - itemChance;
+
   int i = 1;
   while (i < (int)_nodes.size()) {
     auto &cell = _nodes[i];
 
     int randVal = std::rand() % 100;
-    if (randVal < 50) {
+    if (randVal < emptyChance) {
       cell.type = CellType::EMPTY;
-    } else if (randVal < 85 || gridCount >= MAX_GRIDS) {
+    } else if (randVal < emptyChance + itemChance || gridCount >= MAX_GRIDS) {
       cell.type = CellType::ITEM;
       cell.data.item.id = std::rand() % ELEMS;
       cell.data.item.count = std::rand() % 4 + 1;

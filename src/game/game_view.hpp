@@ -1,8 +1,10 @@
 #pragma once
 #include "../gl.hpp" // IWYU pragma: keep
 #include "game_model.hpp"
-#include <vector>
+#include <SDL3/SDL.h>
+#include <cstddef>
 #include <stack>
+#include <vector>
 
 class GameView {
 public:
@@ -27,6 +29,7 @@ public:
 
     bool screenToGrid(int px, int py, int winW, int winH, int& row, int& col) const;
     void screenToWorld(int px, int py, int winW, int winH, float& wx, float& wy) const;
+    int resolveLeafCell(float wx, float wy) const;
 
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;
@@ -38,6 +41,8 @@ public:
     void focusOffset(int delta);
 
 private:
+    int resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
+                      float ox, float oy, float contentW) const;
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
     void renderEmpty(float ox, float oy, float cellSize);
@@ -46,6 +51,10 @@ private:
     void renderCell(int nodeIndex, float ox, float oy, float cellSize, int depth);
 
     GameModel& _model;
+
+    Uint64 _dragAnimStartTime = 0;
+    bool _dragWasActive = false;
+    static constexpr double _dragAnimDuration = 0.15;
 
     GLuint _prog = 0, _vbo = 0;
     GLint _aPosLoc = -1, _aColorLoc = -1, _uPosLoc = -1, _uZoomLoc = -1;
@@ -56,11 +65,13 @@ private:
     bool _isPanning = false;
     int _lastPanX = 0, _lastPanY = 0;
 
+    std::vector<float> _verts;
     float* _v = nullptr;
 
     static constexpr float _gridMin = -0.75f;
     static constexpr float _cellSize = 0.30f;
     static constexpr float _gapRatio = 0.0714f;
+    static constexpr float _anchorWidth = 1.5f;
 
     std::stack<int> _focusStack;
     int _anchorIndex = 0;

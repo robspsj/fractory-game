@@ -178,41 +178,96 @@ void GameView::renderCell(int nodeIndex, float ox, float oy, float cellSize,
   }
 }
 
+int GameView::resolveLeafCell(float wx, float wy) const {
+  const Cell &anchor = _model.node(_anchorIndex);
+  constexpr float aw = _anchorWidth;
+  float ox = -aw * 0.5f, oy = -aw * 0.5f;
+  if (anchor.type != CellType::GRID)
+    return _anchorIndex;
+  return resolveCellAt(wx, wy, _anchorIndex, _anchorSize, ox, oy, aw);
+}
+
+int GameView::resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
+                            float ox, float oy, float contentW) const {
+  float childCellSize = contentW / (gridDim + (gridDim - 1) * _gapRatio);
+  float pitch = childCellSize * (1 + _gapRatio);
+  float half = childCellSize * 0.5f;
+  float startX = ox + half;
+  float startY = oy + contentW - half;
+
+  int c = (int)((wx - startX) / pitch + 0.5f);
+  int r = (int)((startY - wy) / pitch + 0.5f);
+
+  if (r < 0 || r >= gridDim || c < 0 || c >= gridDim)
+    return -1;
+
+  float cx = startX + c * pitch;
+  float cy = startY - r * pitch;
+  if (std::abs(wx - cx) > half || std::abs(wy - cy) > half)
+    return -1;
+
+  int childIdx = _model.node(nodeIndex).data.grid.firstChild + r * gridDim + c;
+  const Cell &child = _model.node(childIdx);
+
+  if (child.type == CellType::GRID) {
+    int childDim = child.data.grid.gridDimension;
+    return resolveCellAt(wx, wy, childIdx, childDim,
+                         cx - half, cy - half, childCellSize);
+  }
+
+    return childIdx;
+}
+
 void GameView::render(int winW, int winH) {
   float aspect = (float)winW / (float)winH;
-  static float verts[1024 * 1024];
-  _v = verts;
+  size_t maxFloats = (size_t)_model.totalNodes() * 200 + 1024;
+  _verts.resize(maxFloats);
+  _v = _verts.data();
 
   glUseProgram(_prog);
   glUniform2f(_uPosLoc, _panX, _panY);
   glUniform1f(_uZoomLoc, _zoom);
   glUniform1f(glGetUniformLocation(_prog, "uAspect"), aspect);
 
-  float cellWidth = _cellSize / (1 + _gapRatio);
-  float gridWidth =
-      _anchorSize * cellWidth + (_anchorSize - 1) * cellWidth * _gapRatio;
-  float ox = -gridWidth * 0.5f, oy = -gridWidth * 0.5f;
+  constexpr float aw = _anchorWidth;
+  float ox = -aw * 0.5f, oy = -aw * 0.5f;
 
   const Cell &anchor = _model.node(_anchorIndex);
   if (anchor.type == CellType::GRID) {
-    renderGrid(_anchorIndex, ox, oy, gridWidth, 0);
+    renderGrid(_anchorIndex, ox, oy, aw, 0);
   } else {
-    renderCell(_anchorIndex, ox, oy, cellWidth, 0);
+    renderCell(_anchorIndex, ox, oy, aw, 0);
   }
 
   if (_model.hasDrag()) {
     int dragId = _model.dragItemId();
     int dragAmount = _model.dragAmount();
     const float *col = _elemColors[dragId];
-    renderCellItems(_dragWX, _dragWY, dragAmount, col);
-  }
 
-  int totalFloats = (int)(_v - verts);
+    if (!_dragWasActive) {
+      _dragAnimStartTime = SDL_GetTicks();
+    }
+
+    double elapsed = (double)(SDL_GetTicks() - _dragAnimStartTime) / 1000.0;
+    double t = elapsed / _dragAnimDuration;
+    if (t >= 1.0) {
+      t = 1.0;
+    }
+    float eased = (float)(t * (2.0 - t));
+
+    float targetScale = 1.0f / _zoom;
+    float scale = targetScale * (0.5f + 0.5f * eased);
+
+    renderCellItems(_dragWX, _dragWY, dragAmount, col, scale);
+  }
+  _dragWasActive = _model.hasDrag();
+
+  int totalFloats = (int)(_v - _verts.data());
   if (totalFloats == 0)
     return;
 
   glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-  glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), verts,
+  glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), _verts.data(),
                GL_STREAM_DRAW);
 
   glVertexAttribPointer(_aPosLoc, 2, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float),
@@ -235,11 +290,10 @@ bool GameView::screenToGrid(int px, int py, int winW, int winH, int &row,
 
   int size = _anchorSize;
 
-  float pitch = _cellSize;
+  float childCellSize = _anchorWidth / (size + (size - 1) * _gapRatio);
+  float pitch = childCellSize * (1 + _gapRatio);
   float totalSize = size * pitch;
-  float halfContent = pitch / (1 + _gapRatio) * 0.5f;
-  if (halfContent < 0.001f)
-    halfContent = pitch * 0.45f;
+  float halfContent = childCellSize * 0.5f;
 
   float startX = -totalSize * 0.5f + pitch * 0.5f;
   float startY = totalSize * 0.5f - pitch * 0.5f;
@@ -267,13 +321,15 @@ void GameView::screenToWorld(int px, int py, int winW, int winH, float &wx,
 }
 
 float GameView::gridToWorldX(int col) const {
-  float pitch = _cellSize;
+  float childCellSize = _anchorWidth / (_anchorSize + (_anchorSize - 1) * _gapRatio);
+  float pitch = childCellSize * (1 + _gapRatio);
   float totalSize = _anchorSize * pitch;
   return -totalSize * 0.5f + pitch * 0.5f + col * pitch;
 }
 
 float GameView::gridToWorldY(int row) const {
-  float pitch = _cellSize;
+  float childCellSize = _anchorWidth / (_anchorSize + (_anchorSize - 1) * _gapRatio);
+  float pitch = childCellSize * (1 + _gapRatio);
   float totalSize = _anchorSize * pitch;
   return totalSize * 0.5f - pitch * 0.5f - row * pitch;
 }

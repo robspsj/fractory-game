@@ -1,4 +1,5 @@
 #include "font.hpp"
+#include "game/config.hpp"
 #include "game/game.hpp"
 #include "print_state.hpp"
 #include "test_runner.hpp"
@@ -111,9 +112,8 @@ int main() {
     return 1;
   SDL_GL_SetSwapInterval(0);
 
-  s_game = std::make_unique<Game>();
+  s_game = std::make_unique<Game>(Config{});
   clearScreen();
-  s_game->printState();
   initFont(s_game->program());
   int w, h;
   SDL_GetWindowSize(window, &w, &h);
@@ -166,9 +166,8 @@ int main(int argc, char *argv[]) {
   SDL_GLContext ctx = SDL_GL_CreateContext(win);
   SDL_GL_SetSwapInterval(0);
 
-  s_game = std::make_unique<Game>();
+  s_game = std::make_unique<Game>(Config{});
   clearScreen();
-  s_game->printState();
   initFont(s_game->program());
 
   int vw, vh;

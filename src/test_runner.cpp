@@ -10,7 +10,8 @@ bool ModelTestRunner::runTest(const std::string &filepath) {
   std::string initialState;
   std::vector<TestStep> steps = loadSteps(filepath, initialState);
 
-  model.init(42);
+  Config cfg(42, 50);
+  model.init(cfg);
   if (!initialState.empty()) {
     loadState(model, initialState);
   }

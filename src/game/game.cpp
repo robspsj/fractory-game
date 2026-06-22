@@ -1,33 +1,28 @@
 #include "game.hpp"
-#include "../print_state.hpp"
 #include "../shader.hpp"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cmath>
 
-Game::Game(unsigned int seed) {
+Game::Game(const Config &cfg) {
   _model = std::make_unique<GameModel>();
-  _model->init(seed);
+  _model->init(cfg);
   _view = std::make_unique<GameView>(*_model);
   _view->initGL();
-}
-
-void Game::logState() {
-  clearScreen();
-  ::printState(*_model);
 }
 
 void Game::update(int mousePx, int mousePy, int winW, int winH) {
   bool changedState = false;
 
-  int row, col;
-  bool overGridCell =
-      _view->screenToGrid(mousePx, mousePy, winW, winH, row, col);
+  float wx, wy;
+  _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
+  int leafIdx = _view->resolveLeafCell(wx, wy);
 
-  if (overGridCell) {
-    _view->setHoveredCell(row, col);
-    const auto &node = _model->node(_model->rootChild(row, col));
-    if (node.type == CellType::GRID) {
+  if (leafIdx >= 0) {
+    int rootRow, rootCol;
+    _view->screenToGrid(mousePx, mousePy, winW, winH, rootRow, rootCol);
+    _view->setHoveredCell(rootRow, rootCol);
+    if (_model->node(leafIdx).type == CellType::GRID) {
       if (_mouseState != MouseState::HOVERING_GRID_FOR_FOCUS) {
         _mouseState = MouseState::HOVERING_GRID_FOR_FOCUS;
         changedState = true;
@@ -57,22 +52,23 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
 }
 
 void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
+  float wx, wy;
+  _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
+
   if (button == SDL_BUTTON_LEFT) {
     if (_model->hasDrag()) {
-      int row, col;
-      if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col))
-        _model->drop(_model->rootChild(row, col));
+      int idx = _view->resolveLeafCell(wx, wy);
+      if (idx >= 0)
+        _model->drop(idx);
       else
         _model->cancelDrag();
-      logState();
     } else {
-      int row, col;
-      if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-        int idx = _model->rootChild(row, col);
-        if (_model->node(idx).type == CellType::ITEM) {
-          _model->pickUp(idx, _model->node(idx).data.item.count);
-          logState();
-        }
+      int idx = _view->resolveLeafCell(wx, wy);
+      if (idx >= 0 && _model->node(idx).type == CellType::ITEM) {
+        _model->pickUp(idx, _model->node(idx).data.item.count);
+        _dragMX = wx;
+        _dragMY = wy;
+        _view->setDragWorldPos(wx, wy);
       }
     }
   }
@@ -119,8 +115,6 @@ GLuint Game::program() const { return _view->program(); }
 void Game::setFullState(int *inData) { _model->setFullState(inData); }
 
 void Game::getFullState(int *outData) { _model->getFullState(outData); }
-
-void Game::printState() { ::printState(*_model); }
 
 void Game::getDragState(int &outId, int &outCount) {
   _model->getDragState(outId, outCount);
