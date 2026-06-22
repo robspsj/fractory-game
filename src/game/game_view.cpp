@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cstring>
 
-static constexpr int MAX_PREVIEW_DEPTH = 10;
+static constexpr int MAX_PREVIEW_DEPTH = 100;
 
 const float GameView::_elemColors[GameModel::ELEMS][3] = {
     {0.15f, 0.50f, 0.90f}, {0.90f, 0.30f, 0.30f}, {0.20f, 0.80f, 0.35f},
@@ -51,12 +51,13 @@ void GameView::initGL() {
 
   _aPosLoc = glGetAttribLocation(_prog, "aPos");
   _aColorLoc = glGetAttribLocation(_prog, "aColor");
-  _uPosLoc = glGetUniformLocation(_prog, "uPos");
-  _uZoomLoc = glGetUniformLocation(_prog, "uZoom");
 }
 
 void GameView::addQuad(float cx, float cy, float w, float h,
                        const float color[3]) {
+  if (cx + w <= -1.0f || cx - w >= 1.0f ||
+      cy + h <= -1.0f || cy - h >= 1.0f)
+    return;
   for (int i = 0; i < 6; i++) {
     float dx = (i == 1 || i == 3 || i == 4) ? w : -w;
     float dy = (i == 0 || i == 1 || i == 4) ? -h : h;
@@ -73,107 +74,127 @@ void GameView::renderCellItems(float cx, float cy, int count,
                                const float color[3], float scale) {
   if (count <= 0)
     return;
-  float itemDotSize = 0.05f * scale;
-  float spacing = itemDotSize * 2.5f;
+  float itemDotW = 0.05f * scale * _zoom;
+  float itemDotH = 0.05f * scale * _aspect * _zoom;
+  float spacingX = itemDotW * 2.5f;
+  float spacingY = itemDotH * 2.5f;
   switch (count) {
   case 1:
-    addQuad(cx, cy, itemDotSize, itemDotSize, color);
+    addQuad(cx, cy, itemDotW, itemDotH, color);
     break;
   case 2:
-    addQuad(cx - spacing * 0.5f, cy, itemDotSize, itemDotSize, color);
-    addQuad(cx + spacing * 0.5f, cy, itemDotSize, itemDotSize, color);
+    addQuad(cx - spacingX * 0.5f, cy, itemDotW, itemDotH, color);
+    addQuad(cx + spacingX * 0.5f, cy, itemDotW, itemDotH, color);
     break;
   case 3:
-    addQuad(cx, cy - spacing * 0.5f, itemDotSize, itemDotSize, color);
-    addQuad(cx - spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx, cy - spacingY * 0.5f, itemDotW, itemDotH, color);
+    addQuad(cx - spacingX * 0.5f, cy + spacingY * 0.5f, itemDotW, itemDotH,
             color);
-    addQuad(cx + spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx + spacingX * 0.5f, cy + spacingY * 0.5f, itemDotW, itemDotH,
             color);
     break;
   case 4:
-    addQuad(cx - spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx - spacingX * 0.5f, cy - spacingY * 0.5f, itemDotW, itemDotH,
             color);
-    addQuad(cx + spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx + spacingX * 0.5f, cy - spacingY * 0.5f, itemDotW, itemDotH,
             color);
-    addQuad(cx - spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx - spacingX * 0.5f, cy + spacingY * 0.5f, itemDotW, itemDotH,
             color);
-    addQuad(cx + spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx + spacingX * 0.5f, cy + spacingY * 0.5f, itemDotW, itemDotH,
             color);
     break;
   case 5:
-    addQuad(cx, cy, itemDotSize, itemDotSize, color);
-    addQuad(cx - spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx, cy, itemDotW, itemDotH, color);
+    addQuad(cx - spacingX * 0.5f, cy - spacingY * 0.5f, itemDotW, itemDotH,
             color);
-    addQuad(cx + spacing * 0.5f, cy - spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx + spacingX * 0.5f, cy - spacingY * 0.5f, itemDotW, itemDotH,
             color);
-    addQuad(cx - spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx - spacingX * 0.5f, cy + spacingY * 0.5f, itemDotW, itemDotH,
             color);
-    addQuad(cx + spacing * 0.5f, cy + spacing * 0.5f, itemDotSize, itemDotSize,
+    addQuad(cx + spacingX * 0.5f, cy + spacingY * 0.5f, itemDotW, itemDotH,
             color);
     break;
   default:
-    addQuad(cx, cy, itemDotSize, itemDotSize, color);
+    addQuad(cx, cy, itemDotW, itemDotH, color);
     break;
   }
 }
 
-void GameView::renderEmpty(float ox, float oy, float cellSize) {
-  float half = cellSize * 0.5f;
-  addQuad(ox + half, oy + half, half, half, _grey);
+void GameView::renderEmpty(float ox, float oy, float cellW, float cellH) {
+  float halfW = cellW * 0.5f;
+  float halfH = cellH * 0.5f;
+  addQuad(ox + halfW, oy + halfH, halfW, halfH, _grey);
 }
 
-void GameView::renderItem(float ox, float oy, float cellSize, int itemId,
-                          int count, float scale) {
-  float half = cellSize * 0.5f;
-  addQuad(ox + half, oy + half, half, half, _grey);
+void GameView::renderItem(float ox, float oy, float cellW, float cellH,
+                          int itemId, int count, float scale) {
+  float halfW = cellW * 0.5f;
+  float halfH = cellH * 0.5f;
+  addQuad(ox + halfW, oy + halfH, halfW, halfH, _grey);
   const float *col = _elemColors[itemId];
-  renderCellItems(ox + half, oy + half, count, col, scale);
+  renderCellItems(ox + halfW, oy + halfH, count, col, scale);
 }
 
-void GameView::renderGrid(int nodeIndex, float ox, float oy, float contentWidth,
-                          int depth) {
+void GameView::renderGrid(int nodeIndex, float ox, float oy, float contentW,
+                          float contentH, int depth) {
   const Cell &cell = _model.node(nodeIndex);
   int firstChild = cell.data.grid.firstChild;
   int gridDim = cell.data.grid.gridDimension;
 
-  float childCellSize =
-      contentWidth / (gridDim + (gridDim - 1) * _gapRatio);
-  float pitch = childCellSize * (1 + _gapRatio);
-  float half = childCellSize * 0.5f;
+  float childCellW =
+      contentW / (gridDim + (gridDim - 1) * _gapRatio);
+  float childCellH =
+      contentH / (gridDim + (gridDim - 1) * _gapRatio);
+  float pitchX = childCellW * (1 + _gapRatio);
+  float pitchY = childCellH * (1 + _gapRatio);
+  float halfW = childCellW * 0.5f;
+  float halfH = childCellH * 0.5f;
 
   float g = 0.45f - std::min(depth, 3) * 0.07f;
   const float gridBg[3] = {g, g, g + 0.03f};
-  float halfWidth = contentWidth * 0.5f;
-  addQuad(ox + halfWidth, oy + halfWidth, halfWidth, halfWidth, gridBg);
+  float halfCW = contentW * 0.5f;
+  float halfCH = contentH * 0.5f;
+  addQuad(ox + halfCW, oy + halfCH, halfCW, halfCH, gridBg);
 
-  float startX = ox + half;
-  float startY = oy + contentWidth - half;
+  float startX = ox + halfW;
+  float startY = oy + contentH - halfH;
 
   for (int r = 0; r < gridDim; r++) {
     for (int c = 0; c < gridDim; c++) {
-      float childCx = startX + c * pitch;
-      float childCy = startY - r * pitch;
+      float childCx = startX + c * pitchX;
+      float childCy = startY - r * pitchY;
       int childIndex = firstChild + r * gridDim + c;
 
-      renderCell(childIndex, childCx - half, childCy - half, childCellSize,
-                 depth + 1);
+      renderCell(childIndex, childCx - halfW, childCy - halfH, childCellW,
+                 childCellH, depth + 1);
     }
   }
 }
 
-void GameView::renderCell(int nodeIndex, float ox, float oy, float cellSize,
-                          int depth) {
+void GameView::renderCell(int nodeIndex, float ox, float oy, float cellW,
+                          float cellH, int depth) {
+  if (depth >= MAX_PREVIEW_DEPTH)
+    return;
+  if (ox + cellW <= -1.0f || ox >= 1.0f ||
+      oy + cellH <= -1.0f || oy >= 1.0f)
+    return;
+  constexpr float minClipSize = 0.002f;
+  if (cellW < minClipSize || cellH < minClipSize)
+    return;
+
   const Cell &cell = _model.node(nodeIndex);
   switch (cell.type) {
   case CellType::EMPTY:
-    renderEmpty(ox, oy, cellSize);
+    renderEmpty(ox, oy, cellW, cellH);
     break;
   case CellType::ITEM:
-    renderItem(ox, oy, cellSize, cell.data.item.id, cell.data.item.count,
-               cellSize / _cellSize);
+  { float scale = cellW / (_zoom * _cellSize);
+    renderItem(ox, oy, cellW, cellH, cell.data.item.id, cell.data.item.count,
+               scale);
     break;
+  }
   case CellType::GRID:
-    renderGrid(nodeIndex, ox, oy, cellSize, depth);
+    renderGrid(nodeIndex, ox, oy, cellW, cellH, depth);
     break;
   }
 }
@@ -219,24 +240,24 @@ int GameView::resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
 }
 
 void GameView::render(int winW, int winH) {
-  float aspect = (float)winW / (float)winH;
+  _aspect = (float)winW / (float)winH;
   size_t maxFloats = (size_t)_model.totalNodes() * 200 + 1024;
   _verts.resize(maxFloats);
   _v = _verts.data();
 
   glUseProgram(_prog);
-  glUniform2f(_uPosLoc, _panX, _panY);
-  glUniform1f(_uZoomLoc, _zoom);
-  glUniform1f(glGetUniformLocation(_prog, "uAspect"), aspect);
 
   constexpr float aw = _anchorWidth;
-  float ox = -aw * 0.5f, oy = -aw * 0.5f;
+  float ox = -aw * 0.5f * _zoom + _panX;
+  float oy = -aw * 0.5f * _aspect * _zoom + _panY;
+  float cw = aw * _zoom;
+  float ch = aw * _aspect * _zoom;
 
   const Cell &anchor = _model.node(_anchorIndex);
   if (anchor.type == CellType::GRID) {
-    renderGrid(_anchorIndex, ox, oy, aw, 0);
+    renderGrid(_anchorIndex, ox, oy, cw, ch, 0);
   } else {
-    renderCell(_anchorIndex, ox, oy, aw, 0);
+    renderCell(_anchorIndex, ox, oy, cw, ch, 0);
   }
 
   if (_model.hasDrag()) {
@@ -255,10 +276,11 @@ void GameView::render(int winW, int winH) {
     }
     float eased = (float)(t * (2.0 - t));
 
-    float targetScale = 1.0f / _zoom;
-    float scale = targetScale * (0.5f + 0.5f * eased);
+    float scale = (0.5f + 0.5f * eased) / _zoom;
 
-    renderCellItems(_dragWX, _dragWY, dragAmount, col, scale);
+    float sx = _dragWX * _zoom + _panX;
+    float sy = _dragWY * _aspect * _zoom + _panY;
+    renderCellItems(sx, sy, dragAmount, col, scale);
   }
   _dragWasActive = _model.hasDrag();
 

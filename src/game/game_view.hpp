@@ -45,10 +45,10 @@ private:
                       float ox, float oy, float contentW) const;
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
-    void renderEmpty(float ox, float oy, float cellSize);
-    void renderItem(float ox, float oy, float cellSize, int itemId, int count, float scale);
-    void renderGrid(int nodeIndex, float ox, float oy, float contentWidth, int depth);
-    void renderCell(int nodeIndex, float ox, float oy, float cellSize, int depth);
+    void renderEmpty(float ox, float oy, float cellW, float cellH);
+    void renderItem(float ox, float oy, float cellW, float cellH, int itemId, int count, float scale);
+    void renderGrid(int nodeIndex, float ox, float oy, float contentW, float contentH, int depth);
+    void renderCell(int nodeIndex, float ox, float oy, float cellW, float cellH, int depth);
 
     GameModel& _model;
 
@@ -57,10 +57,11 @@ private:
     static constexpr double _dragAnimDuration = 0.15;
 
     GLuint _prog = 0, _vbo = 0;
-    GLint _aPosLoc = -1, _aColorLoc = -1, _uPosLoc = -1, _uZoomLoc = -1;
+    GLint _aPosLoc = -1, _aColorLoc = -1;
 
     float _zoom = 1.0f;
     float _panX = 0.0f, _panY = 0.0f;
+    float _aspect = 1.0f;
     float _dragWX = 0.0f, _dragWY = 0.0f;
     bool _isPanning = false;
     int _lastPanX = 0, _lastPanY = 0;

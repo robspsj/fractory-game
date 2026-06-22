@@ -27,7 +27,7 @@ class GameModel {
 public:
   static constexpr int GRID = 5;
   static constexpr int ELEMS = 5;
-  static constexpr int MAX_GRIDS = 6000;
+  static constexpr int MAX_GRIDS = 500000;
 
   GameModel() = default;
 

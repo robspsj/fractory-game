@@ -2,17 +2,11 @@
 #include <cstdio>
 
 const char *vertSrc = R"(
-attribute vec2 aPos;       // The base quad shape (0 to 1)
-attribute vec2 aOffset;    // The position of the instance
-attribute vec3 aColor;     // The color of the instance
-uniform vec2 uPos;
-uniform float uAspect;
-uniform float uZoom;
+attribute vec2 aPos;       // Pre-transformed clip-space position
+attribute vec3 aColor;     // The color of the vertex
 varying vec3 vColor;
 void main() {
-    vec2 pos = aPos + aOffset;
-    pos.y *= uAspect;
-    gl_Position = vec4(pos * uZoom + uPos, 0.0, 1.0);
+    gl_Position = vec4(aPos, 0.0, 1.0);
     vColor = aColor;
 }
 )";
