@@ -38,6 +38,7 @@ public:
     void unfocusGrid();
     bool isFocused() const { return !_focusStack.empty(); }
     int anchorIndex() const { return _anchorIndex; }
+    int anchorSize() const { return _anchorSize; }
     void focusOffset(int delta);
 
 private:

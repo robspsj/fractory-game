@@ -76,9 +76,10 @@ void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
   if (button == SDL_BUTTON_RIGHT) {
     int row, col;
     if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-      const auto &node = _model->node(_model->rootChild(row, col));
-      if (node.type == CellType::GRID)
-        _view->focusGrid(_model->rootChild(row, col));
+      int childIndex = _model->node(_view->anchorIndex()).data.grid.firstChild +
+                       row * _view->anchorSize() + col;
+      if (_model->node(childIndex).type == CellType::GRID)
+        _view->focusGrid(childIndex);
     } else if (_view->isFocused()) {
       _view->unfocusGrid();
     }
@@ -89,13 +90,11 @@ void Game::mouseUp(int, int, int, int, int) {}
 
 void Game::keyDown(SDL_Keycode key, SDL_Keymod mod) {
   (void)mod;
-#ifdef FRACTORY_DEBUG
   if (key == SDLK_O) {
     _view->focusOffset(1);
   } else if (key == SDLK_P) {
     _view->focusOffset(-1);
   }
-#endif
 }
 
 void Game::mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW,
