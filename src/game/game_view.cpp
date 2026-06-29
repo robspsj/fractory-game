@@ -421,7 +421,6 @@ float GameView::gridToWorldY(int row) const {
 
 void GameView::focusGrid(int nodeIndex) {
   if (nodeIndex >= 0 && _model.node(nodeIndex).type == CellType::GRID) {
-    _focusStack.push(nodeIndex);
     _anchorIndex = nodeIndex;
     const Cell &cell = _model.node(_anchorIndex);
     _anchorSize =
@@ -430,9 +429,9 @@ void GameView::focusGrid(int nodeIndex) {
 }
 
 void GameView::unfocusGrid() {
-  if (!_focusStack.empty()) {
-    _focusStack.pop();
-    _anchorIndex = _focusStack.empty() ? 0 : _focusStack.top();
+  int p = _model.node(_anchorIndex).parent;
+  if (p >= 0) {
+    _anchorIndex = p;
     const Cell &cell = _model.node(_anchorIndex);
     _anchorSize =
         (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;

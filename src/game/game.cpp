@@ -89,7 +89,8 @@ void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
 void Game::mouseUp(int, int, int, int, int) {}
 
 void Game::keyDown(SDL_Keycode key, SDL_Keymod mod, int winW, int winH) {
-  if (key == SDLK_SPACE && (mod & SDL_KMOD_SHIFT)) {
+  (void)mod;
+  if (key == SDLK_B || key == 'B') {
     _view->unfocusGrid();
   } else if (key == SDLK_P) {
     _view->focusOffset(1);

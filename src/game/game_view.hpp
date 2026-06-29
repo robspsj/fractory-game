@@ -3,7 +3,6 @@
 #include "game_model.hpp"
 #include <SDL3/SDL.h>
 #include <cstddef>
-#include <stack>
 #include <vector>
 
 class GameView {
@@ -36,7 +35,7 @@ public:
 
     void focusGrid(int nodeIndex);
     void unfocusGrid();
-    bool isFocused() const { return !_focusStack.empty(); }
+    bool isFocused() const { return _model.node(_anchorIndex).parent >= 0; }
     int anchorIndex() const { return _anchorIndex; }
     int anchorSize() const { return _anchorSize; }
     void focusOffset(int delta);
@@ -81,7 +80,6 @@ private:
     static constexpr float _anchorWidth = 1.5f;
     static constexpr size_t _maxVerts = 131072;
 
-    std::stack<int> _focusStack;
     int _anchorIndex = 0;
     int _anchorSize = 0;
     int _hoverRow = -1, _hoverCol = -1;
