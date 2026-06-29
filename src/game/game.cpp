@@ -88,12 +88,14 @@ void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
 
 void Game::mouseUp(int, int, int, int, int) {}
 
-void Game::keyDown(SDL_Keycode key, SDL_Keymod mod) {
+void Game::keyDown(SDL_Keycode key, SDL_Keymod mod, int winW, int winH) {
   (void)mod;
   if (key == SDLK_P) {
     _view->focusOffset(1);
   } else if (key == SDLK_O) {
     _view->focusOffset(-1);
+  } else if (key == SDLK_SPACE) {
+    _view->focusCenterCell(winW, winH);
   }
 }
 

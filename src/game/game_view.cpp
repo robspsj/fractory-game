@@ -58,6 +58,8 @@ void GameView::addQuad(float cx, float cy, float w, float h,
   if (cx + w <= -1.0f || cx - w >= 1.0f ||
       cy + h <= -1.0f || cy - h >= 1.0f)
     return;
+  if (_v + 30 > _verts.data() + _maxVerts)
+    return;
   for (int i = 0; i < 6; i++) {
     float dx = (i == 1 || i == 3 || i == 4) ? w : -w;
     float dy = (i == 0 || i == 1 || i == 4) ? -h : h;
@@ -175,6 +177,8 @@ void GameView::renderCell(int nodeIndex, float ox, float oy, float cellW,
                           float cellH, int depth) {
   if (depth >= MAX_PREVIEW_DEPTH)
     return;
+  if (_v + 30 > _verts.data() + _maxVerts)
+    return;
   if (ox + cellW <= -1.0f || ox >= 1.0f ||
       oy + cellH <= -1.0f || oy >= 1.0f)
     return;
@@ -239,9 +243,68 @@ int GameView::resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
     return childIdx;
 }
 
+int GameView::resolveCenterCell(float wx, float wy) const {
+  const Cell &anchor = _model.node(_anchorIndex);
+  if (anchor.type != CellType::GRID) return _anchorIndex;
+
+  constexpr float aw = _anchorWidth;
+  float ox = -aw * 0.5f, oy = -aw * 0.5f;
+  return resolveCellAtWithSizeCheck(wx, wy, _anchorIndex, _anchorSize, ox, oy, aw);
+}
+
+int GameView::resolveCellAtWithSizeCheck(float wx, float wy, int nodeIndex,
+                                          int gridDim, float ox, float oy,
+                                          float contentW) const {
+  const Cell &cell = _model.node(nodeIndex);
+  if (cell.type != CellType::GRID) return nodeIndex;
+
+  float childCellSize = contentW / (gridDim + (gridDim - 1) * _gapRatio);
+
+  constexpr float screenWidthNDC = 2.0f;
+  if (childCellSize * _zoom < 0.15f * screenWidthNDC)
+    return nodeIndex;
+
+  float pitch = childCellSize * (1 + _gapRatio);
+  float half = childCellSize * 0.5f;
+  float startX = ox + half;
+  float startY = oy + contentW - half;
+
+  int c = (int)((wx - startX) / pitch + 0.5f);
+  int r = (int)((startY - wy) / pitch + 0.5f);
+
+  if (r < 0 || r >= gridDim || c < 0 || c >= gridDim) return nodeIndex;
+
+  float cx = startX + c * pitch;
+  float cy = startY - r * pitch;
+  if (std::abs(wx - cx) > half || std::abs(wy - cy) > half) return nodeIndex;
+
+  int childIdx = cell.data.grid.firstChild + r * gridDim + c;
+  const Cell &child = _model.node(childIdx);
+
+  if (child.type == CellType::GRID) {
+    return resolveCellAtWithSizeCheck(wx, wy, childIdx,
+                                       child.data.grid.gridDimension,
+                                       cx - half, cy - half, childCellSize);
+  }
+  return childIdx;
+}
+
+void GameView::focusCenterCell(int winW, int winH) {
+  float wx, wy;
+  screenToWorld(winW / 2, winH / 2, winW, winH, wx, wy);
+  int idx = resolveCenterCell(wx, wy);
+  if (idx >= 0) {
+    _anchorIndex = idx;
+    const Cell &cell = _model.node(_anchorIndex);
+    _anchorSize =
+        (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+  }
+}
+
 void GameView::render(int winW, int winH) {
   _aspect = (float)winW / (float)winH;
   size_t maxFloats = (size_t)_model.totalNodes() * 200 + 1024;
+  if (maxFloats > _maxVerts) maxFloats = _maxVerts;
   _verts.resize(maxFloats);
   _v = _verts.data();
 

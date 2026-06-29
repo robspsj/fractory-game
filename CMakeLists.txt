@@ -12,6 +12,7 @@ endif()
 # --- Web (Emscripten) ---
 if(EMSCRIPTEN)
     add_executable(fractory src/main.cpp src/shader.cpp src/font.cpp src/print_state.cpp src/test_runner.cpp src/game/game.cpp src/game/game_model.cpp src/game/game_view.cpp)
+    set_target_properties(fractory PROPERTIES OUTPUT_NAME "index")
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sUSE_SDL=3 -Os -Wno-experimental")
     target_link_options(fractory PRIVATE
@@ -22,7 +23,6 @@ if(EMSCRIPTEN)
         -sALLOW_MEMORY_GROWTH=1
         -sFILESYSTEM=0
         -sINITIAL_MEMORY=8MB
-        -o fractory.html
     )
     return()
 endif()

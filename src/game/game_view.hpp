@@ -40,10 +40,15 @@ public:
     int anchorIndex() const { return _anchorIndex; }
     int anchorSize() const { return _anchorSize; }
     void focusOffset(int delta);
+    void focusCenterCell(int winW, int winH);
 
 private:
     int resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
                       float ox, float oy, float contentW) const;
+    int resolveCellAtWithSizeCheck(float wx, float wy, int nodeIndex,
+                                    int gridDim, float ox, float oy,
+                                    float contentW) const;
+    int resolveCenterCell(float wx, float wy) const;
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
     void renderEmpty(float ox, float oy, float cellW, float cellH);
@@ -74,6 +79,7 @@ private:
     static constexpr float _cellSize = 0.30f;
     static constexpr float _gapRatio = 0.0714f;
     static constexpr float _anchorWidth = 1.5f;
+    static constexpr size_t _maxVerts = 131072;
 
     std::stack<int> _focusStack;
     int _anchorIndex = 0;

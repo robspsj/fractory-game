@@ -95,7 +95,7 @@ static void frame() {
       s_game->mouseWheel(e.wheel.x, e.wheel.y, (int)e.wheel.mouse_x,
                          (int)e.wheel.mouse_y, winW, winH);
     if (e.type == SDL_EVENT_KEY_DOWN)
-      s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod);
+      s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod, winW, winH);
   }
 
   glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
         s_game->mouseWheel(e.wheel.x, e.wheel.y, (int)e.wheel.mouse_x,
                            (int)e.wheel.mouse_y, winW, winH);
       if (e.type == SDL_EVENT_KEY_DOWN)
-        s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod);
+        s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod, winW, winH);
     }
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
