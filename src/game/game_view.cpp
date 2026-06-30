@@ -146,7 +146,6 @@ void GameView::childCellLayout(int nodeIndex, float ox, float oy,
                                float& childW, float& childH) const {
   const Cell& cell = _model.node(nodeIndex);
   int gridDim = cell.data.grid.gridDimension;
-  (void)gridDim;
 
   childW = contentW / (gridDim + (gridDim - 1) * _gapRatio);
   childH = contentH / (gridDim + (gridDim - 1) * _gapRatio);
@@ -303,11 +302,11 @@ int GameView::resolveCellAtWithSizeCheck(float wx, float wy, int nodeIndex,
 }
 
 void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy,
-                                float& ow, float& oh) const {
+                                float& cw, float& ch) const {
   constexpr float aw = _anchorWidth;
   float ox = -aw * 0.5f;
   float oy = -aw * 0.5f;
-  float cw = aw, ch = aw;
+  cw = aw, ch = aw;
   int nodeIdx = _anchorIndex;
 
   while (nodeIdx != targetIdx) {
@@ -334,8 +333,8 @@ void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy,
     if (directChild == targetIdx) {
       wx = childOx + childW * 0.5f;
       wy = childOy + childH * 0.5f;
-      ow = childW;
-      oh = childH;
+      cw = childW;
+      ch = childH;
       return;
     }
 
@@ -348,14 +347,12 @@ void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy,
 
   wx = ox + cw * 0.5f;
   wy = oy + ch * 0.5f;
-  ow = cw;
-  oh = ch;
 }
 
 void GameView::focusTransform(int targetIdx) {
-  float wx, wy, w, h;
-  cellWorldCenter(targetIdx, wx, wy, w, h);
-  (void)h;
+  float wx, wy, cw, ch;
+  cellWorldCenter(targetIdx, wx, wy, cw, ch);
+  (void)ch;
 
   const Cell &cell = _model.node(targetIdx);
   _anchorIndex = targetIdx;
@@ -364,7 +361,8 @@ void GameView::focusTransform(int targetIdx) {
 
   _panX = wx * _zoom + _panX;
   _panY = wy * _aspect * _zoom + _panY;
-  _zoom = _zoom * w / _anchorWidth;
+  _zoom = _zoom * cw / _anchorWidth;
+  if (_zoom < 0.1f) _zoom = 0.1f;
 }
 
 void GameView::focusCenterCell(int winW, int winH) {
@@ -518,6 +516,7 @@ void GameView::unfocusGrid() {
   float childOx, childOy, childW, childH;
   childCellLayout(p, -aw * 0.5f, -aw * 0.5f, aw, aw, r, c,
                   childOx, childOy, childW, childH);
+  (void)childH;
 
   float cx = childOx + childW * 0.5f;
   float cy = childOy + childH * 0.5f;
@@ -527,6 +526,7 @@ void GameView::unfocusGrid() {
   _anchorSize = gridDim;
 
   _zoom = savedZoom * _anchorWidth / childW;
+  if (_zoom < 0.1f) _zoom = 0.1f;
   _panX = _panX - cx * (savedZoom * _anchorWidth / childW);
   _panY = _panY - cy * _aspect * (savedZoom * _anchorWidth / childW);
 }
