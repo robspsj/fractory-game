@@ -1,5 +1,7 @@
 #pragma once
 
+constexpr float MIN_ZOOM = 0.0001f;
+
 struct Config {
     const unsigned int seed;
     const int gridChance;

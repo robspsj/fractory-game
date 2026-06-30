@@ -389,7 +389,7 @@ void GameView::focusTransform(int targetIdx) {
   _panX = worldX * _zoom + _panX;
   _panY = worldY * _aspect * _zoom + _panY;
   _zoom = _zoom * contentW / _anchorWidth;
-  if (_zoom < 0.1f) _zoom = 0.1f;
+  if (_zoom < MIN_ZOOM) _zoom = MIN_ZOOM;
 }
 
 void GameView::resetView() {
@@ -444,7 +444,7 @@ bool GameView::unfocusOneLevel() {
   _anchorIndex = parentIdx;
   _anchorSize = gridDim;
   _zoom = savedZoom * _anchorWidth / childW;
-  if (_zoom < 0.1f) _zoom = 0.1f;
+  if (_zoom < MIN_ZOOM) _zoom = MIN_ZOOM;
   _panX -= centerX * (savedZoom * _anchorWidth / childW);
   _panY -= centerY * _aspect * (savedZoom * _anchorWidth / childW);
   return true;
@@ -597,8 +597,8 @@ void GameView::focusOffset(int delta) {
 void GameView::zoom(float factor, float mouseNX, float mouseNY) {
   float oldZoom = _zoom;
   _zoom *= factor;
-  if (_zoom < 0.1f)
-    _zoom = 0.1f;
+  if (_zoom < MIN_ZOOM)
+    _zoom = MIN_ZOOM;
   float actualFactor = _zoom / oldZoom;
   _panX = mouseNX * (1.0f - actualFactor) + _panX * actualFactor;
   _panY = mouseNY * (1.0f - actualFactor) + _panY * actualFactor;
