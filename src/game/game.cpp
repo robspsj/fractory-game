@@ -12,6 +12,11 @@ Game::Game(const Config &cfg) {
 }
 
 void Game::update(int mousePx, int mousePy, int winW, int winH) {
+  if (_view->isPanning()) {
+    _view->continuePan(mousePx, mousePy, winW, winH);
+    return;
+  }
+
   bool changedState = false;
 
   float wx, wy;
@@ -73,6 +78,11 @@ void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
     }
   }
 
+  if (button == SDL_BUTTON_MIDDLE) {
+    _view->startPan(mousePx, mousePy);
+    return;
+  }
+
   if (button == SDL_BUTTON_RIGHT) {
     int row, col;
     if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
@@ -86,7 +96,10 @@ void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
   }
 }
 
-void Game::mouseUp(int, int, int, int, int) {}
+void Game::mouseUp(int button, int, int, int, int) {
+  if (button == SDL_BUTTON_MIDDLE)
+    _view->endPan();
+}
 
 void Game::keyDown(SDL_Keycode key, SDL_Keymod mod, int winW, int winH) {
   (void)mod;

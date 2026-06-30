@@ -556,8 +556,8 @@ void GameView::startPan(int px, int py) {
 }
 
 void GameView::continuePan(int px, int py, int winW, int winH) {
-  float dx = (2.0f * (px - _lastPanX) / (float)winW) / _zoom;
-  float dy = (-2.0f * (py - _lastPanY) / (float)winH) / _zoom;
+  float dx = 2.0f * (px - _lastPanX) / (float)winW;
+  float dy = -2.0f * (py - _lastPanY) / (float)winH;
   _panX += dx;
   _panY += dy;
   _lastPanX = px;
