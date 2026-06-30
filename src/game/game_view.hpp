@@ -52,6 +52,7 @@ private:
                          int r, int c, float& childOx, float& childOy,
                          float& childW, float& childH) const;
     void cellWorldCenter(int targetIdx, float& wx, float& wy, float& cw, float& ch) const;
+    void focusTransform(int targetIdx);
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
     void renderEmpty(float ox, float oy, float cellW, float cellH, const float bgColor[3] = nullptr);
