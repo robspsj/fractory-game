@@ -15,7 +15,7 @@ const float GameView::_elemColors[GameModel::ELEMS][3] = {
 const float GameView::_white[3] = {1.0f, 1.0f, 1.0f};
 const float GameView::_yellow[3] = {1.0f, 1.0f, 0.0f};
 const float GameView::_grey[3] = {0.5f, 0.5f, 0.5f};
-const float GameView::_gridBg[3] = {0.8f, 0.2f, 0.2f};
+const float GameView::_gridBg[3] = {0.25f, 0.40f, 0.60f};
 
 GameView::GameView(GameModel &model) : _model(model) {
   const Cell &cell = _model.node(_anchorIndex);
@@ -122,17 +122,19 @@ void GameView::renderCellItems(float cx, float cy, int count,
   }
 }
 
-void GameView::renderEmpty(float ox, float oy, float cellW, float cellH) {
+void GameView::renderEmpty(float ox, float oy, float cellW, float cellH,
+                           const float bgColor[3]) {
   float halfW = cellW * 0.5f;
   float halfH = cellH * 0.5f;
-  addQuad(ox + halfW, oy + halfH, halfW, halfH, _grey);
+  addQuad(ox + halfW, oy + halfH, halfW, halfH, bgColor ? bgColor : _grey);
 }
 
 void GameView::renderItem(float ox, float oy, float cellW, float cellH,
-                          int itemId, int count, float scale) {
+                          int itemId, int count, float scale,
+                          const float bgColor[3]) {
   float halfW = cellW * 0.5f;
   float halfH = cellH * 0.5f;
-  addQuad(ox + halfW, oy + halfH, halfW, halfH, _grey);
+  addQuad(ox + halfW, oy + halfH, halfW, halfH, bgColor ? bgColor : _grey);
   const float *col = _elemColors[itemId];
   renderCellItems(ox + halfW, oy + halfH, count, col, scale);
 }
@@ -156,7 +158,8 @@ void GameView::renderGrid(int nodeIndex, float ox, float oy, float contentW,
   const float gridBg[3] = {g, g, g + 0.03f};
   float halfCW = contentW * 0.5f;
   float halfCH = contentH * 0.5f;
-  addQuad(ox + halfCW, oy + halfCH, halfCW, halfCH, gridBg);
+  addQuad(ox + halfCW, oy + halfCH, halfCW, halfCH,
+           depth == 0 ? _gridBg : gridBg);
 
   float startX = ox + halfW;
   float startY = oy + contentH - halfH;
@@ -187,14 +190,15 @@ void GameView::renderCell(int nodeIndex, float ox, float oy, float cellW,
     return;
 
   const Cell &cell = _model.node(nodeIndex);
+  const bool isAnchor = nodeIndex == _anchorIndex;
   switch (cell.type) {
   case CellType::EMPTY:
-    renderEmpty(ox, oy, cellW, cellH);
+    renderEmpty(ox, oy, cellW, cellH, isAnchor ? _gridBg : nullptr);
     break;
   case CellType::ITEM:
   { float scale = cellW / (_zoom * _cellSize);
     renderItem(ox, oy, cellW, cellH, cell.data.item.id, cell.data.item.count,
-               scale);
+               scale, isAnchor ? _gridBg : nullptr);
     break;
   }
   case CellType::GRID:

@@ -50,8 +50,8 @@ private:
     int resolveCenterCell(float wx, float wy) const;
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
-    void renderEmpty(float ox, float oy, float cellW, float cellH);
-    void renderItem(float ox, float oy, float cellW, float cellH, int itemId, int count, float scale);
+    void renderEmpty(float ox, float oy, float cellW, float cellH, const float bgColor[3] = nullptr);
+    void renderItem(float ox, float oy, float cellW, float cellH, int itemId, int count, float scale, const float bgColor[3] = nullptr);
     void renderGrid(int nodeIndex, float ox, float oy, float contentW, float contentH, int depth);
     void renderCell(int nodeIndex, float ox, float oy, float cellW, float cellH, int depth);
 
