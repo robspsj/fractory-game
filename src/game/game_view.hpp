@@ -12,7 +12,7 @@ public:
 
     void initGL();
     void render(int winW, int winH);
-    void setDragWorldPos(float wx, float wy) { _dragWX = wx; _dragWY = wy; }
+    void setDragWorldPos(float worldX, float worldY) { _dragWX = worldX; _dragWY = worldY; }
     void setHoveredCell(int row, int col) { _hoverRow = row; _hoverCol = col; }
     void clearHoveredCell() { _hoverRow = -1; _hoverCol = -1; }
     GLuint program() const { return _prog; }
@@ -22,13 +22,13 @@ public:
     const float* panPtr() const { return &_panX; }
 
     bool isPanning() const { return _isPanning; }
-    void startPan(int px, int py);
-    void continuePan(int px, int py, int winW, int winH);
+    void startPan(int pixelX, int pixelY);
+    void continuePan(int pixelX, int pixelY, int winW, int winH);
     void endPan();
 
-    bool screenToGrid(int px, int py, int winW, int winH, int& row, int& col) const;
-    void screenToWorld(int px, int py, int winW, int winH, float& wx, float& wy) const;
-    int resolveLeafCell(float wx, float wy) const;
+    bool screenToGrid(int pixelX, int pixelY, int winW, int winH, int& row, int& col) const;
+    void screenToWorld(int pixelX, int pixelY, int winW, int winH, float& worldX, float& worldY) const;
+    int resolveLeafCell(float worldX, float worldY) const;
 
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;
@@ -43,25 +43,25 @@ public:
     void resetView();
 
 private:
-    int resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
-                      float ox, float oy, float contentW) const;
-    int resolveCellAtWithSizeCheck(float wx, float wy, int nodeIndex,
-                                    int gridDim, float ox, float oy,
+    int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim,
+                      float originX, float originY, float contentW) const;
+    int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex,
+                                    int gridDim, float originX, float originY,
                                     float contentW) const;
-    int resolveCenterCell(float wx, float wy) const;
+    int resolveCenterCell(float worldX, float worldY) const;
     bool unfocusOneLevel();
     bool isDescendant(int ancestor, int node) const;
-    void childCellLayout(int nodeIndex, float ox, float oy, float contentW, float contentH,
-                         int r, int c, float& childOx, float& childOy,
+    void childCellLayout(int nodeIndex, float originX, float originY, float contentW, float contentH,
+                         int row, int col, float& childOx, float& childOy,
                          float& childW, float& childH) const;
-    void cellWorldCenter(int targetIdx, float& wx, float& wy, float& cw, float& ch) const;
+    void cellWorldCenter(int targetIdx, float& worldX, float& worldY, float& contentW, float& contentH) const;
     void focusTransform(int targetIdx);
-    void addQuad(float cx, float cy, float w, float h, const float color[3]);
-    void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
-    void renderEmpty(float ox, float oy, float cellW, float cellH, const float bgColor[3] = nullptr);
-    void renderItem(float ox, float oy, float cellW, float cellH, int itemId, int count, float scale, const float bgColor[3] = nullptr);
-    void renderGrid(int nodeIndex, float ox, float oy, float contentW, float contentH, int depth);
-    void renderCell(int nodeIndex, float ox, float oy, float cellW, float cellH, int depth);
+    void addQuad(float centerX, float centerY, float halfW, float halfH, const float color[3]);
+    void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
+    void renderEmpty(float originX, float originY, float cellW, float cellH, const float bgColor[3] = nullptr);
+    void renderItem(float originX, float originY, float cellW, float cellH, int itemId, int count, float scale, const float bgColor[3] = nullptr);
+    void renderGrid(int nodeIndex, float originX, float originY, float contentW, float contentH, int depth);
+    void renderCell(int nodeIndex, float originX, float originY, float cellW, float cellH, int depth);
 
     GameModel& _model;
 
