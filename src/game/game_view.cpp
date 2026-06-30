@@ -139,20 +139,33 @@ void GameView::renderItem(float ox, float oy, float cellW, float cellH,
   renderCellItems(ox + halfW, oy + halfH, count, col, scale);
 }
 
+void GameView::childCellLayout(int nodeIndex, float ox, float oy,
+                               float contentW, float contentH,
+                               int r, int c,
+                               float& childOx, float& childOy,
+                               float& childW, float& childH) const {
+  const Cell& cell = _model.node(nodeIndex);
+  int gridDim = cell.data.grid.gridDimension;
+  (void)gridDim;
+
+  childW = contentW / (gridDim + (gridDim - 1) * _gapRatio);
+  childH = contentH / (gridDim + (gridDim - 1) * _gapRatio);
+  float pitchX = childW * (1 + _gapRatio);
+  float pitchY = childH * (1 + _gapRatio);
+  float halfW = childW * 0.5f;
+  float halfH = childH * 0.5f;
+
+  float cx = ox + halfW + c * pitchX;
+  float cy = oy + contentH - halfH - r * pitchY;
+  childOx = cx - halfW;
+  childOy = cy - halfH;
+}
+
 void GameView::renderGrid(int nodeIndex, float ox, float oy, float contentW,
                           float contentH, int depth) {
   const Cell &cell = _model.node(nodeIndex);
   int firstChild = cell.data.grid.firstChild;
   int gridDim = cell.data.grid.gridDimension;
-
-  float childCellW =
-      contentW / (gridDim + (gridDim - 1) * _gapRatio);
-  float childCellH =
-      contentH / (gridDim + (gridDim - 1) * _gapRatio);
-  float pitchX = childCellW * (1 + _gapRatio);
-  float pitchY = childCellH * (1 + _gapRatio);
-  float halfW = childCellW * 0.5f;
-  float halfH = childCellH * 0.5f;
 
   float g = 0.45f - std::min(depth, 3) * 0.07f;
   const float gridBg[3] = {g, g, g + 0.03f};
@@ -161,17 +174,13 @@ void GameView::renderGrid(int nodeIndex, float ox, float oy, float contentW,
   addQuad(ox + halfCW, oy + halfCH, halfCW, halfCH,
            depth == 0 ? _gridBg : gridBg);
 
-  float startX = ox + halfW;
-  float startY = oy + contentH - halfH;
-
   for (int r = 0; r < gridDim; r++) {
     for (int c = 0; c < gridDim; c++) {
-      float childCx = startX + c * pitchX;
-      float childCy = startY - r * pitchY;
       int childIndex = firstChild + r * gridDim + c;
-
-      renderCell(childIndex, childCx - halfW, childCy - halfH, childCellW,
-                 childCellH, depth + 1);
+      float childOx, childOy, childW, childH;
+      childCellLayout(nodeIndex, ox, oy, contentW, contentH, r, c,
+                      childOx, childOy, childW, childH);
+      renderCell(childIndex, childOx, childOy, childW, childH, depth + 1);
     }
   }
 }
@@ -297,7 +306,7 @@ void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy) const {
   constexpr float aw = _anchorWidth;
   float ox = -aw * 0.5f;
   float oy = -aw * 0.5f;
-  float size = aw;
+  float cw = aw, ch = aw;
   int nodeIdx = _anchorIndex;
 
   while (nodeIdx != targetIdx) {
@@ -306,32 +315,31 @@ void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy) const {
 
     int gridDim = node.data.grid.gridDimension;
     int firstChild = node.data.grid.firstChild;
-
-    float childSize = size / (gridDim + (gridDim - 1) * _gapRatio);
-    float pitch = childSize * (1 + _gapRatio);
-    float half = childSize * 0.5f;
-
-    float startX = ox + half;
-    float startY = oy + size - half;
-
     int offset = targetIdx - firstChild;
     int r = offset / gridDim;
     int c = offset % gridDim;
-
     if (r < 0 || r >= gridDim || c < 0 || c >= gridDim) break;
 
-    wx = startX + c * pitch;
-    wy = startY - r * pitch;
-    nodeIdx = firstChild + r * gridDim + c;
-    ox = wx - half;
-    oy = wy - half;
-    size = childSize;
+    int childIdx = firstChild + r * gridDim + c;
+    float childOx, childOy, childW, childH;
+    childCellLayout(nodeIdx, ox, oy, cw, ch, r, c,
+                    childOx, childOy, childW, childH);
+
+    if (childIdx == targetIdx) {
+      wx = childOx + childW * 0.5f;
+      wy = childOy + childH * 0.5f;
+      return;
+    }
+
+    nodeIdx = childIdx;
+    ox = childOx;
+    oy = childOy;
+    cw = childW;
+    ch = childH;
   }
 
-  if (nodeIdx == targetIdx) {
-    wx = ox + size * 0.5f;
-    wy = oy + size * 0.5f;
-  }
+  wx = ox + cw * 0.5f;
+  wy = oy + ch * 0.5f;
 }
 
 void GameView::focusCenterCell(int winW, int winH) {

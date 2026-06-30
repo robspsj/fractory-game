@@ -48,6 +48,9 @@ private:
                                     int gridDim, float ox, float oy,
                                     float contentW) const;
     int resolveCenterCell(float wx, float wy) const;
+    void childCellLayout(int nodeIndex, float ox, float oy, float contentW, float contentH,
+                         int r, int c, float& childOx, float& childOy,
+                         float& childW, float& childH) const;
     void cellWorldCenter(int targetIdx, float& wx, float& wy) const;
     void addQuad(float cx, float cy, float w, float h, const float color[3]);
     void renderCellItems(float cx, float cy, int count, const float color[3], float scale = 1.0f);
