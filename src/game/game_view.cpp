@@ -302,7 +302,8 @@ int GameView::resolveCellAtWithSizeCheck(float wx, float wy, int nodeIndex,
   return childIdx;
 }
 
-void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy) const {
+void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy,
+                                float& ow, float& oh) const {
   constexpr float aw = _anchorWidth;
   float ox = -aw * 0.5f;
   float oy = -aw * 0.5f;
@@ -333,6 +334,8 @@ void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy) const {
     if (directChild == targetIdx) {
       wx = childOx + childW * 0.5f;
       wy = childOy + childH * 0.5f;
+      ow = childW;
+      oh = childH;
       return;
     }
 
@@ -345,6 +348,8 @@ void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy) const {
 
   wx = ox + cw * 0.5f;
   wy = oy + ch * 0.5f;
+  ow = cw;
+  oh = ch;
 }
 
 void GameView::focusCenterCell(int winW, int winH) {
@@ -352,8 +357,9 @@ void GameView::focusCenterCell(int winW, int winH) {
   screenToWorld(winW / 2, winH / 2, winW, winH, wx, wy);
   int idx = resolveCenterCell(wx, wy);
   if (idx >= 0 && idx != _anchorIndex) {
-    float cellWx, cellWy;
-    cellWorldCenter(idx, cellWx, cellWy);
+    float cellWx, cellWy, cellW, cellH;
+    cellWorldCenter(idx, cellWx, cellWy, cellW, cellH);
+    (void)cellH;
 
     const Cell &cell = _model.node(idx);
     _anchorIndex = idx;
@@ -362,6 +368,7 @@ void GameView::focusCenterCell(int winW, int winH) {
 
     _panX = cellWx * _zoom + _panX;
     _panY = cellWy * _aspect * _zoom + _panY;
+    _zoom = _zoom * cellW / _anchorWidth;
   }
 }
 
