@@ -315,23 +315,28 @@ void GameView::cellWorldCenter(int targetIdx, float& wx, float& wy) const {
 
     int gridDim = node.data.grid.gridDimension;
     int firstChild = node.data.grid.firstChild;
-    int offset = targetIdx - firstChild;
+
+    int directChild = targetIdx;
+    while (_model.node(directChild).parent != nodeIdx) {
+      directChild = _model.node(directChild).parent;
+    }
+
+    int offset = directChild - firstChild;
     int r = offset / gridDim;
     int c = offset % gridDim;
     if (r < 0 || r >= gridDim || c < 0 || c >= gridDim) break;
 
-    int childIdx = firstChild + r * gridDim + c;
     float childOx, childOy, childW, childH;
     childCellLayout(nodeIdx, ox, oy, cw, ch, r, c,
                     childOx, childOy, childW, childH);
 
-    if (childIdx == targetIdx) {
+    if (directChild == targetIdx) {
       wx = childOx + childW * 0.5f;
       wy = childOy + childH * 0.5f;
       return;
     }
 
-    nodeIdx = childIdx;
+    nodeIdx = directChild;
     ox = childOx;
     oy = childOy;
     cw = childW;
