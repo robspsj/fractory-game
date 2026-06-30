@@ -256,12 +256,39 @@ int GameView::resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
 }
 
 int GameView::resolveCenterCell(float wx, float wy) const {
-  const Cell &anchor = _model.node(_anchorIndex);
-  if (anchor.type != CellType::GRID) return _anchorIndex;
-
   constexpr float aw = _anchorWidth;
   float ox = -aw * 0.5f, oy = -aw * 0.5f;
-  return resolveCellAtWithSizeCheck(wx, wy, _anchorIndex, _anchorSize, ox, oy, aw);
+
+  if (wx >= ox && wx <= ox + aw && wy >= oy && wy <= oy + aw) {
+    const Cell &anchor = _model.node(_anchorIndex);
+    if (anchor.type != CellType::GRID) return _anchorIndex;
+    return resolveCellAtWithSizeCheck(wx, wy, _anchorIndex, _anchorSize, ox, oy, aw);
+  }
+
+  int parentIdx = _model.node(_anchorIndex).parent;
+  if (parentIdx < 0) return _anchorIndex;
+
+  const Cell &parent = _model.node(parentIdx);
+  if (parent.type != CellType::GRID) return _anchorIndex;
+
+  int pd = parent.data.grid.gridDimension;
+  int firstChild = parent.data.grid.firstChild;
+  int offset = _anchorIndex - firstChild;
+  int anchorRow = offset / pd;
+  int anchorCol = offset % pd;
+  if (anchorRow < 0 || anchorRow >= pd || anchorCol < 0 || anchorCol >= pd)
+    return _anchorIndex;
+
+  float pitch = aw * (1 + _gapRatio);
+  float half = aw * 0.5f;
+  float cw_p = aw * (pd + (pd - 1) * _gapRatio);
+  float ox_p = -half - anchorCol * pitch;
+  float oy_p = -cw_p + half + anchorRow * pitch;
+
+  if (wx < ox_p || wx > ox_p + cw_p || wy < oy_p || wy > oy_p + cw_p)
+    return parentIdx;
+
+  return resolveCellAtWithSizeCheck(wx, wy, parentIdx, pd, ox_p, oy_p, cw_p);
 }
 
 int GameView::resolveCellAtWithSizeCheck(float wx, float wy, int nodeIndex,
@@ -369,9 +396,56 @@ void GameView::focusCenterCell(int winW, int winH) {
   float wx, wy;
   screenToWorld(winW / 2, winH / 2, winW, winH, wx, wy);
   int idx = resolveCenterCell(wx, wy);
-  if (idx >= 0 && idx != _anchorIndex) {
+  if (idx < 0 || idx == _anchorIndex) return;
+
+  if (isDescendant(_anchorIndex, idx)) {
     focusTransform(idx);
+    return;
   }
+
+  while (!isDescendant(_anchorIndex, idx)) {
+    if (!unfocusOneLevel()) return;
+  }
+  focusTransform(idx);
+}
+
+bool GameView::unfocusOneLevel() {
+  int p = _model.node(_anchorIndex).parent;
+  if (p < 0) return false;
+
+  const Cell &parent = _model.node(p);
+  if (parent.type != CellType::GRID) return false;
+
+  int gridDim = parent.data.grid.gridDimension;
+  int firstChild = parent.data.grid.firstChild;
+  int offset = _anchorIndex - firstChild;
+  int r = offset / gridDim;
+  int c = offset % gridDim;
+
+  constexpr float aw = _anchorWidth;
+  float childOx, childOy, childW, childH;
+  childCellLayout(p, -aw * 0.5f, -aw * 0.5f, aw, aw, r, c,
+                  childOx, childOy, childW, childH);
+
+  float cx = childOx + childW * 0.5f;
+  float cy = childOy + childH * 0.5f;
+  float savedZoom = _zoom;
+
+  _anchorIndex = p;
+  _anchorSize = gridDim;
+  _zoom = savedZoom * _anchorWidth / childW;
+  if (_zoom < 0.1f) _zoom = 0.1f;
+  _panX -= cx * (savedZoom * _anchorWidth / childW);
+  _panY -= cy * _aspect * (savedZoom * _anchorWidth / childW);
+  return true;
+}
+
+bool GameView::isDescendant(int ancestor, int node) const {
+  while (node >= 0) {
+    if (node == ancestor) return true;
+    node = _model.node(node).parent;
+  }
+  return false;
 }
 
 void GameView::render(int winW, int winH) {
@@ -499,36 +573,7 @@ void GameView::focusGrid(int nodeIndex) {
 }
 
 void GameView::unfocusGrid() {
-  int childIdx = _anchorIndex;
-  int p = _model.node(childIdx).parent;
-  if (p < 0) return;
-
-  const Cell &parent = _model.node(p);
-  if (parent.type != CellType::GRID) return;
-
-  int gridDim = parent.data.grid.gridDimension;
-  int firstChild = parent.data.grid.firstChild;
-  int offset = childIdx - firstChild;
-  int r = offset / gridDim;
-  int c = offset % gridDim;
-
-  constexpr float aw = _anchorWidth;
-  float childOx, childOy, childW, childH;
-  childCellLayout(p, -aw * 0.5f, -aw * 0.5f, aw, aw, r, c,
-                  childOx, childOy, childW, childH);
-  (void)childH;
-
-  float cx = childOx + childW * 0.5f;
-  float cy = childOy + childH * 0.5f;
-  float savedZoom = _zoom;
-
-  _anchorIndex = p;
-  _anchorSize = gridDim;
-
-  _zoom = savedZoom * _anchorWidth / childW;
-  if (_zoom < 0.1f) _zoom = 0.1f;
-  _panX = _panX - cx * (savedZoom * _anchorWidth / childW);
-  _panY = _panY - cy * _aspect * (savedZoom * _anchorWidth / childW);
+  unfocusOneLevel();
 }
 
 void GameView::focusOffset(int delta) {

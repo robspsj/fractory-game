@@ -48,6 +48,8 @@ private:
                                     int gridDim, float ox, float oy,
                                     float contentW) const;
     int resolveCenterCell(float wx, float wy) const;
+    bool unfocusOneLevel();
+    bool isDescendant(int ancestor, int node) const;
     void childCellLayout(int nodeIndex, float ox, float oy, float contentW, float contentH,
                          int r, int c, float& childOx, float& childOy,
                          float& childW, float& childH) const;
