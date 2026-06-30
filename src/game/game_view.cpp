@@ -297,11 +297,18 @@ void GameView::focusCenterCell(int winW, int winH) {
   float wx, wy;
   screenToWorld(winW / 2, winH / 2, winW, winH, wx, wy);
   int idx = resolveCenterCell(wx, wy);
-  if (idx >= 0) {
+  if (idx >= 0 && idx != _anchorIndex) {
+    float oldPanX = _panX;
+    float oldPanY = _panY;
+    float oldZoom = _zoom;
+
+    const Cell &cell = _model.node(idx);
     _anchorIndex = idx;
-    const Cell &cell = _model.node(_anchorIndex);
     _anchorSize =
         (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+
+    _panX = wx * oldZoom + oldPanX;
+    _panY = wy * _aspect * oldZoom + oldPanY;
   }
 }
 
