@@ -392,6 +392,16 @@ void GameView::focusTransform(int targetIdx) {
   if (_zoom < 0.1f) _zoom = 0.1f;
 }
 
+void GameView::resetView() {
+  _anchorIndex = 0;
+  const Cell &cell = _model.node(0);
+  _anchorSize =
+      (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+  _zoom = 1.0f;
+  _panX = 0.0f;
+  _panY = 0.0f;
+}
+
 void GameView::focusCenterCell(int winW, int winH) {
   float wx, wy;
   screenToWorld(winW / 2, winH / 2, winW, winH, wx, wy);

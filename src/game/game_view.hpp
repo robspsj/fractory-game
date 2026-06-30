@@ -40,6 +40,7 @@ public:
     int anchorSize() const { return _anchorSize; }
     void focusOffset(int delta);
     void focusCenterCell(int winW, int winH);
+    void resetView();
 
 private:
     int resolveCellAt(float wx, float wy, int nodeIndex, int gridDim,
