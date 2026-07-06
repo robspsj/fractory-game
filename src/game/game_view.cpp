@@ -461,6 +461,15 @@ bool GameView::isDescendant(int ancestor, int node) const {
   return false;
 }
 
+void GameView::renderAnchor(float originX, float originY, float contentW, float contentH) {
+  const Cell &anchor = _model.node(_anchorIndex);
+  if (anchor.type == CellType::GRID) {
+    renderGrid(_anchorIndex, originX, originY, contentW, contentH, 0);
+  } else {
+    renderCell(_anchorIndex, originX, originY, contentW, contentH, 0);
+  }
+}
+
 void GameView::render(int winW, int winH) {
   _aspect = (float)winW / (float)winH;
   size_t maxFloats = (size_t)_model.totalNodes() * 200 + 1024;
@@ -476,12 +485,7 @@ void GameView::render(int winW, int winH) {
   float contentW = anchorW * _zoom;
   float contentH = anchorW * _aspect * _zoom;
 
-  const Cell &anchor = _model.node(_anchorIndex);
-  if (anchor.type == CellType::GRID) {
-    renderGrid(_anchorIndex, originX, originY, contentW, contentH, 0);
-  } else {
-    renderCell(_anchorIndex, originX, originY, contentW, contentH, 0);
-  }
+  renderAnchor(originX, originY, contentW, contentH);
 
   if (_model.hasDrag()) {
     int dragId = _model.dragItemId();
