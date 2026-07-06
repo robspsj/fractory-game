@@ -14,6 +14,7 @@ Game::Game(const Config &cfg) {
 void Game::update(int mousePx, int mousePy, int winW, int winH) {
   if (_view->isPanning()) {
     _view->continuePan(mousePx, mousePy, winW, winH);
+    _view->focusCenterCell(winW, winH);
     return;
   }
 
@@ -124,6 +125,7 @@ void Game::mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW,
   float mouseNY = 1.0f - (2.0f * mousePy / (float)winH);
   float factor = (dy > 0) ? 1.1f : (1.0f / 1.1f);
   _view->zoom(factor, mouseNX, mouseNY);
+  _view->focusCenterCell(winW, winH);
 }
 
 void Game::render(int winW, int winH) { _view->render(winW, winH); }
