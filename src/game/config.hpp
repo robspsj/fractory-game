@@ -1,6 +1,8 @@
 #pragma once
 
 constexpr float MIN_ZOOM = 0.0001f;
+constexpr float MIN_CELL_ON_SCREEN_PROPORTION_THRESHOLD = 1.15f;
+constexpr float MAX_CELL_ON_SCREEN_PROPORTION_THRESHOLD_PARENT = 0.7f;
 
 struct Config {
     const unsigned int seed;

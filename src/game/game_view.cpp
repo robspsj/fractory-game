@@ -1,4 +1,5 @@
 #include "game_view.hpp"
+#include "config.hpp"
 #include "../shader.hpp"
 #include <algorithm>
 #include <cmath>
@@ -300,7 +301,9 @@ int GameView::resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeInd
   float childCellSize = contentW / (gridDim + (gridDim - 1) * _gapRatio);
 
   constexpr float screenWidthNDC = 2.0f;
-  if (childCellSize * _zoom < 0.15f * screenWidthNDC)
+  if (childCellSize * _zoom < MAX_CELL_ON_SCREEN_PROPORTION_THRESHOLD_PARENT * screenWidthNDC)
+    return cell.parent;
+  if (childCellSize * _zoom < MIN_CELL_ON_SCREEN_PROPORTION_THRESHOLD * screenWidthNDC)
     return nodeIndex;
 
   float pitch = childCellSize * (1 + _gapRatio);

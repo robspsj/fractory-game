@@ -1,5 +1,14 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "clangd": {
+      "command": ["clangd", "--background-index"],
+      "args": ["--compile-commands-dir=${workspaceFolder}/build"],
+      "env": {
+        "PATH": "/opt/homebrew/opt/llvm/bin:/opt/homebrew/bin:${env:PATH}"
+      }
+    }
+  },
   "mcp": {
     "build-server": {
       "type": "local",
