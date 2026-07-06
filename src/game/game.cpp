@@ -84,17 +84,7 @@ void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
     return;
   }
 
-  if (button == SDL_BUTTON_RIGHT) {
-    int row, col;
-    if (_view->screenToGrid(mousePx, mousePy, winW, winH, row, col)) {
-      int childIndex = _model->node(_view->anchorIndex()).data.grid.firstChild +
-                       row * _view->anchorSize() + col;
-      if (_model->node(childIndex).type == CellType::GRID)
-        _view->focusGrid(childIndex);
-    } else if (_view->isFocused()) {
-      _view->unfocusGrid();
-    }
-  }
+
 }
 
 void Game::mouseUp(int button, int, int, int, int) {
@@ -106,14 +96,6 @@ void Game::keyDown(SDL_Keycode key, SDL_Keymod mod, int winW, int winH) {
   (void)mod;
   if (key == SDLK_F1) {
     _view->resetView();
-  } else if (key == SDLK_B || key == 'B') {
-    _view->unfocusGrid();
-  } else if (key == SDLK_P) {
-    _view->focusOffset(1);
-  } else if (key == SDLK_O) {
-    _view->focusOffset(-1);
-  } else if (key == SDLK_SPACE) {
-    _view->focusCenterCell(winW, winH);
   }
 }
 
