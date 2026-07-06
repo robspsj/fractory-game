@@ -476,11 +476,62 @@ void GameView::render(int winW, int winH) {
   float contentW = anchorW * _zoom;
   float contentH = anchorW * _aspect * _zoom;
 
-  const Cell &anchor = _model.node(_anchorIndex);
-  if (anchor.type == CellType::GRID) {
-    renderGrid(_anchorIndex, originX, originY, contentW, contentH, 0);
-  } else {
-    renderCell(_anchorIndex, originX, originY, contentW, contentH, 0);
+  struct AncEntry { int nodeIdx; float ox, oy; };
+  std::vector<AncEntry> ancestors;
+  ancestors.push_back({_anchorIndex, originX, originY});
+
+  int curIdx = _anchorIndex;
+  float curOx = originX, curOy = originY;
+  float curContentW = anchorW * _zoom;
+  float curContentH = anchorW * _aspect * _zoom;
+  while (true) {
+    int parentIdx = _model.node(curIdx).parent;
+    if (parentIdx < 0) break;
+    const Cell &parent = _model.node(parentIdx);
+    if (parent.type != CellType::GRID) break;
+
+    int parentDim = parent.data.grid.gridDimension;
+    int firstChild = parent.data.grid.firstChild;
+    int offset = curIdx - firstChild;
+    int row = offset / parentDim;
+    int col = offset % parentDim;
+
+    float parentContentW = curContentW * parentDim;
+    if (parentContentW >= 2.0f || _gapRatio * parentContentW >= 2.0f) break;
+
+    float childW = curContentW / (parentDim + (parentDim - 1) * _gapRatio);
+    float pitchX = childW * (1 + _gapRatio);
+    float halfW = childW * 0.5f;
+    float childH = curContentH / (parentDim + (parentDim - 1) * _gapRatio);
+    float pitchY = childH * (1 + _gapRatio);
+    float halfH = childH * 0.5f;
+
+    float parentOx = curOx - (halfW + col * pitchX);
+    float parentOy = curOy - (curContentH - halfH - row * pitchY);
+    ancestors.push_back({parentIdx, parentOx, parentOy});
+    curIdx = parentIdx;
+    curOx = parentOx;
+    curOy = parentOy;
+    curContentW = parentContentW;
+    curContentH = curContentH * parentDim;
+  }
+
+  for (int i = (int)ancestors.size() - 1; i >= 0; i--) {
+    int idx = ancestors[i].nodeIdx;
+    const Cell &cell = _model.node(idx);
+    float ox = ancestors[i].ox, oy = ancestors[i].oy;
+    int depth = (int)ancestors.size() - 1 - i;
+    float cw = curContentW, ch = curContentH;
+    for (int lvl = (int)ancestors.size() - 1; lvl > i; lvl--) {
+      int dim = _model.node(ancestors[lvl].nodeIdx).data.grid.gridDimension;
+      cw /= dim;
+      ch /= dim;
+    }
+    if (cell.type == CellType::GRID) {
+      renderGrid(idx, ox, oy, cw, ch, depth);
+    } else {
+      renderCell(idx, ox, oy, cw, ch, depth);
+    }
   }
 
   if (_model.hasDrag()) {
