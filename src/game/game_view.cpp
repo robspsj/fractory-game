@@ -461,12 +461,40 @@ bool GameView::isDescendant(int ancestor, int node) const {
   return false;
 }
 
-void GameView::renderAnchor(int anchorIndex, float originX, float originY, float contentW, float contentH) {
-  const Cell &anchor = _model.node(anchorIndex);
-  if (anchor.type == CellType::GRID) {
-    renderGrid(anchorIndex, originX, originY, contentW, contentH, 0);
+void GameView::renderAnchor(int anchorIndex, float originX, float originY, float contentW, float contentH, int depth) {
+  const Cell &cell = _model.node(anchorIndex);
+
+  if (cell.parent >= 0) {
+    const Cell &parent = _model.node(cell.parent);
+    if (parent.type == CellType::GRID) {
+      int parentDim = parent.data.grid.gridDimension;
+      int firstChild = parent.data.grid.firstChild;
+      int offset = anchorIndex - firstChild;
+      int row = offset / parentDim;
+      int col = offset % parentDim;
+
+      float childW = contentW / (parentDim + (parentDim - 1) * _gapRatio);
+      float pitchX = childW * (1 + _gapRatio);
+      float halfW = childW * 0.5f;
+      float childH = contentH / (parentDim + (parentDim - 1) * _gapRatio);
+      float pitchY = childH * (1 + _gapRatio);
+      float halfH = childH * 0.5f;
+
+      float parentContentW = contentW * parentDim;
+      if (parentContentW < 2.0f && _gapRatio * parentContentW < 2.0f) {
+        float parentAnchorW = _anchorWidth * parentDim / (1 + (parentDim - 1) * _gapRatio);
+        float parentContentH = parentAnchorW * _aspect * _zoom;
+        float parentOx = originX - (halfW + col * pitchX);
+        float parentOy = originY - (contentH - halfH - row * pitchY);
+        renderAnchor(cell.parent, parentOx, parentOy, parentContentW, parentContentH, depth + 1);
+      }
+    }
+  }
+
+  if (cell.type == CellType::GRID) {
+    renderGrid(anchorIndex, originX, originY, contentW, contentH, depth);
   } else {
-    renderCell(anchorIndex, originX, originY, contentW, contentH, 0);
+    renderCell(anchorIndex, originX, originY, contentW, contentH, depth);
   }
 }
 
@@ -485,7 +513,7 @@ void GameView::render(int winW, int winH) {
   float contentW = anchorW * _zoom;
   float contentH = anchorW * _aspect * _zoom;
 
-  renderAnchor(_anchorIndex, originX, originY, contentW, contentH);
+  renderAnchor(_anchorIndex, originX, originY, contentW, contentH, 0);
 
   if (_model.hasDrag()) {
     int dragId = _model.dragItemId();

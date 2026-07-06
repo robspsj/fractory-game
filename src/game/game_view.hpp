@@ -56,7 +56,7 @@ private:
     void renderItem(float originX, float originY, float cellW, float cellH, int itemId, int count, float scale, const float bgColor[3] = nullptr);
     void renderGrid(int nodeIndex, float originX, float originY, float contentW, float contentH, int depth);
     void renderCell(int nodeIndex, float originX, float originY, float cellW, float cellH, int depth);
-    void renderAnchor(int anchorIndex, float originX, float originY, float contentW, float contentH);
+    void renderAnchor(int anchorIndex, float originX, float originY, float contentW, float contentH, int depth);
 
     GameModel& _model;
 
