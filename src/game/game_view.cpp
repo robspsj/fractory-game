@@ -579,23 +579,6 @@ float GameView::gridToWorldY(int row) const {
   return totalSize * 0.5f - pitch * 0.5f - row * pitch;
 }
 
-void GameView::focusGrid(int nodeIndex) {
-  if (nodeIndex >= 0 && _model.node(nodeIndex).type == CellType::GRID) {
-    focusTransform(nodeIndex);
-  }
-}
-
-void GameView::unfocusGrid() {
-  unfocusOneLevel();
-}
-
-void GameView::focusOffset(int delta) {
-  int total = _model.totalNodes();
-  _anchorIndex = std::clamp(_anchorIndex + delta, 0, total - 1);
-  const Cell &cell = _model.node(_anchorIndex);
-  _anchorSize =
-      (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
-}
 
 void GameView::zoom(float factor, float mouseNX, float mouseNY) {
   float oldZoom = _zoom;

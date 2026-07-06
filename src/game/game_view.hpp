@@ -33,12 +33,6 @@ public:
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;
 
-    void focusGrid(int nodeIndex);
-    void unfocusGrid();
-    bool isFocused() const { return _model.node(_anchorIndex).parent >= 0; }
-    int anchorIndex() const { return _anchorIndex; }
-    int anchorSize() const { return _anchorSize; }
-    void focusOffset(int delta);
     void focusCenterCell(int winW, int winH);
     void resetView();
 
