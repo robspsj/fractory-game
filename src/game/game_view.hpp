@@ -2,8 +2,24 @@
 #include "../gl.hpp" // IWYU pragma: keep
 #include "game_model.hpp"
 #include <SDL3/SDL.h>
+#include <cmath>
 #include <cstddef>
 #include <vector>
+
+struct Rect {
+    float ox, oy, w, h;
+
+    float cx() const { return ox + w * 0.5f; }
+    float cy() const { return oy + h * 0.5f; }
+    float halfW() const { return w * 0.5f; }
+    float halfH() const { return h * 0.5f; }
+    bool contains(float x, float y) const {
+        return x >= ox && x <= ox + w && y >= oy && y <= oy + h;
+    }
+    bool outsideClip() const {
+        return ox + w <= -1.0f || ox >= 1.0f || oy + h <= -1.0f || oy >= 1.0f;
+    }
+};
 
 class GameView {
 public:
@@ -37,26 +53,21 @@ public:
     void resetView();
 
 private:
-    int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim,
-                      float originX, float originY, float contentW) const;
-    int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex,
-                                    int gridDim, float originX, float originY,
-                                    float contentW) const;
+    int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, const Rect& r) const;
+    int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex, int gridDim, const Rect& r) const;
     int resolveCenterCell(float worldX, float worldY) const;
     bool unfocusOneLevel();
     bool isDescendant(int ancestor, int node) const;
-    void childCellLayout(int nodeIndex, float originX, float originY, float contentW, float contentH,
-                         int row, int col, float& childOx, float& childOy,
-                         float& childW, float& childH) const;
-    void cellWorldCenter(int targetIdx, float& worldX, float& worldY, float& contentW, float& contentH) const;
+    Rect childCellLayout(int nodeIndex, const Rect& r, int row, int col) const;
+    void cellWorldCenter(int targetIdx, Rect& r) const;
     void focusTransform(int targetIdx);
-    void addQuad(float centerX, float centerY, float halfW, float halfH, const float color[3]);
+    void addQuad(const Rect& r, const float color[3]);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
-    void renderEmpty(float originX, float originY, float cellW, float cellH, const float bgColor[3] = nullptr);
-    void renderItem(float originX, float originY, float cellW, float cellH, int itemId, int count, float scale, const float bgColor[3] = nullptr);
-    void renderGrid(int nodeIndex, float originX, float originY, float contentW, float contentH, int depth);
-    void renderCell(int nodeIndex, float originX, float originY, float cellW, float cellH, int depth);
-    void renderAnchor(int anchorIndex, float originX, float originY, float contentW, float contentH, int depth);
+    void renderEmpty(const Rect& r, const float bgColor[3] = nullptr);
+    void renderItem(const Rect& r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
+    void renderGrid(int nodeIndex, const Rect& r, int depth);
+    void renderCell(int nodeIndex, const Rect& r, int depth);
+    void renderAnchor(int anchorIndex, const Rect& r, int depth);
 
     GameModel& _model;
 
