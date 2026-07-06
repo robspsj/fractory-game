@@ -484,16 +484,12 @@ void GameView::renderAnchor(int anchorIndex, float originX, float originY, float
         float parentContentH = parentAnchorW * _aspect * _zoom;
         float parentOx = originX - childOx;
         float parentOy = originY - childOy;
-        renderAnchor(cell.parent, parentOx, parentOy, parentContentW, parentContentH, depth + 1);
+        return renderAnchor(cell.parent, parentOx, parentOy, parentContentW, parentContentH, depth + 1);
       }
     }
   }
 
-  if (cell.type == CellType::GRID) {
-    renderGrid(anchorIndex, originX, originY, contentW, contentH, depth);
-  } else {
-    renderCell(anchorIndex, originX, originY, contentW, contentH, depth);
-  }
+  renderCell(anchorIndex, originX, originY, contentW, contentH, depth);
 }
 
 void GameView::render(int winW, int winH) {
