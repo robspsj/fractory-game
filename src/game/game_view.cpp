@@ -280,11 +280,12 @@ int GameView::resolveCenterCell(float worldX, float worldY) const {
   if (anchorRow < 0 || anchorRow >= parentDim || anchorCol < 0 || anchorCol >= parentDim)
     return _anchorIndex;
 
-  float pitch = anchorW * (1 + _gapRatio);
-  float half = anchorW * 0.5f;
+  float childOx, childOy, childW, childH;
+  childCellLayout(parentIdx, 0, 0, anchorW, anchorW, anchorRow, anchorCol,
+                  childOx, childOy, childW, childH);
   float parentContentW = anchorW * (parentDim + (parentDim - 1) * _gapRatio);
-  float parentOriginX = -half - anchorCol * pitch;
-  float parentOriginY = -parentContentW + half + anchorRow * pitch;
+  float parentOriginX = -childOx;
+  float parentOriginY = -childOy;
 
   if (worldX < parentOriginX || worldX > parentOriginX + parentContentW || worldY < parentOriginY || worldY > parentOriginY + parentContentW)
     return parentIdx;
@@ -473,19 +474,16 @@ void GameView::renderAnchor(int anchorIndex, float originX, float originY, float
       int row = offset / parentDim;
       int col = offset % parentDim;
 
-      float childW = contentW / (parentDim + (parentDim - 1) * _gapRatio);
-      float pitchX = childW * (1 + _gapRatio);
-      float halfW = childW * 0.5f;
-      float childH = contentH / (parentDim + (parentDim - 1) * _gapRatio);
-      float pitchY = childH * (1 + _gapRatio);
-      float halfH = childH * 0.5f;
-
       float parentContentW = contentW * parentDim;
       if (parentContentW < 2.0f && _gapRatio * parentContentW < 2.0f) {
+        float childOx, childOy, childW, childH;
+        childCellLayout(cell.parent, 0, 0, contentW, contentH, row, col,
+                        childOx, childOy, childW, childH);
+
         float parentAnchorW = _anchorWidth * parentDim / (1 + (parentDim - 1) * _gapRatio);
         float parentContentH = parentAnchorW * _aspect * _zoom;
-        float parentOx = originX - (halfW + col * pitchX);
-        float parentOy = originY - (contentH - halfH - row * pitchY);
+        float parentOx = originX - childOx;
+        float parentOy = originY - childOy;
         renderAnchor(cell.parent, parentOx, parentOy, parentContentW, parentContentH, depth + 1);
       }
     }
