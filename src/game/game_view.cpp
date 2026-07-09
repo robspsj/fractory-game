@@ -303,9 +303,9 @@ int GameView::resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeInd
   return childIdx;
 }
 
-void GameView::cellWorldCenter(int targetIdx, Rect& r) const {
+Rect GameView::cellWorldCenter(int targetIdx) const {
   constexpr float anchorW = _anchorWidth;
-  r = {-anchorW * 0.5f, -anchorW * 0.5f, anchorW, anchorW};
+  Rect r = {-anchorW * 0.5f, -anchorW * 0.5f, anchorW, anchorW};
   int nodeIdx = _anchorIndex;
 
   while (nodeIdx != targetIdx) {
@@ -328,20 +328,18 @@ void GameView::cellWorldCenter(int targetIdx, Rect& r) const {
     Rect child = childCellLayout(nodeIdx, r, row, col);
 
     if (directChild == targetIdx) {
-      r = child;
-      return;
+      return child;
     }
 
     nodeIdx = directChild;
     r = child;
   }
 
-  r = {r.ox, r.oy, r.w, r.h};
+  return r;
 }
 
 void GameView::focusTransform(int targetIdx) {
-  Rect r;
-  cellWorldCenter(targetIdx, r);
+  Rect r = cellWorldCenter(targetIdx);
 
   const Cell &cell = _model.node(targetIdx);
   _anchorIndex = targetIdx;
@@ -420,28 +418,7 @@ bool GameView::isDescendant(int ancestor, int node) const {
 }
 
 void GameView::renderAnchor(int anchorIndex, const Rect& r, int depth) {
-  const Cell &cell = _model.node(anchorIndex);
-
-  if (cell.parent >= 0) {
-    const Cell &parent = _model.node(cell.parent);
-    if (parent.type == CellType::GRID) {
-      int parentDim = parent.data.grid.gridDimension;
-      int firstChild = parent.data.grid.firstChild;
-      int offset = anchorIndex - firstChild;
-      int row = offset / parentDim;
-      int col = offset % parentDim;
-
-      float parentContentW = r.w * parentDim;
-      if (parentContentW < 2.0f && _gapRatio * parentContentW < 2.0f) {
-        Rect child = childCellLayout(cell.parent, {0, 0, r.w, r.h}, row, col);
-
-        float parentAnchorW = _anchorWidth * parentDim / (1 + (parentDim - 1) * _gapRatio);
-        float parentContentH = parentAnchorW * _aspect * _zoom;
-        Rect parentR = {r.ox - child.ox, r.oy - child.oy, parentContentW, parentContentH};
-        return renderAnchor(cell.parent, parentR, depth + 1);
-      }
-    }
-  }
+  //const Cell &cell = _model.node(anchorIndex);
 
   renderCell(anchorIndex, r, depth);
 }

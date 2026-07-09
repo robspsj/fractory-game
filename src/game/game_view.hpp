@@ -59,7 +59,7 @@ private:
     bool unfocusOneLevel();
     bool isDescendant(int ancestor, int node) const;
     Rect childCellLayout(int nodeIndex, const Rect& r, int row, int col) const;
-    void cellWorldCenter(int targetIdx, Rect& r) const;
+    Rect cellWorldCenter(int targetIdx) const;
     void focusTransform(int targetIdx);
     void addQuad(const Rect& r, const float color[3]);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
