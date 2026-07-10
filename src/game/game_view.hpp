@@ -65,9 +65,9 @@ private:
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
     void renderEmpty(const Rect& r, const float bgColor[3] = nullptr);
     void renderItem(const Rect& r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
-    void renderGrid(int nodeIndex, const Rect& r, int depth);
+    void renderGrid(int nodeIndex, const Rect& r, int depth, int excludeChild = -1);
     void renderCell(int nodeIndex, const Rect& r, int depth);
-    void renderAnchor(int anchorIndex, const Rect& r, int depth);
+    void renderAnchor(int anchorIndex, const Rect& r, int depth, int excludeChild = -1);
 
     GameModel& _model;
 

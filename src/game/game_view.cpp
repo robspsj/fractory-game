@@ -144,7 +144,7 @@ Rect GameView::childCellLayout(int nodeIndex, const Rect& r, int row, int col) c
   return {centerX - halfW, centerY - halfH, childW, childH};
 }
 
-void GameView::renderGrid(int nodeIndex, const Rect& r, int depth) {
+void GameView::renderGrid(int nodeIndex, const Rect& r, int depth, int excludeChild) {
   const Cell &cell = _model.node(nodeIndex);
   int firstChild = cell.data.grid.firstChild;
   int gridDim = cell.data.grid.gridDimension;
@@ -156,6 +156,8 @@ void GameView::renderGrid(int nodeIndex, const Rect& r, int depth) {
   for (int row = 0; row < gridDim; row++) {
     for (int col = 0; col < gridDim; col++) {
       int childIndex = firstChild + row * gridDim + col;
+      if (childIndex == excludeChild)
+        continue;
       Rect child = childCellLayout(nodeIndex, r, row, col);
       renderCell(childIndex, child, depth + 1);
     }
@@ -417,10 +419,46 @@ bool GameView::isDescendant(int ancestor, int node) const {
   return false;
 }
 
-void GameView::renderAnchor(int anchorIndex, const Rect& r, int depth) {
-  //const Cell &cell = _model.node(anchorIndex);
+void GameView::renderAnchor(int anchorIndex, const Rect& r, int depth, int excludeChild) {
+  const Cell &cell = _model.node(anchorIndex);
+  if (cell.parent >= 0) {
+    const Cell &parent = _model.node(cell.parent);
+    if (parent.type == CellType::GRID) {
+      int parentDim = parent.data.grid.gridDimension;
+      int firstChild = parent.data.grid.firstChild;
+      int offset = anchorIndex - firstChild;
+      int row = offset / parentDim;
+      int col = offset % parentDim;
 
-  renderCell(anchorIndex, r, depth);
+      float k = (float)(parentDim + (parentDim - 1) * _gapRatio);
+      float pitchX = r.w * (1 + _gapRatio);
+      float pitchY = r.h * (1 + _gapRatio);
+
+      Rect parentR = {
+        r.ox - col * pitchX,
+        r.oy + r.h - r.h * k + row * pitchY,
+        r.w * k,
+        r.h * k
+      };
+      renderAnchor(cell.parent, parentR, depth + 1,
+                   excludeChild >= 0 ? excludeChild : anchorIndex);
+    }
+  }
+
+  if (depth >= MAX_PREVIEW_DEPTH)
+    return;
+  if (_v + 30 > _verts.data() + _maxVerts)
+    return;
+  if (r.outsideClip())
+    return;
+  constexpr float minClipSize = 0.002f;
+  if (r.w < minClipSize || r.h < minClipSize)
+    return;
+
+  if (cell.type == CellType::GRID)
+    renderGrid(anchorIndex, r, depth, excludeChild);
+  else
+    renderCell(anchorIndex, r, depth);
 }
 
 void GameView::render(int winW, int winH) {
