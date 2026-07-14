@@ -55,8 +55,8 @@ void GameView::initGL() {
 }
 
 void GameView::addQuad(const Rect& r, const float color[3]) {
-  if (r.ox + r.w <= -1.0f || r.ox >= 1.0f ||
-      r.oy + r.h <= -1.0f || r.oy >= 1.0f)
+  if (r.ox + r.w <= -0.5f || r.ox >= 0.5f ||
+      r.oy + r.h <= -0.5f || r.oy >= 0.5f)
     return;
   if (_v + 30 > _verts.data() + _maxVerts)
     return;
@@ -463,7 +463,9 @@ bool GameView::isDescendant(int ancestor, int node) const {
 
 void GameView::renderAnchor(int anchorIndex, const Rect& r, int depth, int excludeChild) {
   const Cell &cell = _model.node(anchorIndex);
-  if (cell.parent >= 0) {
+  bool coversScreen = r.ox <= -1.0f && r.oy <= -1.0f &&
+                      r.ox + r.w >= 1.0f && r.oy + r.h >= 1.0f;
+  if (!coversScreen && cell.parent >= 0) {
     const Cell &parent = _model.node(cell.parent);
     if (parent.type == CellType::GRID) {
       int parentDim = parent.data.grid.gridDimension;
