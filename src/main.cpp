@@ -55,7 +55,7 @@ static void drawFpsOverlay() {
     snprintf(fpsText, sizeof(fpsText), "FPS: %d", disp);
   }
   float zoom = s_game->zoomFactor();
-  snprintf(zoomText, sizeof(zoomText), "×%.1f", zoom);
+  snprintf(zoomText, sizeof(zoomText), "Zoom: ×%.1f", zoom);
   int verts = s_game->lastVertexCount();
   snprintf(vertText, sizeof(vertText), "V: %d", verts);
   int fpsLen = (int)strlen(fpsText);
