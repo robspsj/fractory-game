@@ -63,17 +63,8 @@ void GameView::addQuad(const Rect& r, const float color[3]) {
     return;
   if (_v + 30 > _verts.data() + _maxVerts)
     return;
-
-  float ox = r.ox, oy = r.oy, w = r.w, h = r.h;
-  if (ox < -1.0f) { w += ox + 1.0f; ox = -1.0f; }
-  if (oy < -1.0f) { h += oy + 1.0f; oy = -1.0f; }
-  if (ox + w > 1.0f) w = 1.0f - ox;
-  if (oy + h > 1.0f) h = 1.0f - oy;
-  if (w <= 0.0f || h <= 0.0f)
-    return;
-
-  float cx = ox + w * 0.5f, cy = oy + h * 0.5f;
-  float hw = w * 0.5f, hh = h * 0.5f;
+  float cx = r.cx(), cy = r.cy();
+  float hw = r.halfW(), hh = r.halfH();
   for (int i = 0; i < 6; i++) {
     float deltaX = (i == 1 || i == 3 || i == 4) ? hw : -hw;
     float deltaY = (i == 0 || i == 1 || i == 4) ? -hh : hh;
