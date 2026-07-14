@@ -22,6 +22,9 @@ GameView::GameView(GameModel &model) : _model(model) {
   const Cell &cell = _model.node(_anchorIndex);
   _anchorSize =
       (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+  _anchorDepth = 0;
+  for (int i = _anchorIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+    _anchorDepth++;
 }
 
 GameView::~GameView() {
@@ -55,8 +58,8 @@ void GameView::initGL() {
 }
 
 void GameView::addQuad(const Rect& r, const float color[3]) {
-  if (r.ox + r.w <= -0.5f || r.ox >= 0.5f ||
-      r.oy + r.h <= -0.5f || r.oy >= 0.5f)
+  if (r.ox + r.w <= -1.0f || r.ox >= 1.0f ||
+      r.oy + r.h <= -1.0f || r.oy >= 1.0f)
     return;
   if (_v + 30 > _verts.data() + _maxVerts)
     return;
@@ -389,6 +392,9 @@ void GameView::focusTransform(int targetIdx) {
   _anchorIndex = targetIdx;
   _anchorSize =
       (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+  _anchorDepth = 0;
+  for (int i = _anchorIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+    _anchorDepth++;
 
   _panX = r.cx() * _zoom + _panX;
   _panY = r.cy() * _aspect * _zoom + _panY;
@@ -401,6 +407,7 @@ void GameView::resetView() {
   const Cell &cell = _model.node(0);
   _anchorSize =
       (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+  _anchorDepth = 0;
   _zoom = 1.0f;
   _panX = 0.0f;
   _panY = 0.0f;
@@ -446,6 +453,9 @@ bool GameView::unfocusOneLevel() {
 
   _anchorIndex = parentIdx;
   _anchorSize = gridDim;
+  _anchorDepth = 0;
+  for (int i = _anchorIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+    _anchorDepth++;
   _zoom = savedZoom * _anchorWidth / child.w;
   if (_zoom < MIN_ZOOM) _zoom = MIN_ZOOM;
   _panX -= centerX * (savedZoom * _anchorWidth / child.w);

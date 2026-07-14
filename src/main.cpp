@@ -24,6 +24,7 @@ static int lastFpsDisplay = -1;
 static char fpsText[32] = "";
 static char zoomText[32] = "";
 static char vertText[32] = "";
+static char depthText[32] = "";
 
 static void updateFps() {
   frameCount++;
@@ -58,9 +59,12 @@ static void drawFpsOverlay() {
   snprintf(zoomText, sizeof(zoomText), "Zoom: ×%.1f", zoom);
   int verts = s_game->lastVertexCount();
   snprintf(vertText, sizeof(vertText), "V: %d", verts);
+  int depth = s_game->anchorDepth();
+  snprintf(depthText, sizeof(depthText), "D: %d", depth);
   int fpsLen = (int)strlen(fpsText);
   int zoomLen = (int)strlen(zoomText);
   int vertLen = (int)strlen(vertText);
+  int depthLen = (int)strlen(depthText);
   int x = winW - fpsLen * 16 - 8;
   float vbuf[32 * 24];
   int len;
@@ -73,6 +77,10 @@ static void drawFpsOverlay() {
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
   int vx = winW - vertLen * 16 - 8;
   drawText((float)vx, 48.0f, vertText, 2, vbuf, &len);
+  if (len)
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
+  int dx = winW - depthLen * 16 - 8;
+  drawText((float)dx, 68.0f, depthText, 2, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
 }

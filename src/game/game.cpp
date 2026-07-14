@@ -115,6 +115,7 @@ void Game::render(int winW, int winH) { _view->render(winW, winH); }
 GLuint Game::program() const { return _view->program(); }
 float Game::zoomFactor() const { return _view->zoomFactor(); }
 int Game::lastVertexCount() const { return _view->lastVertexCount(); }
+int Game::anchorDepth() const { return _view->anchorDepth(); }
 
 void Game::setFullState(int *inData) { _model->setFullState(inData); }
 
