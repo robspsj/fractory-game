@@ -91,13 +91,16 @@ void GameModel::drop(int nodeIndex) {
       _nodes[nodeIndex].data.item.count += _dragAmount;
     } else if (_nodes[nodeIndex].type == CellType::EMPTY) {
       _nodes[nodeIndex] = dragCell;
-    } else {
+    } else if (_nodes[nodeIndex].type == CellType::ITEM) {
       Cell temp = _nodes[nodeIndex];
       _nodes[nodeIndex] = dragCell;
       _nodes[_dragSrcIndex] = temp;
       _dragSrcIndex = -1;
       _dragAmount = 0;
       _dragItemId = -1;
+      return;
+    } else {
+      cancelDrag();
       return;
     }
   } else {
