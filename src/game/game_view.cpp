@@ -18,7 +18,8 @@ const float GameView::_yellow[3] = {1.0f, 1.0f, 0.0f};
 const float GameView::_grey[3] = {0.5f, 0.5f, 0.5f};
 const float GameView::_gridBg[3] = {0.25f, 0.40f, 0.60f};
 
-GameView::GameView(GameModel &model) : _model(model) {
+GameView::GameView(GameModel &model, const Config &cfg)
+    : _model(model), _showAnchor(cfg.showAnchor) {
   const Cell &cell = _model.node(_anchorIndex);
   _anchorSize =
       (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
@@ -152,9 +153,12 @@ void GameView::renderGrid(int nodeIndex, const Rect& r, int depth, int excludeCh
   int firstChild = cell.data.grid.firstChild;
   int gridDim = cell.data.grid.gridDimension;
 
-  float grayValue = 0.45f - std::min(depth, 3) * 0.07f;
+  int absDepth = 0;
+  for (int i = nodeIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+    absDepth++;
+  float grayValue = 0.45f - std::min(absDepth, 10) * 0.03f;
   const float gridBg[3] = {grayValue, grayValue, grayValue + 0.03f};
-  addQuad(r, depth == 0 ? _gridBg : gridBg);
+  addQuad(r, (_showAnchor && depth == 0) ? _gridBg : gridBg);
 
   for (int row = 0; row < gridDim; row++) {
     for (int col = 0; col < gridDim; col++) {
@@ -168,7 +172,10 @@ void GameView::renderGrid(int nodeIndex, const Rect& r, int depth, int excludeCh
 }
 
 void GameView::renderCell(int nodeIndex, const Rect& r, int depth) {
-  if (depth >= MAX_PREVIEW_DEPTH)
+  int absDepth = 0;
+  for (int i = nodeIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+    absDepth++;
+  if (absDepth >= MAX_PREVIEW_DEPTH)
     return;
   if (_v + 30 > _verts.data() + _maxVerts)
     return;
@@ -179,7 +186,7 @@ void GameView::renderCell(int nodeIndex, const Rect& r, int depth) {
     return;
 
   const Cell &cell = _model.node(nodeIndex);
-  const bool isAnchor = nodeIndex == _anchorIndex;
+  const bool isAnchor = _showAnchor && nodeIndex == _anchorIndex;
   switch (cell.type) {
   case CellType::EMPTY:
     renderEmpty(r, isAnchor ? _gridBg : nullptr);

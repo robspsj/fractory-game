@@ -1,6 +1,7 @@
 #include "font.hpp"
 #include "game/config.hpp"
 #include "game/game.hpp"
+#include "game/input_handler.hpp"
 #include "print_state.hpp"
 #include "test_runner.hpp"
 #include <SDL3/SDL.h>
@@ -16,6 +17,7 @@
 #endif
 
 static std::unique_ptr<Game> s_game;
+static std::unique_ptr<InputHandler> s_input;
 static int winW = 800, winH = 600;
 static Uint64 lastFpsTime = 0;
 static int frameCount = 0;
@@ -100,6 +102,14 @@ static void drawFpsOverlay() {
   drawText((float)ux, 54.0f, uploadText, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
+  static char versionText[32] = "";
+  snprintf(versionText, sizeof(versionText), "v%s", FRACTORY_VERSION);
+  int verLen = (int)strlen(versionText);
+  int vx2 = winW - verLen * 8 - 4;
+  drawText((float)vx2, 74.0f, versionText, 1, vbuf, &len);
+  if (len)
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
+
   int ddx = winW - drawLen * 8 - 4;
   drawText((float)ddx, 64.0f, drawText_, 1, vbuf, &len);
   if (len)
@@ -120,19 +130,7 @@ static void frame() {
   while (SDL_PollEvent(&e)) {
     if (e.type == SDL_EVENT_QUIT)
       emscripten_cancel_main_loop();
-    if (e.type == SDL_EVENT_MOUSE_MOTION)
-      s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
-    if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
-      s_game->mouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW,
-                        winH);
-    if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
-      s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW,
-                      winH);
-    if (e.type == SDL_EVENT_MOUSE_WHEEL)
-      s_game->mouseWheel(e.wheel.x, e.wheel.y, (int)e.wheel.mouse_x,
-                         (int)e.wheel.mouse_y, winW, winH);
-    if (e.type == SDL_EVENT_KEY_DOWN)
-      s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod, winW, winH);
+    s_input->processEvent(e, winW, winH);
   }
 
   glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
@@ -160,6 +158,7 @@ int main() {
   SDL_GL_SetSwapInterval(0);
 
   s_game = std::make_unique<Game>(Config{});
+  s_input = std::make_unique<InputHandler>(*s_game);
   clearScreen();
   initFont(s_game->program());
   int w, h;
@@ -219,6 +218,7 @@ int main(int argc, char *argv[]) {
   SDL_GL_SetSwapInterval(0);
 
   s_game = std::make_unique<Game>(Config{});
+  s_input = std::make_unique<InputHandler>(*s_game);
   clearScreen();
   initFont(s_game->program());
 
@@ -238,20 +238,7 @@ int main(int argc, char *argv[]) {
       }
       if (e.type == SDL_EVENT_WINDOW_MOVED)
         saveWindowState(win);
-      if (e.type == SDL_EVENT_MOUSE_MOTION)
-        s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
-      if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-        s_game->mouseDown(e.button.button, (int)e.button.x, (int)e.button.y,
-                          winW, winH);
-      }
-      if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
-        s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW,
-                        winH);
-      if (e.type == SDL_EVENT_MOUSE_WHEEL)
-        s_game->mouseWheel(e.wheel.x, e.wheel.y, (int)e.wheel.mouse_x,
-                           (int)e.wheel.mouse_y, winW, winH);
-      if (e.type == SDL_EVENT_KEY_DOWN)
-        s_game->keyDown(e.key.key, (SDL_Keymod)e.key.mod, winW, winH);
+      s_input->processEvent(e, winW, winH);
     }
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);

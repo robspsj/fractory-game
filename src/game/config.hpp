@@ -8,8 +8,11 @@ struct Config {
     const unsigned int seed;
     const int gridChance;
     const int gridLimit;
+    const bool showAnchor;
 
-    Config() : seed(0), gridChance(20), gridLimit(500000) {}
-    Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000)
-        : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_) {}
+    Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false) {}
+    Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000,
+           bool showAnchor_ = false)
+        : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_),
+          showAnchor(showAnchor_) {}
 };

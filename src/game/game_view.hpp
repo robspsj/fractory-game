@@ -1,5 +1,6 @@
 #pragma once
 #include "../gl.hpp" // IWYU pragma: keep
+#include "config.hpp"
 #include "game_model.hpp"
 #include <SDL3/SDL.h>
 #include <cmath>
@@ -23,7 +24,7 @@ struct Rect {
 
 class GameView {
 public:
-    GameView(GameModel& model);
+    GameView(GameModel& model, const Config& cfg);
     ~GameView();
 
     void initGL();
@@ -76,6 +77,7 @@ private:
 
     GameModel& _model;
 
+    bool _showAnchor = false;
     Uint64 _dragAnimStartTime = 0;
     bool _dragWasActive = false;
     static constexpr double _dragAnimDuration = 0.15;

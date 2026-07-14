@@ -7,7 +7,7 @@
 Game::Game(const Config &cfg)
     : _model(std::make_unique<GameModel>()) {
   _model->init(cfg);
-  _view = std::make_unique<GameView>(*_model);
+  _view = std::make_unique<GameView>(*_model, cfg);
   _view->initGL();
 }
 
