@@ -560,6 +560,7 @@ void GameView::render(int winW, int winH) {
   glEnableVertexAttribArray(_aColorLoc);
 
   glDrawArrays(GL_TRIANGLES, 0, totalFloats / 5);
+  _lastVertexCount = totalFloats / 5;
 
   glDisableVertexAttribArray(_aColorLoc);
   glDisableVertexAttribArray(_aPosLoc);

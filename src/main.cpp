@@ -23,6 +23,7 @@ static float fps = 0.0f;
 static int lastFpsDisplay = -1;
 static char fpsText[32] = "";
 static char zoomText[32] = "";
+static char vertText[32] = "";
 
 static void updateFps() {
   frameCount++;
@@ -55,18 +56,25 @@ static void drawFpsOverlay() {
   }
   float zoom = s_game->zoomFactor();
   snprintf(zoomText, sizeof(zoomText), "×%.1f", zoom);
+  int verts = s_game->lastVertexCount();
+  snprintf(vertText, sizeof(vertText), "V: %d", verts);
   int fpsLen = (int)strlen(fpsText);
   int zoomLen = (int)strlen(zoomText);
+  int vertLen = (int)strlen(vertText);
   int x = winW - fpsLen * 16 - 8;
-  float verts[32 * 24];
+  float vbuf[32 * 24];
   int len;
-  drawText((float)x, 8.0f, fpsText, 2, verts, &len);
+  drawText((float)x, 8.0f, fpsText, 2, vbuf, &len);
   if (len)
-    drawTextGl(verts, len, s_game->program(), winW, winH);
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
   int zx = winW - zoomLen * 16 - 8;
-  drawText((float)zx, 28.0f, zoomText, 2, verts, &len);
+  drawText((float)zx, 28.0f, zoomText, 2, vbuf, &len);
   if (len)
-    drawTextGl(verts, len, s_game->program(), winW, winH);
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
+  int vx = winW - vertLen * 16 - 8;
+  drawText((float)vx, 48.0f, vertText, 2, vbuf, &len);
+  if (len)
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
 }
 
 #ifdef __EMSCRIPTEN__

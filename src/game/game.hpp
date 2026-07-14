@@ -17,6 +17,7 @@ public:
   void render(int winW, int winH);
   GLuint program() const;
   float zoomFactor() const;
+  int lastVertexCount() const;
 
   void setFullState(int *inData);
   void getFullState(int *outData);
