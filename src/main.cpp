@@ -64,9 +64,9 @@ static void drawFpsOverlay() {
   snprintf(vertText, sizeof(vertText), "V: %d", verts);
   int depth = s_game->anchorDepth();
   snprintf(depthText, sizeof(depthText), "D: %d", depth);
-  snprintf(genText, sizeof(genText), "Gen: %.2fms", s_game->lastGenMs());
-  snprintf(uploadText, sizeof(uploadText), "Up: %.2fms", s_game->lastUploadMs());
-  snprintf(drawText_, sizeof(drawText_), "Draw: %.2fms", s_game->lastDrawMs());
+  snprintf(genText, sizeof(genText), "Gen: %.0fus", s_game->lastGenMs() * 1000.0f);
+  snprintf(uploadText, sizeof(uploadText), "Up: %.0fus", s_game->lastUploadMs() * 1000.0f);
+  snprintf(drawText_, sizeof(drawText_), "Draw: %.0fus", s_game->lastDrawMs() * 1000.0f);
   int fpsLen = (int)strlen(fpsText);
   int zoomLen = (int)strlen(zoomText);
   int vertLen = (int)strlen(vertText);
