@@ -25,6 +25,9 @@ static char fpsText[32] = "";
 static char zoomText[32] = "";
 static char vertText[32] = "";
 static char depthText[32] = "";
+static char genText[32] = "";
+static char uploadText[32] = "";
+static char drawText_[32] = "";
 
 static void updateFps() {
   frameCount++;
@@ -61,10 +64,16 @@ static void drawFpsOverlay() {
   snprintf(vertText, sizeof(vertText), "V: %d", verts);
   int depth = s_game->anchorDepth();
   snprintf(depthText, sizeof(depthText), "D: %d", depth);
+  snprintf(genText, sizeof(genText), "Gen: %.2fms", s_game->lastGenMs());
+  snprintf(uploadText, sizeof(uploadText), "Up: %.2fms", s_game->lastUploadMs());
+  snprintf(drawText_, sizeof(drawText_), "Draw: %.2fms", s_game->lastDrawMs());
   int fpsLen = (int)strlen(fpsText);
   int zoomLen = (int)strlen(zoomText);
   int vertLen = (int)strlen(vertText);
   int depthLen = (int)strlen(depthText);
+  int genLen = (int)strlen(genText);
+  int uploadLen = (int)strlen(uploadText);
+  int drawLen = (int)strlen(drawText_);
   int x = winW - fpsLen * 16 - 8;
   float vbuf[32 * 24];
   int len;
@@ -81,6 +90,18 @@ static void drawFpsOverlay() {
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
   int dx = winW - depthLen * 16 - 8;
   drawText((float)dx, 68.0f, depthText, 2, vbuf, &len);
+  if (len)
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
+  int gx = winW - genLen * 16 - 8;
+  drawText((float)gx, 88.0f, genText, 2, vbuf, &len);
+  if (len)
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
+  int ux = winW - uploadLen * 16 - 8;
+  drawText((float)ux, 108.0f, uploadText, 2, vbuf, &len);
+  if (len)
+    drawTextGl(vbuf, len, s_game->program(), winW, winH);
+  int ddx = winW - drawLen * 16 - 8;
+  drawText((float)ddx, 128.0f, drawText_, 2, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
 }

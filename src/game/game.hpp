@@ -19,6 +19,9 @@ public:
   float zoomFactor() const;
   int lastVertexCount() const;
   int anchorDepth() const;
+  float lastGenMs() const;
+  float lastUploadMs() const;
+  float lastDrawMs() const;
 
   void setFullState(int *inData);
   void getFullState(int *outData);

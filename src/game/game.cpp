@@ -116,6 +116,9 @@ GLuint Game::program() const { return _view->program(); }
 float Game::zoomFactor() const { return _view->zoomFactor(); }
 int Game::lastVertexCount() const { return _view->lastVertexCount(); }
 int Game::anchorDepth() const { return _view->anchorDepth(); }
+float Game::lastGenMs() const { return _view->lastGenMs(); }
+float Game::lastUploadMs() const { return _view->lastUploadMs(); }
+float Game::lastDrawMs() const { return _view->lastDrawMs(); }
 
 void Game::setFullState(int *inData) { _model->setFullState(inData); }
 

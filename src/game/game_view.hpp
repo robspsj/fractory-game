@@ -34,6 +34,9 @@ public:
     GLuint program() const { return _prog; }
     int lastVertexCount() const { return _lastVertexCount; }
     int anchorDepth() const { return _anchorDepth; }
+    float lastGenMs() const { return _lastGenMs; }
+    float lastUploadMs() const { return _lastUploadMs; }
+    float lastDrawMs() const { return _lastDrawMs; }
 
     void zoom(float factor, float mouseNX, float mouseNY);
     float zoomFactor() const { return _zoom; }
@@ -101,6 +104,9 @@ private:
     int _hoverRow = -1, _hoverCol = -1;
     int _lastVertexCount = 0;
     int _anchorDepth = 0;
+    float _lastGenMs = 0.0f;
+    float _lastUploadMs = 0.0f;
+    float _lastDrawMs = 0.0f;
 
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];

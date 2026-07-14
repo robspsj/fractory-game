@@ -530,6 +530,9 @@ void GameView::render(int winW, int winH) {
   float cw = anchorW * _zoom;
   float ch = anchorW * _aspect * _zoom;
 
+  Uint64 freq = SDL_GetPerformanceFrequency();
+  Uint64 t0 = SDL_GetPerformanceCounter();
+
   renderAnchor(_anchorIndex, {ox, oy, cw, ch}, 0);
 
   if (_model.hasDrag()) {
@@ -556,6 +559,9 @@ void GameView::render(int winW, int winH) {
   }
   _dragWasActive = _model.hasDrag();
 
+  Uint64 t1 = SDL_GetPerformanceCounter();
+  _lastGenMs = (float)((double)(t1 - t0) / (double)freq * 1000.0);
+
   int totalFloats = (int)(_v - _verts.data());
   if (totalFloats == 0)
     return;
@@ -563,6 +569,9 @@ void GameView::render(int winW, int winH) {
   glBindBuffer(GL_ARRAY_BUFFER, _vbo);
   glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), _verts.data(),
                GL_STREAM_DRAW);
+
+  Uint64 t2 = SDL_GetPerformanceCounter();
+  _lastUploadMs = (float)((double)(t2 - t1) / (double)freq * 1000.0);
 
   glVertexAttribPointer(_aPosLoc, 2, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float),
                         0);
@@ -573,6 +582,9 @@ void GameView::render(int winW, int winH) {
 
   glDrawArrays(GL_TRIANGLES, 0, totalFloats / 5);
   _lastVertexCount = totalFloats / 5;
+
+  Uint64 t3 = SDL_GetPerformanceCounter();
+  _lastDrawMs = (float)((double)(t3 - t2) / (double)freq * 1000.0);
 
   glDisableVertexAttribArray(_aColorLoc);
   glDisableVertexAttribArray(_aPosLoc);
