@@ -194,12 +194,50 @@ void GameView::renderCell(int nodeIndex, const Rect& r, int depth) {
 }
 
 int GameView::resolveLeafCell(float worldX, float worldY) const {
-  const Cell &anchor = _model.node(_anchorIndex);
   constexpr float anchorW = _anchorWidth;
   Rect r = {-anchorW * 0.5f, -anchorW * 0.5f, anchorW, anchorW};
-  if (anchor.type != CellType::GRID)
-    return _anchorIndex;
-  return resolveCellAt(worldX, worldY, _anchorIndex, _anchorSize, r);
+
+  if (r.contains(worldX, worldY)) {
+    const Cell &anchor = _model.node(_anchorIndex);
+    if (anchor.type != CellType::GRID) return _anchorIndex;
+    return resolveCellAt(worldX, worldY, _anchorIndex, _anchorSize, r);
+  }
+
+  int currIdx = _anchorIndex;
+  Rect currR = r;
+
+  while (true) {
+    int parentIdx = _model.node(currIdx).parent;
+    if (parentIdx < 0) break;
+
+    const Cell &parent = _model.node(parentIdx);
+    if (parent.type != CellType::GRID) break;
+
+    int parentDim = parent.data.grid.gridDimension;
+    int firstChild = parent.data.grid.firstChild;
+    int offset = currIdx - firstChild;
+    int row = offset / parentDim;
+    int col = offset % parentDim;
+    if (row < 0 || row >= parentDim || col < 0 || col >= parentDim) break;
+
+    float k = (float)(parentDim + (parentDim - 1) * _gapRatio);
+    float pitchX = currR.w * (1 + _gapRatio);
+    float pitchY = currR.h * (1 + _gapRatio);
+    Rect parentR = {
+      currR.ox - col * pitchX,
+      currR.oy + currR.h - currR.h * k + row * pitchY,
+      currR.w * k,
+      currR.h * k
+    };
+
+    if (parentR.contains(worldX, worldY))
+      return resolveCellAt(worldX, worldY, parentIdx, parentDim, parentR);
+
+    currIdx = parentIdx;
+    currR = parentR;
+  }
+
+  return -1;
 }
 
 int GameView::resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim,
@@ -257,9 +295,9 @@ int GameView::resolveCenterCell(float worldX, float worldY) const {
   if (anchorRow < 0 || anchorRow >= parentDim || anchorCol < 0 || anchorCol >= parentDim)
     return _anchorIndex;
 
-  Rect child = childCellLayout(parentIdx, {0, 0, anchorW, anchorW}, anchorRow, anchorCol);
   float parentContentW = anchorW * (parentDim + (parentDim - 1) * _gapRatio);
-  Rect parentR = {-child.ox, -child.oy, parentContentW, parentContentW};
+  Rect child = childCellLayout(parentIdx, {0, 0, parentContentW, parentContentW}, anchorRow, anchorCol);
+  Rect parentR = {-anchorW * 0.5f - child.ox, -anchorW * 0.5f - child.oy, parentContentW, parentContentW};
 
   if (!parentR.contains(worldX, worldY))
     return parentIdx;
