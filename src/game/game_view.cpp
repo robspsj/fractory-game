@@ -381,6 +381,10 @@ Rect GameView::cellWorldCenter(int targetIdx) const {
 void GameView::focusTransform(int targetIdx) {
   Rect r = cellWorldCenter(targetIdx);
 
+  constexpr float maxFocusRatio = 100.0f;
+  if (r.w * _zoom > maxFocusRatio * 2.0f)
+    return;
+
   const Cell &cell = _model.node(targetIdx);
   _anchorIndex = targetIdx;
   _anchorSize =
