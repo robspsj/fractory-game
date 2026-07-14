@@ -65,9 +65,9 @@ private:
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
     void renderEmpty(const Rect& r, const float bgColor[3] = nullptr);
     void renderItem(const Rect& r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
-    void renderGrid(int nodeIndex, const Rect& r, int depth, int excludeChild = -1);
+    void renderGrid(int nodeIndex, const Rect& r, int depth, int excludeChild = -1, bool skipBackground = false);
     void renderCell(int nodeIndex, const Rect& r, int depth);
-    void renderAnchor(int anchorIndex, const Rect& r, int depth, int excludeChild = -1);
+    void renderAnchor(int anchorIndex, const Rect& r, int depth, int excludeChild = -1, bool skipBackground = false);
 
     GameModel& _model;
 
@@ -92,7 +92,7 @@ private:
     static constexpr float _cellSize = 0.30f;
     static constexpr float _gapRatio = 0.0714f;
     static constexpr float _anchorWidth = 1.5f;
-    static constexpr size_t _maxVerts = 131072;
+    static constexpr size_t _maxVerts = 1024*128;
 
     int _anchorIndex = 0;
     int _anchorSize = 0;
