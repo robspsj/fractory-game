@@ -61,9 +61,9 @@ static void drawFpsOverlay() {
   float zoom = s_game->zoomFactor();
   snprintf(zoomText, sizeof(zoomText), "Zoom: ×%.1f", zoom);
   int verts = s_game->lastVertexCount();
-  snprintf(vertText, sizeof(vertText), "V: %d", verts);
+  snprintf(vertText, sizeof(vertText), "Verts: %d", verts);
   int depth = s_game->anchorDepth();
-  snprintf(depthText, sizeof(depthText), "D: %d", depth);
+  snprintf(depthText, sizeof(depthText), "Depth: %d", depth);
   snprintf(genText, sizeof(genText), "Gen: %.0fus", s_game->lastGenMs() * 1000.0f);
   snprintf(uploadText, sizeof(uploadText), "Up: %.0fus", s_game->lastUploadMs() * 1000.0f);
   snprintf(drawText_, sizeof(drawText_), "Draw: %.0fus", s_game->lastDrawMs() * 1000.0f);
@@ -74,34 +74,34 @@ static void drawFpsOverlay() {
   int genLen = (int)strlen(genText);
   int uploadLen = (int)strlen(uploadText);
   int drawLen = (int)strlen(drawText_);
-  int x = winW - fpsLen * 16 - 8;
+  int x = winW - fpsLen * 8 - 4;
   float vbuf[32 * 24];
   int len;
-  drawText((float)x, 8.0f, fpsText, 2, vbuf, &len);
+  drawText((float)x, 4.0f, fpsText, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
-  int zx = winW - zoomLen * 16 - 8;
-  drawText((float)zx, 28.0f, zoomText, 2, vbuf, &len);
+  int zx = winW - zoomLen * 8 - 4;
+  drawText((float)zx, 14.0f, zoomText, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
-  int vx = winW - vertLen * 16 - 8;
-  drawText((float)vx, 48.0f, vertText, 2, vbuf, &len);
+  int vx = winW - vertLen * 8 - 4;
+  drawText((float)vx, 24.0f, vertText, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
-  int dx = winW - depthLen * 16 - 8;
-  drawText((float)dx, 68.0f, depthText, 2, vbuf, &len);
+  int dx = winW - depthLen * 8 - 4;
+  drawText((float)dx, 34.0f, depthText, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
-  int gx = winW - genLen * 16 - 8;
-  drawText((float)gx, 88.0f, genText, 2, vbuf, &len);
+  int gx = winW - genLen * 8 - 4;
+  drawText((float)gx, 44.0f, genText, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
-  int ux = winW - uploadLen * 16 - 8;
-  drawText((float)ux, 108.0f, uploadText, 2, vbuf, &len);
+  int ux = winW - uploadLen * 8 - 4;
+  drawText((float)ux, 54.0f, uploadText, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
-  int ddx = winW - drawLen * 16 - 8;
-  drawText((float)ddx, 128.0f, drawText_, 2, vbuf, &len);
+  int ddx = winW - drawLen * 8 - 4;
+  drawText((float)ddx, 64.0f, drawText_, 1, vbuf, &len);
   if (len)
     drawTextGl(vbuf, len, s_game->program(), winW, winH);
 }
