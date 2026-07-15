@@ -58,25 +58,28 @@ void GameView::initGL() {
   _aColorLoc = glGetAttribLocation(_prog, "aColor");
 }
 
-void GameView::addQuad(Rect r, const float color[3]) {
-  float lx = r.ox;
-  float rx = r.ox + r.w;
-  float by = r.oy;
-  float ty = r.oy + r.h;
+void GameView::addQuad(Rect const r, const float color[3]) {
+  const float lx = r.ox;
+  const float rx = r.ox + r.w;
+  const float by = r.oy;
+  const float ty = r.oy + r.h;
 
   if (_v + 30 > _verts.data() + _maxVerts)
     return;
   if (rx <= -1.0f || lx >= 1.0f || ty <= -1.0f || by >= 1.0f)
     return;
 
-  float cr = color[0], cg = color[1], cb = color[2];
+  const float cr = color[0];
+  const float cg = color[1];
+  const float cb = color[2];
 
-  _v[0] = lx; _v[1] = ty; _v[2] = cr; _v[3] = cg; _v[4] = cb;
-  _v[5] = rx; _v[6] = ty; _v[7] = cr; _v[8] = cg; _v[9] = cb;
-  _v[10] = lx; _v[11] = by; _v[12] = cr; _v[13] = cg; _v[14] = cb;
-  _v[15] = rx; _v[16] = by; _v[17] = cr; _v[18] = cg; _v[19] = cb;
-  _v[20] = rx; _v[21] = ty; _v[22] = cr; _v[23] = cg; _v[24] = cb;
-  _v[25] = lx; _v[26] = by; _v[27] = cr; _v[28] = cg; _v[29] = cb;
+  constexpr int S = 5;
+  _v[0*S+0] = lx; _v[0*S+1] = ty; _v[0*S+2] = cr; _v[0*S+3] = cg; _v[0*S+4] = cb;
+  _v[1*S+0] = rx; _v[1*S+1] = ty; _v[1*S+2] = cr; _v[1*S+3] = cg; _v[1*S+4] = cb;
+  _v[2*S+0] = lx; _v[2*S+1] = by; _v[2*S+2] = cr; _v[2*S+3] = cg; _v[2*S+4] = cb;
+  _v[3*S+0] = rx; _v[3*S+1] = by; _v[3*S+2] = cr; _v[3*S+3] = cg; _v[3*S+4] = cb;
+  _v[4*S+0] = rx; _v[4*S+1] = ty; _v[4*S+2] = cr; _v[4*S+3] = cg; _v[4*S+4] = cb;
+  _v[5*S+0] = lx; _v[5*S+1] = by; _v[5*S+2] = cr; _v[5*S+3] = cg; _v[5*S+4] = cb;
   _v += 30;
 }
 
