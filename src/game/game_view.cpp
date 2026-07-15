@@ -58,24 +58,26 @@ void GameView::initGL() {
   _aColorLoc = glGetAttribLocation(_prog, "aColor");
 }
 
-void GameView::addQuad(const Rect& r, const float color[3]) {
-  if (r.ox + r.w <= -1.0f || r.ox >= 1.0f ||
-      r.oy + r.h <= -1.0f || r.oy >= 1.0f)
-    return;
+void GameView::addQuad(Rect r, const float color[3]) {
+  float lx = r.ox;
+  float rx = r.ox + r.w;
+  float by = r.oy;
+  float ty = r.oy + r.h;
+
   if (_v + 30 > _verts.data() + _maxVerts)
     return;
-  float cx = r.cx(), cy = r.cy();
-  float hw = r.halfW(), hh = r.halfH();
-  for (int i = 0; i < 6; i++) {
-    float deltaX = (i == 1 || i == 3 || i == 4) ? hw : -hw;
-    float deltaY = (i == 0 || i == 1 || i == 4) ? -hh : hh;
-    _v[0] = cx + deltaX;
-    _v[1] = cy + deltaY;
-    _v[2] = color[0];
-    _v[3] = color[1];
-    _v[4] = color[2];
-    _v += 5;
-  }
+  if (rx <= -1.0f || lx >= 1.0f || ty <= -1.0f || by >= 1.0f)
+    return;
+
+  float cr = color[0], cg = color[1], cb = color[2];
+
+  _v[0] = lx; _v[1] = ty; _v[2] = cr; _v[3] = cg; _v[4] = cb;
+  _v[5] = rx; _v[6] = ty; _v[7] = cr; _v[8] = cg; _v[9] = cb;
+  _v[10] = lx; _v[11] = by; _v[12] = cr; _v[13] = cg; _v[14] = cb;
+  _v[15] = rx; _v[16] = by; _v[17] = cr; _v[18] = cg; _v[19] = cb;
+  _v[20] = rx; _v[21] = ty; _v[22] = cr; _v[23] = cg; _v[24] = cb;
+  _v[25] = lx; _v[26] = by; _v[27] = cr; _v[28] = cg; _v[29] = cb;
+  _v += 30;
 }
 
 void GameView::renderCellItems(float centerX, float centerY, int count,

@@ -67,7 +67,7 @@ private:
     Rect childCellLayout(int nodeIndex, const Rect& r, int row, int col) const;
     Rect cellWorldCenter(int targetIdx) const;
     void focusTransform(int targetIdx);
-    void addQuad(const Rect& r, const float color[3]);
+    void addQuad(Rect r, const float color[3]);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
     void renderEmpty(const Rect& r, const float bgColor[3] = nullptr);
     void renderItem(const Rect& r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
