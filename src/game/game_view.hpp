@@ -59,21 +59,21 @@ public:
     void resetView();
 
 private:
-    int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, const Rect& r) const;
-    int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex, int gridDim, const Rect& r) const;
+    int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
+    int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
     int resolveCenterCell(float worldX, float worldY) const;
     bool unfocusOneLevel();
     bool isDescendant(int ancestor, int node) const;
-    Rect childCellLayout(int nodeIndex, const Rect& r, int row, int col) const;
+    Rect childCellLayout(int nodeIndex, Rect r, int row, int col) const;
     Rect cellWorldCenter(int targetIdx) const;
     void focusTransform(int targetIdx);
     void addQuad(Rect r, const float color[3]);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
-    void renderEmpty(const Rect& r, const float bgColor[3] = nullptr);
-    void renderItem(const Rect& r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
-    void renderGrid(int nodeIndex, const Rect& r, int depth, int excludeChild = -1);
-    void renderCell(int nodeIndex, const Rect& r, int depth);
-    void renderAnchor(int anchorIndex, const Rect& r, int depth, int excludeChild = -1);
+    void renderEmpty(Rect r, const float bgColor[3] = nullptr);
+    void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
+    void renderGrid(int nodeIndex, Rect r, int depth, int excludeChild = -1);
+    void renderCell(int nodeIndex, Rect r, int depth);
+    void renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild = -1);
 
     GameModel& _model;
 

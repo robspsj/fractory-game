@@ -126,18 +126,18 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
   }
 }
 
-void GameView::renderEmpty(const Rect& r, const float bgColor[3]) {
+void GameView::renderEmpty(Rect r, const float bgColor[3]) {
   addQuad(r, bgColor ? bgColor : _grey);
 }
 
-void GameView::renderItem(const Rect& r, int itemId, int count, float scale,
+void GameView::renderItem(Rect r, int itemId, int count, float scale,
                           const float bgColor[3]) {
   addQuad(r, bgColor ? bgColor : _grey);
   const float *col = _elemColors[itemId];
   renderCellItems(r.cx(), r.cy(), count, col, scale);
 }
 
-Rect GameView::childCellLayout(int nodeIndex, const Rect& r, int row, int col) const {
+Rect GameView::childCellLayout(int nodeIndex, Rect r, int row, int col) const {
   const Cell& cell = _model.node(nodeIndex);
   int gridDim = cell.data.grid.gridDimension;
 
@@ -153,7 +153,7 @@ Rect GameView::childCellLayout(int nodeIndex, const Rect& r, int row, int col) c
   return {centerX - halfW, centerY - halfH, childW, childH};
 }
 
-void GameView::renderGrid(int nodeIndex, const Rect& r, int depth, int excludeChild) {
+void GameView::renderGrid(int nodeIndex, Rect r, int depth, int excludeChild) {
   const Cell &cell = _model.node(nodeIndex);
   int firstChild = cell.data.grid.firstChild;
   int gridDim = cell.data.grid.gridDimension;
@@ -176,7 +176,7 @@ void GameView::renderGrid(int nodeIndex, const Rect& r, int depth, int excludeCh
   }
 }
 
-void GameView::renderCell(int nodeIndex, const Rect& r, int depth) {
+void GameView::renderCell(int nodeIndex, Rect r, int depth) {
   int absDepth = 0;
   for (int i = nodeIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
     absDepth++;
@@ -256,7 +256,7 @@ int GameView::resolveLeafCell(float worldX, float worldY) const {
 }
 
 int GameView::resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim,
-                            const Rect& r) const {
+                            Rect r) const {
   float childCellSize = r.w / (gridDim + (gridDim - 1) * _gapRatio);
   float pitch = childCellSize * (1 + _gapRatio);
   float half = childCellSize * 0.5f;
@@ -321,7 +321,7 @@ int GameView::resolveCenterCell(float worldX, float worldY) const {
 }
 
 int GameView::resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex,
-                                          int gridDim, const Rect& r) const {
+                                          int gridDim, Rect r) const {
   const Cell &cell = _model.node(nodeIndex);
   if (cell.type != CellType::GRID) return nodeIndex;
 
@@ -483,7 +483,7 @@ bool GameView::isDescendant(int ancestor, int node) const {
   return false;
 }
 
-void GameView::renderAnchor(int anchorIndex, const Rect& r, int depth, int excludeChild) {
+void GameView::renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild) {
   const Cell &cell = _model.node(anchorIndex);
   bool coversScreen = r.ox <= -1.0f && r.oy <= -1.0f &&
                       r.ox + r.w >= 1.0f && r.oy + r.h >= 1.0f;
