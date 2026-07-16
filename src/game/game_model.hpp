@@ -63,6 +63,7 @@ public:
   void drop(int nodeIndex);
   void cancelDrag();
 
+  void tick();
   void setFullState(int *inData);
   void getFullState(int *outData) const;
   int getSubgridState(int subgridSeqIndex, int *outData, int &outSize) const;
@@ -71,6 +72,7 @@ public:
 
 private:
   void populateWithSubgrid(int cellIndex, int size);
+  int findSpillTarget(int idx);
 
   std::vector<Cell> _nodes;
   int _dragSrcIndex = -1;

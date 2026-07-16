@@ -125,6 +125,98 @@ void GameModel::cancelDrag() {
   _dragItemId = -1;
 }
 
+int GameModel::findSpillTarget(int idx) {
+  std::vector<int> candidates;
+
+  int p = _nodes[idx].parent;
+  if (p < 0) return -1;
+
+  int parentFirst = _nodes[p].data.grid.firstChild;
+  int parentDim = _nodes[p].data.grid.gridDimension;
+  int localIdx = idx - parentFirst;
+  int row = localIdx / parentDim;
+  int col = localIdx % parentDim;
+
+  auto addIfEmpty = [&](int ni) {
+    if (ni >= 0 && ni < (int)_nodes.size() &&
+        _nodes[ni].type == CellType::EMPTY) {
+      candidates.push_back(ni);
+    }
+  };
+
+  if (row > 0) addIfEmpty(parentFirst + (row - 1) * parentDim + col);
+  if (row < parentDim - 1) addIfEmpty(parentFirst + (row + 1) * parentDim + col);
+  if (col > 0) addIfEmpty(parentFirst + row * parentDim + (col - 1));
+  if (col < parentDim - 1) addIfEmpty(parentFirst + row * parentDim + (col + 1));
+
+  int gp = _nodes[p].parent;
+  if (gp >= 0) {
+    int gpFirst = _nodes[gp].data.grid.firstChild;
+    int gpDim = _nodes[gp].data.grid.gridDimension;
+    int parentLocal = p - gpFirst;
+    int parentRow = parentLocal / gpDim;
+    int parentCol = parentLocal % gpDim;
+
+    auto checkGp = [&](int dr, int dc, int bRow, int bCol) {
+      int gr = parentRow + dr, gc = parentCol + dc;
+      if (gr < 0 || gr >= gpDim || gc < 0 || gc >= gpDim) return;
+      int gi = gpFirst + gr * gpDim + gc;
+      if (_nodes[gi].type == CellType::EMPTY) {
+        candidates.push_back(gi);
+      } else if (_nodes[gi].type == CellType::GRID) {
+        int nf = _nodes[gi].data.grid.firstChild;
+        int nd = _nodes[gi].data.grid.gridDimension;
+        int r = std::min(bRow, nd - 1);
+        int c = std::min(bCol, nd - 1);
+        if (r >= 0 && c >= 0) addIfEmpty(nf + r * nd + c);
+      }
+    };
+
+    if (row == 0) checkGp(-1, 0, parentDim - 1, col);
+    if (row == parentDim - 1) checkGp(1, 0, 0, col);
+    if (col == 0) checkGp(0, -1, row, parentDim - 1);
+    if (col == parentDim - 1) checkGp(0, 1, row, 0);
+  }
+
+  if (candidates.empty()) return -1;
+  return candidates[std::rand() % (int)candidates.size()];
+}
+
+void GameModel::tick() {
+  for (int i = 0; i < (int)_nodes.size(); i++) {
+    Cell &cell = _nodes[i];
+    switch (cell.type) {
+    case CellType::EMPTY:
+      break;
+    case CellType::ITEM:
+      if (std::rand() % 100 == 0) {
+        if (std::rand() % 2 == 0) {
+          if (cell.data.item.count < 5) {
+            cell.data.item.count++;
+          } else {
+            int target = findSpillTarget(i);
+            if (target != -1) {
+              cell.data.item.count = 3;
+              _nodes[target].type = CellType::ITEM;
+              _nodes[target].data.item.id = cell.data.item.id;
+              _nodes[target].data.item.count = 3;
+            }
+          }
+        } else {
+          if (cell.data.item.count > 1) {
+            cell.data.item.count--;
+          } else {
+            cell.type = CellType::EMPTY;
+          }
+        }
+      }
+      break;
+    case CellType::GRID:
+      break;
+    }
+  }
+}
+
 void GameModel::setFullState(int *inData) {
   int first = _nodes[0].data.grid.firstChild;
   int n = _nodes[0].data.grid.gridDimension * _nodes[0].data.grid.gridDimension;
