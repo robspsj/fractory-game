@@ -64,7 +64,7 @@ void GameView::addQuad(Rect const r, const float color[3]) {
   const float by = r.oy;
   const float ty = r.oy + r.h;
 
-  if (_v + 30 > _verts.data() + _maxVerts)
+  if (_vertCount + 30 > _maxVerts)
     return;
   if (rx <= -1.0f || lx >= 1.0f || ty <= -1.0f || by >= 1.0f)
     return;
@@ -74,13 +74,13 @@ void GameView::addQuad(Rect const r, const float color[3]) {
   const float cb = color[2];
 
   constexpr int S = 5;
-  _v[0*S+0] = lx; _v[0*S+1] = ty; _v[0*S+2] = cr; _v[0*S+3] = cg; _v[0*S+4] = cb;
-  _v[1*S+0] = rx; _v[1*S+1] = ty; _v[1*S+2] = cr; _v[1*S+3] = cg; _v[1*S+4] = cb;
-  _v[2*S+0] = lx; _v[2*S+1] = by; _v[2*S+2] = cr; _v[2*S+3] = cg; _v[2*S+4] = cb;
-  _v[3*S+0] = rx; _v[3*S+1] = by; _v[3*S+2] = cr; _v[3*S+3] = cg; _v[3*S+4] = cb;
-  _v[4*S+0] = rx; _v[4*S+1] = ty; _v[4*S+2] = cr; _v[4*S+3] = cg; _v[4*S+4] = cb;
-  _v[5*S+0] = lx; _v[5*S+1] = by; _v[5*S+2] = cr; _v[5*S+3] = cg; _v[5*S+4] = cb;
-  _v += 30;
+  _verts[_vertCount+0*S+0] = lx; _verts[_vertCount+0*S+1] = ty; _verts[_vertCount+0*S+2] = cr; _verts[_vertCount+0*S+3] = cg; _verts[_vertCount+0*S+4] = cb;
+  _verts[_vertCount+1*S+0] = rx; _verts[_vertCount+1*S+1] = ty; _verts[_vertCount+1*S+2] = cr; _verts[_vertCount+1*S+3] = cg; _verts[_vertCount+1*S+4] = cb;
+  _verts[_vertCount+2*S+0] = lx; _verts[_vertCount+2*S+1] = by; _verts[_vertCount+2*S+2] = cr; _verts[_vertCount+2*S+3] = cg; _verts[_vertCount+2*S+4] = cb;
+  _verts[_vertCount+3*S+0] = rx; _verts[_vertCount+3*S+1] = by; _verts[_vertCount+3*S+2] = cr; _verts[_vertCount+3*S+3] = cg; _verts[_vertCount+3*S+4] = cb;
+  _verts[_vertCount+4*S+0] = rx; _verts[_vertCount+4*S+1] = ty; _verts[_vertCount+4*S+2] = cr; _verts[_vertCount+4*S+3] = cg; _verts[_vertCount+4*S+4] = cb;
+  _verts[_vertCount+5*S+0] = lx; _verts[_vertCount+5*S+1] = by; _verts[_vertCount+5*S+2] = cr; _verts[_vertCount+5*S+3] = cg; _verts[_vertCount+5*S+4] = cb;
+  _vertCount += 30;
 }
 
 void GameView::renderCellItems(float centerX, float centerY, int count,
@@ -182,7 +182,7 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
     absDepth++;
   if (absDepth >= MAX_PREVIEW_DEPTH)
     return;
-  if (_v + 30 > _verts.data() + _maxVerts)
+  if (_vertCount + 30 > _maxVerts)
     return;
   if (r.outsideClip())
     return;
@@ -483,7 +483,7 @@ bool GameView::isDescendant(int ancestor, int node) const {
   return false;
 }
 
-void GameView::renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild) {
+void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth, const int excludeChild) {
   const Cell &cell = _model.node(anchorIndex);
   bool coversScreen = r.ox <= -1.0f && r.oy <= -1.0f &&
                       r.ox + r.w >= 1.0f && r.oy + r.h >= 1.0f;
@@ -513,7 +513,7 @@ void GameView::renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild
 
   if (depth >= MAX_PREVIEW_DEPTH)
     return;
-  if (_v + 30 > _verts.data() + _maxVerts)
+  if (_vertCount + 30 > _maxVerts)
     return;
   if (r.outsideClip())
     return;
@@ -529,10 +529,7 @@ void GameView::renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild
 
 void GameView::render(int winW, int winH) {
   _aspect = (float)winW / (float)winH;
-  size_t maxFloats = (size_t)_model.totalNodes() * 200 + 1024;
-  if (maxFloats > _maxVerts) maxFloats = _maxVerts;
-  _verts.resize(maxFloats);
-  _v = _verts.data();
+  _vertCount = 0;
 
   glUseProgram(_prog);
 
@@ -574,12 +571,12 @@ void GameView::render(int winW, int winH) {
   Uint64 t1 = SDL_GetPerformanceCounter();
   _lastGenMs = (float)((double)(t1 - t0) / (double)freq * 1000.0);
 
-  int totalFloats = (int)(_v - _verts.data());
+  int totalFloats = (int)_vertCount;
   if (totalFloats == 0)
     return;
 
   glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-  glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), _verts.data(),
+  glBufferData(GL_ARRAY_BUFFER, totalFloats * sizeof(float), _verts,
                GL_STREAM_DRAW);
 
   Uint64 t2 = SDL_GetPerformanceCounter();

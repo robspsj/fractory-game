@@ -4,11 +4,15 @@
 #include "game_model.hpp"
 #include "game_view.hpp"
 #include <SDL3/SDL.h>
+#include <atomic>
 #include <memory>
+#include <mutex>
+#include <thread>
 
 class Game {
 public:
   Game(const Config &cfg = Config{});
+  ~Game();
   void update(int mousePx, int mousePy, int winW, int winH);
   void mouseDown(int button, int mousePx, int mousePy, int winW, int winH);
   void mouseUp(int button, int mousePx, int mousePy, int winW, int winH);
@@ -38,4 +42,9 @@ private:
 
   MouseState _mouseState = MouseState::NONE;
   float _dragMX = 0.0f, _dragMY = 0.0f;
+
+  std::mutex _modelMutex;
+  std::thread _tickThread;
+  std::atomic<bool> _running{true};
+  int _ticksPerSecond;
 };

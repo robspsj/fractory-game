@@ -5,7 +5,6 @@
 #include <SDL3/SDL.h>
 #include <cmath>
 #include <cstddef>
-#include <vector>
 
 struct Rect {
     float ox, oy, w, h;
@@ -92,14 +91,14 @@ private:
     bool _isPanning = false;
     int _lastPanX = 0, _lastPanY = 0;
 
-    std::vector<float> _verts;
-    float* _v = nullptr;
-
     static constexpr float _gridMin = -0.75f;
     static constexpr float _cellSize = 0.30f;
     static constexpr float _gapRatio = 0.0714f;
     static constexpr float _anchorWidth = 1.5f;
     static constexpr size_t _maxVerts = 131072;
+
+    float _verts[_maxVerts];
+    size_t _vertCount = 0;
 
     int _anchorIndex = 0;
     int _anchorSize = 0;

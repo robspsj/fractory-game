@@ -9,10 +9,11 @@ struct Config {
     const int gridChance;
     const int gridLimit;
     const bool showAnchor;
+    const int ticksPerSecond;
 
-    Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false) {}
+    Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false), ticksPerSecond(20) {}
     Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000,
-           bool showAnchor_ = false)
+           bool showAnchor_ = false, int ticksPerSecond_ = 20)
         : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_),
-          showAnchor(showAnchor_) {}
+          showAnchor(showAnchor_), ticksPerSecond(ticksPerSecond_) {}
 };
