@@ -8,6 +8,7 @@ struct TestStep {
   int col = 0;
   int expectedId = -1;
   int expectedCount = 0;
+  int count = 1;
 };
 
 class ModelTestRunner {

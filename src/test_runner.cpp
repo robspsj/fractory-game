@@ -76,6 +76,11 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       std::cout << "Action: cancel drag" << std::endl;
       model.cancelDrag();
       printState(model);
+    } else if (step.type == "tick") {
+      for (int t = 0; t < step.count; t++)
+        model.tick();
+      std::cout << "Action: tick x" << step.count << std::endl;
+      printState(model);
     }
   }
 
@@ -155,6 +160,13 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
     } else if (type == "cancel") {
       TestStep step;
       step.type = "cancel";
+      steps.push_back(step);
+    } else if (type == "tick") {
+      TestStep step;
+      step.type = "tick";
+      std::string count_str;
+      if (std::getline(ss, count_str, ',') && !count_str.empty())
+        step.count = std::stoi(count_str);
       steps.push_back(step);
     }
   }
