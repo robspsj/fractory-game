@@ -4,13 +4,22 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
+
+static std::string dirOf(const std::string &filepath) {
+  auto pos = filepath.find_last_of("/\\");
+  return (pos != std::string::npos) ? filepath.substr(0, pos + 1) : "./";
+}
 
 bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
   GameModel model;
   std::string initialState;
   std::vector<TestStep> steps = loadSteps(filepath, initialState);
 
+  std::string dir = dirOf(filepath);
   Config cfg(42, 50, gridLimit);
+  cfg.reactionsCsvPath = dir + "reactions.csv";
+  cfg.spawnCsvPath = dir + "spawns.csv";
   model.init(cfg);
   if (!initialState.empty()) {
     loadState(model, initialState);

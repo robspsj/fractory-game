@@ -1,0 +1,10 @@
+# Pick up item 1 from [1,1], interact with empty [1,2] — held=1 modifier should spawn item 2
+# Grid: firstChild=1, dim=5 → [1,1]=index7=pos6, [1,2]=index8=pos7
+# pos0=[0,0], pos1=[0,1], ..., pos6=[1,1], pos7=[1,2]
+init:-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,1:1,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+pickup,1,1
+expect_cell,1,1,-1,0
+expect_drag,1,1
+interact,1,2
+expect_cell,1,2,2,1
+expect_drag,1,1
