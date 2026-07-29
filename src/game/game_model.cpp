@@ -180,6 +180,8 @@ void GameModel::interact(int idx) {
         return;  // Only one reaction per interact
       }
     }
+    // No reaction found — cycle item ID (1→2→3→4→5→1)
+    cell.data.item.id = (cell.data.item.id % GameModel::ELEMS) + 1;
     break;
   }
   case CellType::GRID:
