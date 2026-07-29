@@ -45,6 +45,8 @@ void GameModel::init(const Config &cfg) {
   _dragSrcIndex = -1;
   _dragAmount = 0;
   _dragItemId = -1;
+
+  initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath);
 }
 
 void GameModel::populateWithSubgrid(int cellIndex, int size) {
@@ -123,6 +125,67 @@ void GameModel::cancelDrag() {
   _dragSrcIndex = -1;
   _dragAmount = 0;
   _dragItemId = -1;
+}
+
+void GameModel::interact(int idx) {
+  if (idx <= 0 || idx >= (int)_nodes.size()) return;
+
+  Cell &cell = _nodes[idx];
+
+  switch (cell.type) {
+  case CellType::EMPTY: {
+    // Held item is a modifier — does NOT get consumed/dropped.
+    // Spawn rule lookup uses _dragItemId as context (-1 if not holding).
+    const SpawnRule *rule = _interactCfg.pickSpawn(_dragItemId);
+    if (rule) {
+      cell.type = CellType::ITEM;
+      cell.data.item.id = rule->spawnItemId;
+      cell.data.item.count = rule->spawnCount;
+    }
+    break;
+  }
+  case CellType::ITEM: {
+    // Check cardinal neighbors for a reaction
+    int parent = cell.parent;
+    if (parent < 0) break;
+    const Cell &parentCell = _nodes[parent];
+    if (parentCell.type != CellType::GRID) break;
+
+    int dim = parentCell.data.grid.gridDimension;
+    int first = parentCell.data.grid.firstChild;
+    int localIdx = idx - first;
+    int row = localIdx / dim;
+    int col = localIdx % dim;
+
+    struct { int dr, dc; } dirs[4] = {{-1,0},{1,0},{0,-1},{0,1}};
+
+    for (auto &d : dirs) {
+      int nr = row + d.dr;
+      int nc = col + d.dc;
+      if (nr < 0 || nr >= dim || nc < 0 || nc >= dim) continue;
+      int nIdx = first + nr * dim + nc;
+      const Cell &neighbor = _nodes[nIdx];
+      if (neighbor.type != CellType::ITEM) continue;
+
+      const ReactionRule *rule =
+          _interactCfg.findReaction(cell.data.item.id, neighbor.data.item.id);
+      if (rule) {
+        // Consume both
+        cell.type = CellType::EMPTY;
+        _nodes[nIdx].type = CellType::EMPTY;
+        // Place result in the interaction cell
+        cell.type = CellType::ITEM;
+        cell.data.item.id = rule->result;
+        cell.data.item.count = rule->resultCount;
+        return;  // Only one reaction per interact
+      }
+    }
+    break;
+  }
+  case CellType::GRID:
+    // No-op for now
+    break;
+  }
 }
 
 int GameModel::findSpillTarget(int idx) {

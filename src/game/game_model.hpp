@@ -1,5 +1,6 @@
 #pragma once
 #include "config.hpp"
+#include "interact_config.hpp"
 #include <vector>
 
 enum class CellType { EMPTY, ITEM, GRID };
@@ -62,6 +63,7 @@ public:
   void pickUp(int nodeIndex, int amount);
   void drop(int nodeIndex);
   void cancelDrag();
+  void interact(int nodeIndex);
 
   void tick();
   void setFullState(int *inData);
@@ -78,4 +80,5 @@ private:
   int _dragSrcIndex = -1;
   int _dragAmount = 0;
   int _dragItemId = -1;
+  InteractConfig _interactCfg;
 };

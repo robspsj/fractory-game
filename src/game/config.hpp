@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 constexpr float MIN_ZOOM = 0.0001f;
 constexpr float MIN_CELL_ON_SCREEN_PROPORTION_THRESHOLD = 1.15f/10;
@@ -10,10 +11,11 @@ struct Config {
     const int gridLimit;
     const bool showAnchor;
     const int ticksPerSecond;
+    std::string reactionsCsvPath;
+    std::string spawnCsvPath;
 
     Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false), ticksPerSecond(20) {}
     Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000,
            bool showAnchor_ = false, int ticksPerSecond_ = 20)
-        : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_),
-          showAnchor(showAnchor_), ticksPerSecond(ticksPerSecond_) {}
+        : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_), showAnchor(showAnchor_), ticksPerSecond(ticksPerSecond_) {}
 };
