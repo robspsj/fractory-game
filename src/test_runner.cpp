@@ -81,6 +81,12 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
         model.tick();
       std::cout << "Action: tick x" << step.count << std::endl;
       printState(model);
+    } else if (step.type == "interact") {
+      std::cout << "Action: interact at [" << step.row << "," << step.col
+                << "]" << std::endl;
+      int idx = model.rootChild(step.row, step.col);
+      model.interact(idx);
+      printState(model);
     }
   }
 
@@ -167,6 +173,15 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
       std::string count_str;
       if (std::getline(ss, count_str, ',') && !count_str.empty())
         step.count = std::stoi(count_str);
+      steps.push_back(step);
+    } else if (type == "interact") {
+      std::string row_str, col_str;
+      std::getline(ss, row_str, ',');
+      std::getline(ss, col_str, ',');
+      TestStep step;
+      step.type = "interact";
+      step.row = std::stoi(row_str);
+      step.col = std::stoi(col_str);
       steps.push_back(step);
     }
   }
