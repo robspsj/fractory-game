@@ -84,6 +84,9 @@ void GameModel::drop(int nodeIndex) {
 
   Cell dragCell;
   dragCell.type = CellType::ITEM;
+  dragCell.parent = (nodeIndex > 0 && nodeIndex < (int)_nodes.size())
+                        ? _nodes[nodeIndex].parent
+                        : -1;
   dragCell.data.item.id = _dragItemId;
   dragCell.data.item.count = _dragAmount;
 
@@ -119,6 +122,7 @@ void GameModel::cancelDrag() {
     return;
   Cell c;
   c.type = CellType::ITEM;
+  c.parent = _nodes[_dragSrcIndex].parent;
   c.data.item.id = _dragItemId;
   c.data.item.count = _dragAmount;
   _nodes[_dragSrcIndex] = c;
