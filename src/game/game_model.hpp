@@ -66,6 +66,10 @@ public:
   void interact(int nodeIndex);
 
   void tick();
+  void tickCell(int idx);
+  void tickEmpty(int idx);
+  void tickItem(int idx);
+  void tickGrid(int idx);
   void setFullState(int *inData);
   void getFullState(int *outData) const;
   int getSubgridState(int subgridSeqIndex, int *outData, int &outSize) const;

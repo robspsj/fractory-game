@@ -247,37 +247,50 @@ int GameModel::findSpillTarget(int idx) {
 
 void GameModel::tick() {
   for (int i = 0; i < (int)_nodes.size(); i++) {
-    Cell &cell = _nodes[i];
-    switch (cell.type) {
-    case CellType::EMPTY:
-      break;
-    case CellType::ITEM:
-      if (std::rand() % 100 == 0) {
-        if (std::rand() % 2 == 0) {
-          if (cell.data.item.count < 5) {
-            cell.data.item.count++;
-          } else {
-            int target = findSpillTarget(i);
-            if (target != -1) {
-              cell.data.item.count = 3;
-              _nodes[target].type = CellType::ITEM;
-              _nodes[target].data.item.id = cell.data.item.id;
-              _nodes[target].data.item.count = 3;
-            }
-          }
-        } else {
-          if (cell.data.item.count > 1) {
-            cell.data.item.count--;
-          } else {
-            cell.type = CellType::EMPTY;
-          }
-        }
+    tickCell(i);
+  }
+}
+
+void GameModel::tickCell(int idx) {
+  Cell &cell = _nodes[idx];
+  switch (cell.type) {
+  case CellType::EMPTY: tickEmpty(idx); break;
+  case CellType::ITEM:  tickItem(idx);  break;
+  case CellType::GRID:  tickGrid(idx);  break;
+  }
+}
+
+void GameModel::tickEmpty(int) {
+  // No-op for now
+}
+
+void GameModel::tickItem(int idx) {
+  Cell &cell = _nodes[idx];
+  if (std::rand() % 100 != 0) return;
+
+  if (std::rand() % 2 == 0) {
+    if (cell.data.item.count < 5) {
+      cell.data.item.count++;
+    } else {
+      int target = findSpillTarget(idx);
+      if (target != -1) {
+        cell.data.item.count = 3;
+        _nodes[target].type = CellType::ITEM;
+        _nodes[target].data.item.id = cell.data.item.id;
+        _nodes[target].data.item.count = 3;
       }
-      break;
-    case CellType::GRID:
-      break;
+    }
+  } else {
+    if (cell.data.item.count > 1) {
+      cell.data.item.count--;
+    } else {
+      cell.type = CellType::EMPTY;
     }
   }
+}
+
+void GameModel::tickGrid(int) {
+  // No-op for now
 }
 
 void GameModel::setFullState(int *inData) {
