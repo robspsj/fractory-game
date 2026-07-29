@@ -87,13 +87,18 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
   }
 }
 
-void Game::mouseDown(int button, int mousePx, int mousePy, int winW, int winH) {
+void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, int winH) {
   float wx, wy;
   _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
 
   if (button == SDL_BUTTON_LEFT) {
     std::lock_guard<std::mutex> lock(_modelMutex);
-    if (_model->hasDrag()) {
+    if (mod & SDL_KMOD_SHIFT) {
+      // Shift+click: interact with the cell
+      int idx = _view->resolveLeafCell(wx, wy);
+      if (idx >= 0)
+        _model->interact(idx);
+    } else if (_model->hasDrag()) {
       int idx = _view->resolveLeafCell(wx, wy);
       if (idx >= 0)
         _model->drop(idx);

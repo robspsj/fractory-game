@@ -49,11 +49,9 @@ void InputHandler::handleMouseMotion(const SDL_Event &e, int winW, int winH) {
 
 void InputHandler::handleMouseButton(const SDL_Event &e, int winW, int winH) {
   if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
-    _game.mouseDown(e.button.button, (int)e.button.x, (int)e.button.y, winW,
-                    winH);
+    _game.mouseDown(e.button.button, SDL_GetModState(), (int)e.button.x, (int)e.button.y, winW, winH);
   else
-    _game.mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW,
-                  winH);
+    _game.mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
 }
 
 void InputHandler::handleMouseWheel(const SDL_Event &e, int winW, int winH) {
@@ -132,7 +130,7 @@ void InputHandler::startOneFingerPan(int pixelX, int pixelY) {
   _touchPanning = true;
   _lastPanPixelX = pixelX;
   _lastPanPixelY = pixelY;
-  _game.mouseDown(SDL_BUTTON_MIDDLE, pixelX, pixelY, 0, 0);
+  _game.mouseDown(SDL_BUTTON_MIDDLE, 0, pixelX, pixelY, 0, 0);
 }
 
 void InputHandler::endOneFingerPan() {
@@ -143,7 +141,7 @@ void InputHandler::endOneFingerPan() {
 }
 
 void InputHandler::emitTap(int pixelX, int pixelY, int winW, int winH) {
-  _game.mouseDown(SDL_BUTTON_LEFT, pixelX, pixelY, winW, winH);
+  _game.mouseDown(SDL_BUTTON_LEFT, 0, pixelX, pixelY, winW, winH);
   _game.mouseUp(SDL_BUTTON_LEFT, pixelX, pixelY, winW, winH);
 }
 

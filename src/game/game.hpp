@@ -14,7 +14,7 @@ public:
   Game(const Config &cfg = Config{});
   ~Game();
   void update(int mousePx, int mousePy, int winW, int winH);
-  void mouseDown(int button, int mousePx, int mousePy, int winW, int winH);
+  void mouseDown(int button, int mod, int mousePx, int mousePy, int winW, int winH);
   void mouseUp(int button, int mousePx, int mousePy, int winW, int winH);
   void mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW, int winH);
   void keyDown(SDL_Keycode key, SDL_Keymod mod, int winW, int winH);
