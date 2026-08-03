@@ -20,6 +20,7 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
   Config cfg(42, 50, gridLimit);
   cfg.reactionsCsvPath = dir + "reactions.csv";
   cfg.spawnCsvPath = dir + "spawns.csv";
+  cfg.stationRecipesCsvPath = dir + "station_recipes.csv";
   model.init(cfg);
   if (!initialState.empty()) {
     loadState(model, initialState);

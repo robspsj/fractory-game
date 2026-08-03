@@ -31,6 +31,13 @@ const SpawnRule *InteractConfig::pickSpawn(int heldItemId) const {
   return candidates.back();
 }
 
+const StationRecipe *InteractConfig::findStationRecipe(int id) const {
+  for (const auto &r : stationRecipes) {
+    if (r.id == id) return &r;
+  }
+  return nullptr;
+}
+
 static void loadReactions(const std::string &path,
                           std::vector<ReactionRule> &out) {
   std::ifstream file(path);
@@ -65,13 +72,49 @@ static void loadSpawnRules(const std::string &path,
   }
 }
 
+static void loadStationRecipes(const std::string &path,
+                               std::vector<StationRecipe> &out) {
+  std::ifstream file(path);
+  std::string line;
+  while (std::getline(file, line)) {
+    if (line.empty() || line[0] == '#') continue;
+    std::stringstream ss(line);
+    std::string tok;
+    StationRecipe r;
+    std::getline(ss, tok, ','); r.id = std::stoi(tok);
+    std::getline(ss, tok, ','); r.sizeR = std::stoi(tok);
+    std::getline(ss, tok, ','); r.sizeC = std::stoi(tok);
+    std::getline(ss, tok, ','); r.inputA = std::stoi(tok);
+    std::getline(ss, tok, ','); r.inputB = std::stoi(tok);
+    std::getline(ss, tok, ','); r.output = std::stoi(tok);
+    std::getline(ss, tok, ','); r.outputCount = std::stoi(tok);
+    std::getline(ss, tok, ','); r.duration = std::stoi(tok);
+    for (int i = 0; i < r.sizeR * r.sizeC; i++) {
+      std::string roleStr;
+      if (std::getline(ss, roleStr, ',')) {
+        if (roleStr == "INPUT") r.layout.push_back(ReserveRole::INPUT);
+        else if (roleStr == "OUTPUT") r.layout.push_back(ReserveRole::OUTPUT);
+        else if (roleStr == "BUFFER") r.layout.push_back(ReserveRole::BUFFER);
+        else r.layout.push_back(ReserveRole::NONE);
+      } else {
+        r.layout.push_back(ReserveRole::NONE);
+      }
+    }
+    out.push_back(r);
+  }
+}
+
 void initInteractConfig(InteractConfig &cfg,
                         const std::string &reactionsPath,
-                        const std::string &spawnPath) {
+                        const std::string &spawnPath,
+                        const std::string &stationRecipesPath) {
   cfg.reactions.clear();
   cfg.spawnRules.clear();
+  cfg.stationRecipes.clear();
   if (!reactionsPath.empty())
     loadReactions(reactionsPath, cfg.reactions);
   if (!spawnPath.empty())
     loadSpawnRules(spawnPath, cfg.spawnRules);
+  if (!stationRecipesPath.empty())
+    loadStationRecipes(stationRecipesPath, cfg.stationRecipes);
 }

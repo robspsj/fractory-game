@@ -13,6 +13,7 @@ struct Config {
     const int ticksPerSecond;
     std::string reactionsCsvPath;
     std::string spawnCsvPath;
+    std::string stationRecipesCsvPath;
 
     Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false), ticksPerSecond(20) {}
     Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000,

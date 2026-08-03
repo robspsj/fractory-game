@@ -46,7 +46,8 @@ void GameModel::init(const Config &cfg) {
   _dragAmount = 0;
   _dragItemId = -1;
 
-  initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath);
+  initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
+                     cfg.stationRecipesCsvPath);
 }
 
 void GameModel::populateWithSubgrid(int cellIndex, int size) {
