@@ -17,6 +17,10 @@ const float GameView::_white[3] = {1.0f, 1.0f, 1.0f};
 const float GameView::_yellow[3] = {1.0f, 1.0f, 0.0f};
 const float GameView::_grey[3] = {0.5f, 0.5f, 0.5f};
 const float GameView::_gridBg[3] = {0.25f, 0.40f, 0.60f};
+const float GameView::_stationColor[3] = {0.6f, 0.4f, 0.2f};
+const float GameView::_reservedInput[3] = {0.2f, 0.6f, 0.3f};
+const float GameView::_reservedOutput[3] = {0.6f, 0.2f, 0.2f};
+const float GameView::_reservedBuffer[3] = {0.4f, 0.4f, 0.4f};
 
 GameView::GameView(GameModel &model, const Config &cfg)
     : _model(model), _showAnchor(cfg.showAnchor) {
@@ -205,6 +209,22 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
   case CellType::GRID:
     renderGrid(nodeIndex, r, depth);
     break;
+  case CellType::STATION:
+    addQuad(r, _stationColor);
+    break;
+  case CellType::RESERVED: {
+    const ReservedData &rd = cell.content.data.reserved;
+    switch (rd.role) {
+      case ReserveRole::INPUT:  addQuad(r, _reservedInput); break;
+      case ReserveRole::OUTPUT: addQuad(r, _reservedOutput); break;
+      case ReserveRole::BUFFER: addQuad(r, _reservedBuffer); break;
+      default: addQuad(r, _grey); break;
+    }
+    if (rd.itemId >= 0) {
+      renderCellItems(r.cx(), r.cy(), rd.itemCount, _elemColors[rd.itemId]);
+    }
+    break;
+  }
   }
 }
 
@@ -212,47 +232,56 @@ int GameView::resolveLeafCell(float worldX, float worldY) const {
   constexpr float anchorW = _anchorWidth;
   Rect r = {-anchorW * 0.5f, -anchorW * 0.5f, anchorW, anchorW};
 
+  int leafIdx = -1;
+
   if (r.contains(worldX, worldY)) {
     const Cell &anchor = _model.node(_anchorIndex);
-    if (anchor.content.type != CellType::GRID) return _anchorIndex;
-    return resolveCellAt(worldX, worldY, _anchorIndex, _anchorSize, r);
+    if (anchor.content.type != CellType::GRID) leafIdx = _anchorIndex;
+    else leafIdx = resolveCellAt(worldX, worldY, _anchorIndex, _anchorSize, r);
+  } else {
+    int currIdx = _anchorIndex;
+    Rect currR = r;
+
+    while (true) {
+      int parentIdx = _model.node(currIdx).parentId;
+      if (parentIdx < 0) break;
+
+      const Cell &parent = _model.node(parentIdx);
+      if (parent.content.type != CellType::GRID) break;
+
+      int parentDim = parent.content.data.grid.gridDimension;
+      int firstChild = parent.content.data.grid.firstChild;
+      int offset = currIdx - firstChild;
+      int row = offset / parentDim;
+      int col = offset % parentDim;
+      if (row < 0 || row >= parentDim || col < 0 || col >= parentDim) break;
+
+      float k = (float)(parentDim + (parentDim - 1) * _gapRatio);
+      float pitchX = currR.w * (1 + _gapRatio);
+      float pitchY = currR.h * (1 + _gapRatio);
+      Rect parentR = {
+        currR.ox - col * pitchX,
+        currR.oy + currR.h - currR.h * k + row * pitchY,
+        currR.w * k,
+        currR.h * k
+      };
+
+      if (parentR.contains(worldX, worldY)) {
+        leafIdx = resolveCellAt(worldX, worldY, parentIdx, parentDim, parentR);
+        break;
+      }
+
+      currIdx = parentIdx;
+      currR = parentR;
+    }
   }
 
-  int currIdx = _anchorIndex;
-  Rect currR = r;
-
-  while (true) {
-    int parentIdx = _model.node(currIdx).parentId;
-    if (parentIdx < 0) break;
-
-    const Cell &parent = _model.node(parentIdx);
-    if (parent.content.type != CellType::GRID) break;
-
-    int parentDim = parent.content.data.grid.gridDimension;
-    int firstChild = parent.content.data.grid.firstChild;
-    int offset = currIdx - firstChild;
-    int row = offset / parentDim;
-    int col = offset % parentDim;
-    if (row < 0 || row >= parentDim || col < 0 || col >= parentDim) break;
-
-    float k = (float)(parentDim + (parentDim - 1) * _gapRatio);
-    float pitchX = currR.w * (1 + _gapRatio);
-    float pitchY = currR.h * (1 + _gapRatio);
-    Rect parentR = {
-      currR.ox - col * pitchX,
-      currR.oy + currR.h - currR.h * k + row * pitchY,
-      currR.w * k,
-      currR.h * k
-    };
-
-    if (parentR.contains(worldX, worldY))
-      return resolveCellAt(worldX, worldY, parentIdx, parentDim, parentR);
-
-    currIdx = parentIdx;
-    currR = parentR;
+  // Redirect RESERVED cells to their anchor
+  if (leafIdx >= 0 && _model.node(leafIdx).content.type == CellType::RESERVED) {
+    return _model.node(leafIdx).content.data.reserved.anchorIndex;
   }
 
-  return -1;
+  return leafIdx;
 }
 
 int GameView::resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim,

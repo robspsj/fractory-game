@@ -114,4 +114,8 @@ private:
     static const float _yellow[3];
     static const float _grey[3];
     static const float _gridBg[3];
+    static const float _stationColor[3];
+    static const float _reservedInput[3];
+    static const float _reservedOutput[3];
+    static const float _reservedBuffer[3];
 };
