@@ -257,9 +257,11 @@ void GameModel::tick() {
 void GameModel::tickCell(int idx) {
   Cell &cell = _nodes[idx];
   switch (cell.content.type) {
-  case CellType::EMPTY: tickEmpty(idx); break;
-  case CellType::ITEM:  tickItem(idx);  break;
-  case CellType::GRID:  tickGrid(idx);  break;
+  case CellType::EMPTY:    tickEmpty(idx); break;
+  case CellType::ITEM:     tickItem(idx);  break;
+  case CellType::GRID:     tickGrid(idx);  break;
+  case CellType::STATION:  tickStation(idx); break;
+  case CellType::RESERVED: break; // no-op
   }
 }
 
@@ -294,6 +296,44 @@ void GameModel::tickItem(int idx) {
 
 void GameModel::tickGrid(int) {
   // No-op for now
+}
+
+void GameModel::tickStation(int idx) {
+  Cell &cell = _nodes[idx];
+  StationData &st = cell.content.data.station;
+
+  if (st.progress <= 0) return; // idle, waiting for inputs
+
+  st.progress--;
+  if (st.progress == 0) {
+    const StationRecipe *recipe = _interactCfg.findStationRecipe(st.recipeIndex);
+    if (!recipe) return;
+
+    int parent = _nodes[idx].parentId;
+    if (parent < 0) return;
+    const Cell &parentCell = _nodes[parent];
+    if (parentCell.content.type != CellType::GRID) return;
+
+    int dim = parentCell.content.data.grid.gridDimension;
+    int first = parentCell.content.data.grid.firstChild;
+    int localIdx = idx - first;
+    int startRow = localIdx / dim;
+    int startCol = localIdx % dim;
+
+    // Find first OUTPUT cell and place output
+    for (int r = 0; r < st.sizeR; r++) {
+      for (int c = 0; c < st.sizeC; c++) {
+        int cellIdx = first + (startRow + r) * dim + (startCol + c);
+        Cell &reserved = _nodes[cellIdx];
+        if (reserved.content.type == CellType::RESERVED &&
+            reserved.content.data.reserved.role == ReserveRole::OUTPUT) {
+          reserved.content.data.reserved.itemId = recipe->output;
+          reserved.content.data.reserved.itemCount = recipe->outputCount;
+          return;
+        }
+      }
+    }
+  }
 }
 
 void GameModel::setFullState(int *inData) {
