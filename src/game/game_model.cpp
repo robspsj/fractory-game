@@ -82,24 +82,21 @@ void GameModel::drop(int nodeIndex) {
   if (!hasDrag())
     return;
 
-  Cell dragCell;
-  dragCell.content.type = CellType::ITEM;
-  dragCell.parentId = (nodeIndex > 0 && nodeIndex < (int)_nodes.size())
-                        ? _nodes[nodeIndex].parentId
-                        : -1;
-  dragCell.content.data.item.id = _dragItemId;
-  dragCell.content.data.item.count = _dragAmount;
+  CellContent dragCell;
+  dragCell.type = CellType::ITEM;
+  dragCell.data.item.id = _dragItemId;
+  dragCell.data.item.count = _dragAmount;
 
   if (nodeIndex > 0 && nodeIndex < (int)_nodes.size()) {
     if (_nodes[nodeIndex].content.type == CellType::ITEM &&
         _nodes[nodeIndex].content.data.item.id == _dragItemId) {
       _nodes[nodeIndex].content.data.item.count += _dragAmount;
     } else if (_nodes[nodeIndex].content.type == CellType::EMPTY) {
-      _nodes[nodeIndex] = dragCell;
+      _nodes[nodeIndex].content = dragCell;
     } else if (_nodes[nodeIndex].content.type == CellType::ITEM) {
-      Cell temp = _nodes[nodeIndex];
-      _nodes[nodeIndex] = dragCell;
-      _nodes[_dragSrcIndex] = temp;
+      CellContent temp = _nodes[nodeIndex].content;
+      _nodes[nodeIndex].content = dragCell;
+      _nodes[_dragSrcIndex].content = temp;
       _dragSrcIndex = -1;
       _dragAmount = 0;
       _dragItemId = -1;
@@ -109,7 +106,7 @@ void GameModel::drop(int nodeIndex) {
       return;
     }
   } else {
-    _nodes[_dragSrcIndex] = dragCell;
+    _nodes[_dragSrcIndex].content = dragCell;
   }
 
   _dragSrcIndex = -1;
@@ -120,12 +117,11 @@ void GameModel::drop(int nodeIndex) {
 void GameModel::cancelDrag() {
   if (!hasDrag())
     return;
-  Cell c;
-  c.content.type = CellType::ITEM;
-  c.parentId = _nodes[_dragSrcIndex].parentId;
-  c.content.data.item.id = _dragItemId;
-  c.content.data.item.count = _dragAmount;
-  _nodes[_dragSrcIndex] = c;
+  CellContent c;
+  c.type = CellType::ITEM;
+  c.data.item.id = _dragItemId;
+  c.data.item.count = _dragAmount;
+  _nodes[_dragSrcIndex].content = c;
   _dragSrcIndex = -1;
   _dragAmount = 0;
   _dragItemId = -1;
