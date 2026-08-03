@@ -383,3 +383,87 @@ void GameModel::getDragState(int &outId, int &outCount) {
   outId = _dragItemId;
   outCount = _dragAmount;
 }
+
+bool GameModel::placeStation(int gridIndex, int recipeId) {
+  if (gridIndex <= 0 || gridIndex >= (int)_nodes.size()) return false;
+
+  const StationRecipe *recipe = _interactCfg.findStationRecipe(recipeId);
+  if (!recipe) return false;
+
+  Cell &anchorCell = _nodes[gridIndex];
+  if (anchorCell.parentId < 0) return false;
+
+  const Cell &parentCell = _nodes[anchorCell.parentId];
+  if (parentCell.content.type != CellType::GRID) return false;
+
+  int parentDim = parentCell.content.data.grid.gridDimension;
+  int parentFirst = parentCell.content.data.grid.firstChild;
+  int localIdx = gridIndex - parentFirst;
+  int startRow = localIdx / parentDim;
+  int startCol = localIdx % parentDim;
+
+  // Check all cells are EMPTY and within bounds
+  for (int r = 0; r < recipe->sizeR; r++) {
+    for (int c = 0; c < recipe->sizeC; c++) {
+      int row = startRow + r;
+      int col = startCol + c;
+      if (row >= parentDim || col >= parentDim) return false;
+      int idx = parentFirst + row * parentDim + col;
+      if (_nodes[idx].content.type != CellType::EMPTY) return false;
+    }
+  }
+
+  // Place anchor
+  anchorCell.content.type = CellType::STATION;
+  anchorCell.content.byteSize = calcByteSize(CellType::STATION);
+  anchorCell.content.data.station = {recipeId, 0, recipe->sizeR, recipe->sizeC};
+
+  // Place reserved cells
+  for (int r = 0; r < recipe->sizeR; r++) {
+    for (int c = 0; c < recipe->sizeC; c++) {
+      int row = startRow + r;
+      int col = startCol + c;
+      int idx = parentFirst + row * parentDim + col;
+      if (idx == gridIndex) continue; // skip anchor
+      int layoutIdx = r * recipe->sizeC + c;
+      _nodes[idx].content.type = CellType::RESERVED;
+      _nodes[idx].content.byteSize = calcByteSize(CellType::RESERVED);
+      _nodes[idx].content.data.reserved = {
+        gridIndex,
+        recipe->layout[layoutIdx],
+        -1, 0
+      };
+    }
+  }
+
+  return true;
+}
+
+void GameModel::removeStation(int anchorIndex) {
+  if (anchorIndex <= 0 || anchorIndex >= (int)_nodes.size()) return;
+  Cell &anchor = _nodes[anchorIndex];
+  if (anchor.content.type != CellType::STATION) return;
+
+  int sizeR = anchor.content.data.station.sizeR;
+  int sizeC = anchor.content.data.station.sizeC;
+
+  int parent = anchor.parentId;
+  if (parent < 0) return;
+  const Cell &parentCell = _nodes[parent];
+  if (parentCell.content.type != CellType::GRID) return;
+
+  int dim = parentCell.content.data.grid.gridDimension;
+  int first = parentCell.content.data.grid.firstChild;
+  int localIdx = anchorIndex - first;
+  int startRow = localIdx / dim;
+  int startCol = localIdx % dim;
+
+  // Clear all cells
+  for (int r = 0; r < sizeR; r++) {
+    for (int c = 0; c < sizeC; c++) {
+      int idx = first + (startRow + r) * dim + (startCol + c);
+      _nodes[idx].content = CellContent{};
+      _nodes[idx].content.byteSize = calcByteSize(CellType::EMPTY);
+    }
+  }
+}

@@ -5,8 +5,6 @@
 
 enum class CellType { EMPTY, ITEM, GRID, STATION, RESERVED };
 
-enum class ReserveRole { NONE, INPUT, OUTPUT, BUFFER };
-
 struct ItemData {
   int id;
   int count;
