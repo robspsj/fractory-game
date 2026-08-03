@@ -116,6 +116,8 @@ public:
   int totalNodes() const { return (int)_nodes.size(); }
 
 private:
+  void initEmptyGrid(int size);
+  void initRandomGrid(const Config &cfg);
   void populateWithSubgrid(int cellIndex, int size);
   int findSpillTarget(int idx);
 

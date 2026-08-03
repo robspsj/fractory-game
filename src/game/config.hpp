@@ -11,6 +11,8 @@ struct Config {
     const int gridLimit;
     const bool showAnchor;
     const int ticksPerSecond;
+    bool emptyGrid = false;
+    int initialGridSize = 3;
     std::string reactionsCsvPath;
     std::string spawnCsvPath;
     std::string stationRecipesCsvPath;

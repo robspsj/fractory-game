@@ -9,12 +9,31 @@ void GameModel::init(const Config &cfg) {
   else
     std::srand((unsigned)std::time(nullptr));
 
-  int gridChance = cfg.gridChance;
-
   _nodes.clear();
 
   Cell root;
   _nodes.push_back(root);
+
+  if (cfg.emptyGrid) {
+    initEmptyGrid(cfg.initialGridSize);
+  } else {
+    initRandomGrid(cfg);
+  }
+
+  _dragSrcIndex = -1;
+  _dragAmount = 0;
+  _dragItemId = -1;
+
+  initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
+                     cfg.stationRecipesCsvPath);
+}
+
+void GameModel::initEmptyGrid(int size) {
+  populateWithSubgrid(0, size);
+}
+
+void GameModel::initRandomGrid(const Config &cfg) {
+  int gridChance = cfg.gridChance;
 
   populateWithSubgrid(0, GRID);
   int gridCount = 1;
@@ -41,13 +60,6 @@ void GameModel::init(const Config &cfg) {
     }
     i++;
   }
-
-  _dragSrcIndex = -1;
-  _dragAmount = 0;
-  _dragItemId = -1;
-
-  initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
-                     cfg.stationRecipesCsvPath);
 }
 
 void GameModel::populateWithSubgrid(int cellIndex, int size) {
@@ -188,6 +200,79 @@ void GameModel::interact(int idx) {
   case CellType::GRID:
     // No-op for now
     break;
+  case CellType::STATION: {
+    // If holding an item, try to place in INPUT slot
+    if (hasDrag()) {
+      StationData &st = cell.content.data.station;
+      int parent = cell.parentId;
+      if (parent < 0) break;
+      const Cell &parentCell = _nodes[parent];
+      if (parentCell.content.type != CellType::GRID) break;
+
+      int dim = parentCell.content.data.grid.gridDimension;
+      int first = parentCell.content.data.grid.firstChild;
+      int localIdx = idx - first;
+      int startRow = localIdx / dim;
+      int startCol = localIdx % dim;
+
+      // Find INPUT cell with no item
+      for (int r = 0; r < st.sizeR; r++) {
+        for (int c = 0; c < st.sizeC; c++) {
+          int cellIdx = first + (startRow + r) * dim + (startCol + c);
+          Cell &reserved = _nodes[cellIdx];
+          if (reserved.content.type == CellType::RESERVED &&
+              reserved.content.data.reserved.role == ReserveRole::INPUT &&
+              reserved.content.data.reserved.itemId == -1) {
+            reserved.content.data.reserved.itemId = _dragItemId;
+            reserved.content.data.reserved.itemCount = _dragAmount;
+            _dragSrcIndex = -1;
+            _dragAmount = 0;
+            _dragItemId = -1;
+            tryStartStation(idx);
+            return;
+          }
+        }
+      }
+    }
+    break;
+  }
+  case CellType::RESERVED: {
+    ReservedData &rd = cell.content.data.reserved;
+    if (rd.role == ReserveRole::OUTPUT && rd.itemId != -1) {
+      // Pick up output
+      _dragSrcIndex = idx;
+      _dragItemId = rd.itemId;
+      _dragAmount = rd.itemCount;
+      rd.itemId = -1;
+      rd.itemCount = 0;
+    } else if (rd.role == ReserveRole::INPUT && hasDrag()) {
+      // Place input
+      if (rd.itemId == -1) {
+        rd.itemId = _dragItemId;
+        rd.itemCount = _dragAmount;
+        _dragSrcIndex = -1;
+        _dragAmount = 0;
+        _dragItemId = -1;
+        tryStartStation(rd.anchorIndex);
+      }
+    } else if (rd.role == ReserveRole::BUFFER) {
+      // Buffer: place or pick up freely
+      if (hasDrag() && rd.itemId == -1) {
+        rd.itemId = _dragItemId;
+        rd.itemCount = _dragAmount;
+        _dragSrcIndex = -1;
+        _dragAmount = 0;
+        _dragItemId = -1;
+      } else if (!hasDrag() && rd.itemId != -1) {
+        _dragSrcIndex = idx;
+        _dragItemId = rd.itemId;
+        _dragAmount = rd.itemCount;
+        rd.itemId = -1;
+        rd.itemCount = 0;
+      }
+    }
+    break;
+  }
   }
 }
 
@@ -333,6 +418,66 @@ void GameModel::tickStation(int idx) {
         }
       }
     }
+  }
+}
+
+void GameModel::tryStartStation(int anchorIdx) {
+  Cell &anchor = _nodes[anchorIdx];
+  if (anchor.content.type != CellType::STATION) return;
+  StationData &st = anchor.content.data.station;
+  if (st.progress > 0) return; // already running
+
+  const StationRecipe *recipe = _interactCfg.findStationRecipe(st.recipeIndex);
+  if (!recipe) return;
+
+  int parent = _nodes[anchorIdx].parentId;
+  if (parent < 0) return;
+  const Cell &parentCell = _nodes[parent];
+  if (parentCell.content.type != CellType::GRID) return;
+
+  int dim = parentCell.content.data.grid.gridDimension;
+  int first = parentCell.content.data.grid.firstChild;
+  int localIdx = anchorIdx - first;
+  int startRow = localIdx / dim;
+  int startCol = localIdx % dim;
+
+  // Count inputs present
+  int inputsFound = 0;
+  for (int r = 0; r < st.sizeR; r++) {
+    for (int c = 0; c < st.sizeC; c++) {
+      int cellIdx = first + (startRow + r) * dim + (startCol + c);
+      const Cell &reserved = _nodes[cellIdx];
+      if (reserved.content.type == CellType::RESERVED &&
+          reserved.content.data.reserved.role == ReserveRole::INPUT &&
+          reserved.content.data.reserved.itemId != -1) {
+        inputsFound++;
+      }
+    }
+  }
+
+  // Start if we have enough inputs
+  bool needsA = recipe->inputA >= 0;
+  bool needsB = recipe->inputB >= 0;
+  int required = (needsA ? 1 : 0) + (needsB ? 1 : 0);
+
+  if (inputsFound >= required) {
+    // Consume inputs
+    for (int r = 0; r < st.sizeR; r++) {
+      for (int c = 0; c < st.sizeC; c++) {
+        int cellIdx = first + (startRow + r) * dim + (startCol + c);
+        Cell &reserved = _nodes[cellIdx];
+        if (reserved.content.type == CellType::RESERVED &&
+            reserved.content.data.reserved.role == ReserveRole::INPUT &&
+            reserved.content.data.reserved.itemId != -1) {
+          reserved.content.data.reserved.itemId = -1;
+          reserved.content.data.reserved.itemCount = 0;
+          required--;
+          if (required <= 0) break;
+        }
+      }
+      if (required <= 0) break;
+    }
+    st.progress = recipe->duration;
   }
 }
 
