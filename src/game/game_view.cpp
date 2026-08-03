@@ -22,9 +22,9 @@ GameView::GameView(GameModel &model, const Config &cfg)
     : _model(model), _showAnchor(cfg.showAnchor) {
   const Cell &cell = _model.node(_anchorIndex);
   _anchorSize =
-      (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+      (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
   _anchorDepth = 0;
-  for (int i = _anchorIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+  for (int i = _anchorIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId)
     _anchorDepth++;
 }
 
@@ -139,7 +139,7 @@ void GameView::renderItem(Rect r, int itemId, int count, float scale,
 
 Rect GameView::childCellLayout(int nodeIndex, Rect r, int row, int col) const {
   const Cell& cell = _model.node(nodeIndex);
-  int gridDim = cell.data.grid.gridDimension;
+  int gridDim = cell.content.data.grid.gridDimension;
 
   float childW = r.w / (gridDim + (gridDim - 1) * _gapRatio);
   float childH = r.h / (gridDim + (gridDim - 1) * _gapRatio);
@@ -155,11 +155,11 @@ Rect GameView::childCellLayout(int nodeIndex, Rect r, int row, int col) const {
 
 void GameView::renderGrid(int nodeIndex, Rect r, int depth, int excludeChild) {
   const Cell &cell = _model.node(nodeIndex);
-  int firstChild = cell.data.grid.firstChild;
-  int gridDim = cell.data.grid.gridDimension;
+  int firstChild = cell.content.data.grid.firstChild;
+  int gridDim = cell.content.data.grid.gridDimension;
 
   int absDepth = 0;
-  for (int i = nodeIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+  for (int i = nodeIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId)
     absDepth++;
   float grayValue = 0.45f - std::min(absDepth, 10) * 0.03f;
   const float gridBg[3] = {grayValue, grayValue, grayValue + 0.03f};
@@ -178,7 +178,7 @@ void GameView::renderGrid(int nodeIndex, Rect r, int depth, int excludeChild) {
 
 void GameView::renderCell(int nodeIndex, Rect r, int depth) {
   int absDepth = 0;
-  for (int i = nodeIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+  for (int i = nodeIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId)
     absDepth++;
   if (absDepth >= MAX_PREVIEW_DEPTH)
     return;
@@ -192,13 +192,13 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
 
   const Cell &cell = _model.node(nodeIndex);
   const bool isAnchor = _showAnchor && nodeIndex == _anchorIndex;
-  switch (cell.type) {
+  switch (cell.content.type) {
   case CellType::EMPTY:
     renderEmpty(r, isAnchor ? _gridBg : nullptr);
     break;
   case CellType::ITEM:
   { float scale = r.w / (_zoom * _cellSize);
-    renderItem(r, cell.data.item.id, cell.data.item.count,
+    renderItem(r, cell.content.data.item.id, cell.content.data.item.count,
                scale, isAnchor ? _gridBg : nullptr);
     break;
   }
@@ -214,7 +214,7 @@ int GameView::resolveLeafCell(float worldX, float worldY) const {
 
   if (r.contains(worldX, worldY)) {
     const Cell &anchor = _model.node(_anchorIndex);
-    if (anchor.type != CellType::GRID) return _anchorIndex;
+    if (anchor.content.type != CellType::GRID) return _anchorIndex;
     return resolveCellAt(worldX, worldY, _anchorIndex, _anchorSize, r);
   }
 
@@ -222,14 +222,14 @@ int GameView::resolveLeafCell(float worldX, float worldY) const {
   Rect currR = r;
 
   while (true) {
-    int parentIdx = _model.node(currIdx).parent;
+    int parentIdx = _model.node(currIdx).parentId;
     if (parentIdx < 0) break;
 
     const Cell &parent = _model.node(parentIdx);
-    if (parent.type != CellType::GRID) break;
+    if (parent.content.type != CellType::GRID) break;
 
-    int parentDim = parent.data.grid.gridDimension;
-    int firstChild = parent.data.grid.firstChild;
+    int parentDim = parent.content.data.grid.gridDimension;
+    int firstChild = parent.content.data.grid.firstChild;
     int offset = currIdx - firstChild;
     int row = offset / parentDim;
     int col = offset % parentDim;
@@ -274,11 +274,11 @@ int GameView::resolveCellAt(float worldX, float worldY, int nodeIndex, int gridD
   if (std::abs(worldX - centerX) > half || std::abs(worldY - centerY) > half)
     return -1;
 
-  int childIdx = _model.node(nodeIndex).data.grid.firstChild + row * gridDim + col;
+  int childIdx = _model.node(nodeIndex).content.data.grid.firstChild + row * gridDim + col;
   const Cell &child = _model.node(childIdx);
 
-  if (child.type == CellType::GRID) {
-    int childDim = child.data.grid.gridDimension;
+  if (child.content.type == CellType::GRID) {
+    int childDim = child.content.data.grid.gridDimension;
     return resolveCellAt(worldX, worldY, childIdx, childDim,
                          {centerX - half, centerY - half, childCellSize, childCellSize});
   }
@@ -292,18 +292,18 @@ int GameView::resolveCenterCell(float worldX, float worldY) const {
 
   if (anchorR.contains(worldX, worldY)) {
     const Cell &anchor = _model.node(_anchorIndex);
-    if (anchor.type != CellType::GRID) return _anchorIndex;
+    if (anchor.content.type != CellType::GRID) return _anchorIndex;
     return resolveCellAtWithSizeCheck(worldX, worldY, _anchorIndex, _anchorSize, anchorR);
   }
 
-  int parentIdx = _model.node(_anchorIndex).parent;
+  int parentIdx = _model.node(_anchorIndex).parentId;
   if (parentIdx < 0) return _anchorIndex;
 
   const Cell &parent = _model.node(parentIdx);
-  if (parent.type != CellType::GRID) return _anchorIndex;
+  if (parent.content.type != CellType::GRID) return _anchorIndex;
 
-  int parentDim = parent.data.grid.gridDimension;
-  int firstChild = parent.data.grid.firstChild;
+  int parentDim = parent.content.data.grid.gridDimension;
+  int firstChild = parent.content.data.grid.firstChild;
   int offset = _anchorIndex - firstChild;
   int anchorRow = offset / parentDim;
   int anchorCol = offset % parentDim;
@@ -323,13 +323,13 @@ int GameView::resolveCenterCell(float worldX, float worldY) const {
 int GameView::resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex,
                                           int gridDim, Rect r) const {
   const Cell &cell = _model.node(nodeIndex);
-  if (cell.type != CellType::GRID) return nodeIndex;
+  if (cell.content.type != CellType::GRID) return nodeIndex;
 
   float childCellSize = r.w / (gridDim + (gridDim - 1) * _gapRatio);
 
   constexpr float screenWidthNDC = 2.0f;
   if (childCellSize * _zoom < MAX_CELL_ON_SCREEN_PROPORTION_THRESHOLD_PARENT * screenWidthNDC)
-    return cell.parent;
+    return cell.parentId;
   if (childCellSize * _zoom < MIN_CELL_ON_SCREEN_PROPORTION_THRESHOLD * screenWidthNDC)
     return nodeIndex;
 
@@ -347,12 +347,12 @@ int GameView::resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeInd
   float centerY = startY - row * pitch;
   if (std::abs(worldX - centerX) > half || std::abs(worldY - centerY) > half) return nodeIndex;
 
-  int childIdx = cell.data.grid.firstChild + row * gridDim + col;
+  int childIdx = cell.content.data.grid.firstChild + row * gridDim + col;
   const Cell &child = _model.node(childIdx);
 
-  if (child.type == CellType::GRID) {
+  if (child.content.type == CellType::GRID) {
     return resolveCellAtWithSizeCheck(worldX, worldY, childIdx,
-                                       child.data.grid.gridDimension,
+                                       child.content.data.grid.gridDimension,
                                        {centerX - half, centerY - half, childCellSize, childCellSize});
   }
   return childIdx;
@@ -365,14 +365,14 @@ Rect GameView::cellWorldCenter(int targetIdx) const {
 
   while (nodeIdx != targetIdx) {
     const Cell& node = _model.node(nodeIdx);
-    if (node.type != CellType::GRID) break;
+    if (node.content.type != CellType::GRID) break;
 
-    int gridDim = node.data.grid.gridDimension;
-    int firstChild = node.data.grid.firstChild;
+    int gridDim = node.content.data.grid.gridDimension;
+    int firstChild = node.content.data.grid.firstChild;
 
     int directChild = targetIdx;
-    while (_model.node(directChild).parent != nodeIdx) {
-      directChild = _model.node(directChild).parent;
+    while (_model.node(directChild).parentId != nodeIdx) {
+      directChild = _model.node(directChild).parentId;
     }
 
     int offset = directChild - firstChild;
@@ -403,9 +403,9 @@ void GameView::focusTransform(int targetIdx) {
   const Cell &cell = _model.node(targetIdx);
   _anchorIndex = targetIdx;
   _anchorSize =
-      (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+      (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
   _anchorDepth = 0;
-  for (int i = _anchorIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+  for (int i = _anchorIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId)
     _anchorDepth++;
 
   _panX = r.cx() * _zoom + _panX;
@@ -418,7 +418,7 @@ void GameView::resetView() {
   _anchorIndex = 0;
   const Cell &cell = _model.node(0);
   _anchorSize =
-      (cell.type == CellType::GRID) ? cell.data.grid.gridDimension : GameModel::GRID;
+      (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
   _anchorDepth = 0;
   _zoom = 1.0f;
   _panX = 0.0f;
@@ -443,14 +443,14 @@ void GameView::focusCenterCell(int winW, int winH) {
 }
 
 bool GameView::unfocusOneLevel() {
-  int parentIdx = _model.node(_anchorIndex).parent;
+  int parentIdx = _model.node(_anchorIndex).parentId;
   if (parentIdx < 0) return false;
 
   const Cell &parent = _model.node(parentIdx);
-  if (parent.type != CellType::GRID) return false;
+  if (parent.content.type != CellType::GRID) return false;
 
-  int gridDim = parent.data.grid.gridDimension;
-  int firstChild = parent.data.grid.firstChild;
+  int gridDim = parent.content.data.grid.gridDimension;
+  int firstChild = parent.content.data.grid.firstChild;
   int offset = _anchorIndex - firstChild;
   int row = offset / gridDim;
   int col = offset % gridDim;
@@ -466,7 +466,7 @@ bool GameView::unfocusOneLevel() {
   _anchorIndex = parentIdx;
   _anchorSize = gridDim;
   _anchorDepth = 0;
-  for (int i = _anchorIndex; _model.node(i).parent >= 0; i = _model.node(i).parent)
+  for (int i = _anchorIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId)
     _anchorDepth++;
   _zoom = savedZoom * _anchorWidth / child.w;
   if (_zoom < MIN_ZOOM) _zoom = MIN_ZOOM;
@@ -478,7 +478,7 @@ bool GameView::unfocusOneLevel() {
 bool GameView::isDescendant(int ancestor, int node) const {
   while (node >= 0) {
     if (node == ancestor) return true;
-    node = _model.node(node).parent;
+    node = _model.node(node).parentId;
   }
   return false;
 }
@@ -487,11 +487,11 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
   const Cell &cell = _model.node(anchorIndex);
   bool coversScreen = r.ox <= -1.0f && r.oy <= -1.0f &&
                       r.ox + r.w >= 1.0f && r.oy + r.h >= 1.0f;
-  if (!coversScreen && cell.parent >= 0) {
-    const Cell &parent = _model.node(cell.parent);
-    if (parent.type == CellType::GRID) {
-      int parentDim = parent.data.grid.gridDimension;
-      int firstChild = parent.data.grid.firstChild;
+  if (!coversScreen && cell.parentId >= 0) {
+    const Cell &parent = _model.node(cell.parentId);
+    if (parent.content.type == CellType::GRID) {
+      int parentDim = parent.content.data.grid.gridDimension;
+      int firstChild = parent.content.data.grid.firstChild;
       int offset = anchorIndex - firstChild;
       int row = offset / parentDim;
       int col = offset % parentDim;
@@ -506,7 +506,7 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
         r.w * k,
         r.h * k
       };
-      renderAnchor(cell.parent, parentR, depth + 1,
+      renderAnchor(cell.parentId, parentR, depth + 1,
                    excludeChild >= 0 ? excludeChild : anchorIndex);
     }
   }
@@ -521,7 +521,7 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
   if (r.w < minClipSize || r.h < minClipSize)
     return;
 
-  if (cell.type == CellType::GRID)
+  if (cell.content.type == CellType::GRID)
     renderGrid(anchorIndex, r, depth, excludeChild);
   else
     renderCell(anchorIndex, r, depth);

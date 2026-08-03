@@ -53,7 +53,7 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
     CellType leafType;
     {
       std::lock_guard<std::mutex> lock(_modelMutex);
-      leafType = _model->node(leafIdx).type;
+      leafType = _model->node(leafIdx).content.type;
     }
     if (leafType == CellType::GRID) {
       if (_mouseState != MouseState::HOVERING_GRID_FOR_FOCUS) {
@@ -106,8 +106,8 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
         _model->cancelDrag();
     } else {
       int idx = _view->resolveLeafCell(wx, wy);
-      if (idx >= 0 && _model->node(idx).type == CellType::ITEM) {
-        _model->pickUp(idx, _model->node(idx).data.item.count);
+      if (idx >= 0 && _model->node(idx).content.type == CellType::ITEM) {
+        _model->pickUp(idx, _model->node(idx).content.data.item.count);
         _dragMX = wx;
         _dragMY = wy;
         _view->setDragWorldPos(wx, wy);

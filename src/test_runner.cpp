@@ -34,10 +34,10 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       const auto &n = model.node(idx);
       int actualId;
       int actualCount;
-      if (n.type == CellType::ITEM) {
-        actualId = n.data.item.id;
-        actualCount = n.data.item.count;
-      } else if (n.type == CellType::GRID) {
+      if (n.content.type == CellType::ITEM) {
+        actualId = n.content.data.item.id;
+        actualCount = n.content.data.item.count;
+      } else if (n.content.type == CellType::GRID) {
         actualId = -2;
         actualCount = -1;
       } else {
@@ -72,8 +72,8 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       std::cout << "Action: pick up from [" << step.row << "," << step.col
                 << "]" << std::endl;
       int idx = model.rootChild(step.row, step.col);
-      if (model.node(idx).type == CellType::ITEM) {
-        model.pickUp(idx, model.node(idx).data.item.count);
+      if (model.node(idx).content.type == CellType::ITEM) {
+        model.pickUp(idx, model.node(idx).content.data.item.count);
       }
       printState(model);
     } else if (step.type == "drop") {

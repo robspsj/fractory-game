@@ -15,13 +15,17 @@ struct GridData {
   int gridDimension;
 };
 
-struct Cell {
-  CellType type;
-  int parent = -1;
+struct CellContent {
+  CellType type = CellType::EMPTY;
   union {
     ItemData item;
     GridData grid;
   } data;
+};
+
+struct Cell {
+  int parentId = -1;
+  CellContent content;
 };
 
 class GameModel {
@@ -38,7 +42,7 @@ public:
   Cell &node(int index) { return _nodes[index]; }
 
   int rootChild(int row, int col) const {
-    return _nodes[0].data.grid.firstChild + row * _nodes[0].data.grid.gridDimension +
+    return _nodes[0].content.data.grid.firstChild + row * _nodes[0].content.data.grid.gridDimension +
            col;
   }
 
@@ -50,14 +54,14 @@ public:
   int dragRow() const {
     if (_dragSrcIndex < 0)
       return -1;
-    int offset = _dragSrcIndex - _nodes[0].data.grid.firstChild;
-    return offset / _nodes[0].data.grid.gridDimension;
+    int offset = _dragSrcIndex - _nodes[0].content.data.grid.firstChild;
+    return offset / _nodes[0].content.data.grid.gridDimension;
   }
   int dragCol() const {
     if (_dragSrcIndex < 0)
       return -1;
-    int offset = _dragSrcIndex - _nodes[0].data.grid.firstChild;
-    return offset % _nodes[0].data.grid.gridDimension;
+    int offset = _dragSrcIndex - _nodes[0].content.data.grid.firstChild;
+    return offset % _nodes[0].content.data.grid.gridDimension;
   }
 
   void pickUp(int nodeIndex, int amount);
