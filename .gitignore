@@ -8,3 +8,4 @@ test-results/
 .DS_Store
 window_state.txt
 .cache/
+.hermes/
