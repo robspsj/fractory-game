@@ -109,6 +109,7 @@ public:
   void tickStation(int idx);
   void tickGrid(int idx);
   void tryStartStation(int anchorIdx);
+
   void setFullState(int *inData);
   void getFullState(int *outData) const;
   int getSubgridState(int subgridSeqIndex, int *outData, int &outSize) const;
@@ -118,6 +119,7 @@ public:
 private:
   void initEmptyGrid(int size);
   void initRandomGrid(const Config &cfg);
+  bool tryPlaceRandomStation(int gridIndex);
   void populateWithSubgrid(int cellIndex, int size);
   int findSpillTarget(int idx);
 

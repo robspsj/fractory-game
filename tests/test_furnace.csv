@@ -1,0 +1,17 @@
+# Test furnace: place 2x2 station, add inputs, tick, verify output
+empty_grid:3
+# Place 2x2 furnace at [0,0] — recipe 0
+place_station,0,0,0
+# Verify anchor is STATION (type -3)
+expect_cell,0,0,-3,0
+# Verify reserved cells (type -4)
+expect_cell,0,1,-4,0
+expect_cell,1,0,-4,0
+expect_cell,1,1,-4,0
+# Add inputs to INPUT cells [0,1] and [1,1]
+add_input,0,1,1,1
+add_input,1,1,2,1
+# Tick 10 times (duration is 10)
+tick,10
+# Verify output appeared in OUTPUT cell [1,0]
+expect_reserved,1,0,3,1

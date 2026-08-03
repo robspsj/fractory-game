@@ -34,12 +34,14 @@ void GameModel::initEmptyGrid(int size) {
 
 void GameModel::initRandomGrid(const Config &cfg) {
   int gridChance = cfg.gridChance;
+  int stationChance = cfg.stationChance;
 
   populateWithSubgrid(0, GRID);
   int gridCount = 1;
 
-  int itemChance = (100 - gridChance) / 2;
-  int emptyChance = 100 - gridChance - itemChance;
+  int remaining = 100 - gridChance - stationChance;
+  int itemChance = remaining / 2;
+  int emptyChance = remaining - itemChance;
 
   int i = 1;
   while (i < (int)_nodes.size()) {
@@ -52,6 +54,16 @@ void GameModel::initRandomGrid(const Config &cfg) {
       cell.content.type = CellType::ITEM;
       cell.content.data.item.id = std::rand() % ELEMS;
       cell.content.data.item.count = std::rand() % 4 + 1;
+    } else if (randVal < emptyChance + itemChance + stationChance) {
+      // Try to place a station
+      if (tryPlaceRandomStation(i)) {
+        // Station placed, skip its cells
+        const StationData &st = _nodes[i].content.data.station;
+        i += st.sizeR * st.sizeC - 1; // -1 because loop increments
+      } else {
+        // Couldn't place, fall back to empty
+        cell.content.type = CellType::EMPTY;
+      }
     } else {
       cell.content.type = CellType::GRID;
       gridCount++;
@@ -60,6 +72,65 @@ void GameModel::initRandomGrid(const Config &cfg) {
     }
     i++;
   }
+}
+
+bool GameModel::tryPlaceRandomStation(int gridIndex) {
+  if (gridIndex <= 0 || gridIndex >= (int)_nodes.size()) return false;
+  if (_interactCfg.stationRecipes.empty()) return false;
+
+  Cell &cell = _nodes[gridIndex];
+  if (cell.parentId < 0) return false;
+  if (cell.content.type != CellType::EMPTY) return false;
+
+  const Cell &parentCell = _nodes[cell.parentId];
+  if (parentCell.content.type != CellType::GRID) return false;
+
+  int parentDim = parentCell.content.data.grid.gridDimension;
+  int parentFirst = parentCell.content.data.grid.firstChild;
+  int localIdx = gridIndex - parentFirst;
+  int startRow = localIdx / parentDim;
+  int startCol = localIdx % parentDim;
+
+  // Pick a random recipe
+  int recipeIdx = std::rand() % (int)_interactCfg.stationRecipes.size();
+  const StationRecipe &recipe = _interactCfg.stationRecipes[recipeIdx];
+
+  // Check if it fits
+  if (startRow + recipe.sizeR > parentDim) return false;
+  if (startCol + recipe.sizeC > parentDim) return false;
+
+  // Check all cells are empty
+  for (int r = 0; r < recipe.sizeR; r++) {
+    for (int c = 0; c < recipe.sizeC; c++) {
+      int idx = parentFirst + (startRow + r) * parentDim + (startCol + c);
+      if (_nodes[idx].content.type != CellType::EMPTY) return false;
+    }
+  }
+
+  // Place anchor
+  cell.content.type = CellType::STATION;
+  cell.content.byteSize = calcByteSize(CellType::STATION);
+  cell.content.data.station = {recipe.id, 0, recipe.sizeR, recipe.sizeC};
+
+  // Place reserved cells
+  for (int r = 0; r < recipe.sizeR; r++) {
+    for (int c = 0; c < recipe.sizeC; c++) {
+      int row = startRow + r;
+      int col = startCol + c;
+      int idx = parentFirst + row * parentDim + col;
+      if (idx == gridIndex) continue;
+      int layoutIdx = r * recipe.sizeC + c;
+      _nodes[idx].content.type = CellType::RESERVED;
+      _nodes[idx].content.byteSize = calcByteSize(CellType::RESERVED);
+      _nodes[idx].content.data.reserved = {
+        gridIndex,
+        recipe.layout[layoutIdx],
+        -1, 0
+      };
+    }
+  }
+
+  return true;
 }
 
 void GameModel::populateWithSubgrid(int cellIndex, int size) {
@@ -573,7 +644,10 @@ bool GameModel::placeStation(int gridIndex, int recipeId) {
   if (gridIndex <= 0 || gridIndex >= (int)_nodes.size()) return false;
 
   const StationRecipe *recipe = _interactCfg.findStationRecipe(recipeId);
-  if (!recipe) return false;
+  if (!recipe) {
+    fprintf(stderr, "DEBUG: recipe %d not found (have %d recipes)\n", recipeId, (int)_interactCfg.stationRecipes.size());
+    return false;
+  }
 
   Cell &anchorCell = _nodes[gridIndex];
   if (anchorCell.parentId < 0) return false;
@@ -592,11 +666,18 @@ bool GameModel::placeStation(int gridIndex, int recipeId) {
     for (int c = 0; c < recipe->sizeC; c++) {
       int row = startRow + r;
       int col = startCol + c;
-      if (row >= parentDim || col >= parentDim) return false;
+      if (row >= parentDim || col >= parentDim) {
+        fprintf(stderr, "DEBUG: out of bounds row=%d col=%d dim=%d\n", row, col, parentDim);
+        return false;
+      }
       int idx = parentFirst + row * parentDim + col;
-      if (_nodes[idx].content.type != CellType::EMPTY) return false;
+      if (_nodes[idx].content.type != CellType::EMPTY) {
+        fprintf(stderr, "DEBUG: cell [%d,%d] idx=%d not empty (type=%d)\n", row, col, idx, (int)_nodes[idx].content.type);
+        return false;
+      }
     }
   }
+
 
   // Place anchor
   anchorCell.content.type = CellType::STATION;

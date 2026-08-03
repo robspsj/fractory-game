@@ -1,5 +1,6 @@
+# Station recipes for random init
 # 2x2 furnace: input+input → output, 10 ticks
-# id,sizeR,sizeC,inputA,inputB,output,outputCount,duration,roles...
-0,2,2,1,2,3,1,10,INPUT,INPUT,OUTPUT,BUFFER
+# layout: BUFFER(anchor), INPUT, OUTPUT, INPUT
+0,2,2,1,2,3,1,10,BUFFER,INPUT,OUTPUT,INPUT
 # 1x1 instant crafter
 1,1,1,3,4,5,1,0,OUTPUT

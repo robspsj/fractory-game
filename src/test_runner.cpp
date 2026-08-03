@@ -14,13 +14,17 @@ static std::string dirOf(const std::string &filepath) {
 bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
   GameModel model;
   std::string initialState;
-  std::vector<TestStep> steps = loadSteps(filepath, initialState);
+  bool emptyGrid = false;
+  int gridSize = 3;
+  std::vector<TestStep> steps = loadSteps(filepath, initialState, emptyGrid, gridSize);
 
   std::string dir = dirOf(filepath);
   Config cfg(42, 50, gridLimit);
   cfg.reactionsCsvPath = dir + "reactions.csv";
   cfg.spawnCsvPath = dir + "spawns.csv";
   cfg.stationRecipesCsvPath = dir + "station_recipes.csv";
+  cfg.emptyGrid = emptyGrid;
+  cfg.initialGridSize = gridSize;
   model.init(cfg);
   if (!initialState.empty()) {
     loadState(model, initialState);
@@ -41,6 +45,12 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       } else if (n.content.type == CellType::GRID) {
         actualId = -2;
         actualCount = -1;
+      } else if (n.content.type == CellType::STATION) {
+        actualId = -3;
+        actualCount = 0;
+      } else if (n.content.type == CellType::RESERVED) {
+        actualId = -4;
+        actualCount = 0;
       } else {
         actualId = -1;
         actualCount = 0;
@@ -97,6 +107,43 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       int idx = model.rootChild(step.row, step.col);
       model.interact(idx);
       printState(model);
+    } else if (step.type == "place_station") {
+      int idx = model.rootChild(step.row, step.col);
+      bool ok = model.placeStation(idx, step.expectedId);
+      std::cout << "Action: place_station at [" << step.row << "," << step.col
+                << "] recipe=" << step.expectedId << (ok ? " OK" : " FAIL") << std::endl;
+      printState(model);
+    } else if (step.type == "add_input") {
+      int idx = model.rootChild(step.row, step.col);
+      Cell &cell = model.node(idx);
+      if (cell.content.type == CellType::RESERVED) {
+        cell.content.data.reserved.itemId = step.expectedId;
+        cell.content.data.reserved.itemCount = step.expectedCount;
+        // Trigger station start check
+        model.tryStartStation(cell.content.data.reserved.anchorIndex);
+      }
+      std::cout << "Action: add_input at [" << step.row << "," << step.col
+                << "] item=" << step.expectedId << " count=" << step.expectedCount << std::endl;
+    } else if (step.type == "expect_reserved") {
+      int idx = model.rootChild(step.row, step.col);
+      const Cell &n = model.node(idx);
+      if (n.content.type == CellType::RESERVED) {
+        int actualId = n.content.data.reserved.itemId;
+        int actualCount = n.content.data.reserved.itemCount;
+        if (actualId != step.expectedId || actualCount != step.expectedCount) {
+          std::cerr << "Expectation FAILED: Reserved [" << step.row << "," << step.col
+                    << "] expected [" << step.expectedId << ":" << step.expectedCount
+                    << "] but got [" << actualId << ":" << actualCount << "]" << std::endl;
+          return false;
+        } else {
+          std::cout << "Expectation PASSED: Reserved [" << step.row << "," << step.col
+                    << "] is [" << actualId << ":" << actualCount << "]" << std::endl;
+        }
+      } else {
+        std::cerr << "Expectation FAILED: Cell [" << step.row << "," << step.col
+                  << "] is not RESERVED (type=" << (int)n.content.type << ")" << std::endl;
+        return false;
+      }
     }
   }
 
@@ -121,7 +168,9 @@ void ModelTestRunner::loadState(GameModel &model, const std::string &stateStr) {
 }
 
 std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
-                                                 std::string &outInitialState) {
+                                                 std::string &outInitialState,
+                                                 bool &outEmptyGrid,
+                                                 int &outGridSize) {
   std::vector<TestStep> steps;
   std::ifstream file(filepath);
   std::string line;
@@ -132,6 +181,12 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
 
     if (line.rfind("init:", 0) == 0) {
       outInitialState = line.substr(5);
+      continue;
+    }
+
+    if (line.rfind("empty_grid:", 0) == 0) {
+      outEmptyGrid = true;
+      outGridSize = std::stoi(line.substr(11));
       continue;
     }
 
@@ -192,6 +247,43 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
       step.type = "interact";
       step.row = std::stoi(row_str);
       step.col = std::stoi(col_str);
+      steps.push_back(step);
+    } else if (type == "place_station") {
+      std::string row_str, col_str, recipe_str;
+      std::getline(ss, row_str, ',');
+      std::getline(ss, col_str, ',');
+      std::getline(ss, recipe_str, ',');
+      TestStep step;
+      step.type = "place_station";
+      step.row = std::stoi(row_str);
+      step.col = std::stoi(col_str);
+      step.expectedId = std::stoi(recipe_str);
+      steps.push_back(step);
+    } else if (type == "add_input") {
+      std::string row_str, col_str, id_str, cnt_str;
+      std::getline(ss, row_str, ',');
+      std::getline(ss, col_str, ',');
+      std::getline(ss, id_str, ',');
+      std::getline(ss, cnt_str, ',');
+      TestStep step;
+      step.type = "add_input";
+      step.row = std::stoi(row_str);
+      step.col = std::stoi(col_str);
+      step.expectedId = std::stoi(id_str);
+      step.expectedCount = std::stoi(cnt_str);
+      steps.push_back(step);
+    } else if (type == "expect_reserved") {
+      std::string row_str, col_str, id_str, cnt_str;
+      std::getline(ss, row_str, ',');
+      std::getline(ss, col_str, ',');
+      std::getline(ss, id_str, ',');
+      std::getline(ss, cnt_str, ',');
+      TestStep step;
+      step.type = "expect_reserved";
+      step.row = std::stoi(row_str);
+      step.col = std::stoi(col_str);
+      step.expectedId = std::stoi(id_str);
+      step.expectedCount = std::stoi(cnt_str);
       steps.push_back(step);
     }
   }

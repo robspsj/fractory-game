@@ -13,6 +13,7 @@ struct Config {
     const int ticksPerSecond;
     bool emptyGrid = false;
     int initialGridSize = 3;
+    int stationChance = 10;
     std::string reactionsCsvPath;
     std::string spawnCsvPath;
     std::string stationRecipesCsvPath;

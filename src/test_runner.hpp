@@ -18,5 +18,7 @@ public:
 private:
   static void loadState(class GameModel &model, const std::string &stateStr);
   static std::vector<TestStep> loadSteps(const std::string &filepath,
-                                         std::string &outInitialState);
+                                         std::string &outInitialState,
+                                         bool &outEmptyGrid,
+                                         int &outGridSize);
 };
