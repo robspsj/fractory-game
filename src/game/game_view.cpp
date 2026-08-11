@@ -198,9 +198,8 @@ void GameView::renderItem(Rect r, int itemId, int count, float scale,
   const float *bgCol = bgColor ? bgColor : _grey;
   addQuad(r, bgCol, TILE_WHITE);
   // Item count dots textured with element tile
-  const float *col = _elemColors[itemId];
   _itemTile = (itemId >= 0 && itemId < GameModel::ELEMS) ? TILE_ELEM_0 + itemId : TILE_WHITE;
-  renderCellItems(r.cx(), r.cy(), count, col, scale);
+  renderCellItems(r.cx(), r.cy(), count, _white, scale);
 }
 
 Rect GameView::childCellLayout(int nodeIndex, Rect r, int row, int col) const {
@@ -287,7 +286,7 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
     }
     addQuad(r, col, tile);
     if (rd.itemId >= 0) {
-      renderCellItems(r.cx(), r.cy(), rd.itemCount, _elemColors[rd.itemId]);
+      renderCellItems(r.cx(), r.cy(), rd.itemCount, _white);
     }
     break;
   }
@@ -650,7 +649,6 @@ void GameView::render(int winW, int winH) {
   if (_model.hasDrag()) {
     int dragId = _model.dragItemId();
     int dragAmount = _model.dragAmount();
-    const float *col = _elemColors[dragId];
 
     if (!_dragWasActive) {
       _dragAnimStartTime = SDL_GetTicks();
@@ -668,7 +666,7 @@ void GameView::render(int winW, int winH) {
     float sx = _dragWX * _zoom + _panX;
     float sy = _dragWY * _aspect * _zoom + _panY;
     _itemTile = (dragId >= 0 && dragId < GameModel::ELEMS) ? TILE_ELEM_0 + dragId : TILE_WHITE;
-    renderCellItems(sx, sy, dragAmount, col, scale);
+    renderCellItems(sx, sy, dragAmount, _white, scale);
   }
   _dragWasActive = _model.hasDrag();
 
