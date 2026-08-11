@@ -154,7 +154,7 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
   float spacingX = itemDotW * 2.5f;
   float spacingY = itemDotH * 2.5f;
   auto dot = [&](float cx, float cy) {
-    addQuad({cx - itemDotW, cy - itemDotH, itemDotW * 2, itemDotH * 2}, color, TILE_WHITE);
+    addQuad({cx - itemDotW, cy - itemDotH, itemDotW * 2, itemDotH * 2}, color, _itemTile);
   };
   switch (count) {
   case 1:
@@ -195,12 +195,11 @@ void GameView::renderEmpty(Rect r, const float bgColor[3]) {
 
 void GameView::renderItem(Rect r, int itemId, int count, float scale,
                           const float bgColor[3]) {
-  // Background: show element texture with a slight tint
-  int tile = (itemId >= 0 && itemId < GameModel::ELEMS) ? TILE_ELEM_0 + itemId : TILE_WHITE;
   const float *bgCol = bgColor ? bgColor : _grey;
-  addQuad(r, bgCol, tile);
-  // Item count dots (solid colored, no texture)
+  addQuad(r, bgCol, TILE_WHITE);
+  // Item count dots textured with element tile
   const float *col = _elemColors[itemId];
+  _itemTile = (itemId >= 0 && itemId < GameModel::ELEMS) ? TILE_ELEM_0 + itemId : TILE_WHITE;
   renderCellItems(r.cx(), r.cy(), count, col, scale);
 }
 

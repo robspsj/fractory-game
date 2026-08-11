@@ -93,6 +93,7 @@ private:
     float _panX = 0.0f, _panY = 0.0f;
     float _aspect = 1.0f;
     float _dragWX = 0.0f, _dragWY = 0.0f;
+    int _itemTile = TILE_WHITE;
     bool _isPanning = false;
     int _lastPanX = 0, _lastPanY = 0;
 
