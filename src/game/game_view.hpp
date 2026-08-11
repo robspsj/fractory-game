@@ -1,5 +1,6 @@
 #pragma once
 #include "../gl.hpp" // IWYU pragma: keep
+#include "../texture_set.hpp"
 #include "config.hpp"
 #include "game_model.hpp"
 #include <SDL3/SDL.h>
@@ -66,13 +67,14 @@ private:
     Rect childCellLayout(int nodeIndex, Rect r, int row, int col) const;
     Rect cellWorldCenter(int targetIdx) const;
     void focusTransform(int targetIdx);
-    void addQuad(Rect r, const float color[3]);
+    void addQuad(Rect r, const float color[3], int tileIndex = TILE_WHITE);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
     void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
     void renderGrid(int nodeIndex, Rect r, int depth, int excludeChild = -1);
     void renderCell(int nodeIndex, Rect r, int depth);
     void renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild = -1);
+    int tileForCell(int nodeIndex) const;
 
     GameModel& _model;
 
@@ -82,7 +84,10 @@ private:
     static constexpr double _dragAnimDuration = 0.15;
 
     GLuint _prog = 0, _vbo = 0;
-    GLint _aPosLoc = -1, _aColorLoc = -1;
+    GLint _aPosLoc = -1, _aColorLoc = -1, _aTexCoordLoc = -1;
+    GLint _uTexLoc = -1;
+
+    TextureSet _texSet;
 
     float _zoom = 1.0f;
     float _panX = 0.0f, _panY = 0.0f;
@@ -95,7 +100,8 @@ private:
     static constexpr float _cellSize = 0.30f;
     static constexpr float _gapRatio = 0.0714f;
     static constexpr float _anchorWidth = 1.5f;
-    static constexpr size_t _maxVerts = 131072;
+    static constexpr int _vertStride = 7;  // floats per vertex: pos(2) + color(3) + uv(2)
+    static constexpr size_t _maxVerts = 196608;
 
     float _verts[_maxVerts];
     size_t _vertCount = 0;

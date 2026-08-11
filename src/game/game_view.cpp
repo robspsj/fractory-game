@@ -60,15 +60,26 @@ void GameView::initGL() {
 
   _aPosLoc = glGetAttribLocation(_prog, "aPos");
   _aColorLoc = glGetAttribLocation(_prog, "aColor");
+  _aTexCoordLoc = glGetAttribLocation(_prog, "aTexCoord");
+  _uTexLoc = glGetUniformLocation(_prog, "uTex");
+
+  // Load texture atlas
+  _texSet.loadAtlas("assets/tileset.png", 16, 16);
+  if (_texSet.loaded()) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _texSet.texture());
+    glUniform1i(_uTexLoc, 0);
+  }
 }
 
-void GameView::addQuad(Rect const r, const float color[3]) {
+void GameView::addQuad(Rect const r, const float color[3], int tileIndex) {
   const float lx = r.ox;
   const float rx = r.ox + r.w;
   const float by = r.oy;
   const float ty = r.oy + r.h;
 
-  if (_vertCount + 30 > _maxVerts)
+  constexpr int S = _vertStride; // 7 floats per vertex
+  if (_vertCount + 6 * S > _maxVerts)
     return;
   if (rx <= -1.0f || lx >= 1.0f || ty <= -1.0f || by >= 1.0f)
     return;
@@ -77,14 +88,61 @@ void GameView::addQuad(Rect const r, const float color[3]) {
   const float cg = color[1];
   const float cb = color[2];
 
-  constexpr int S = 5;
-  _verts[_vertCount+0*S+0] = lx; _verts[_vertCount+0*S+1] = ty; _verts[_vertCount+0*S+2] = cr; _verts[_vertCount+0*S+3] = cg; _verts[_vertCount+0*S+4] = cb;
-  _verts[_vertCount+1*S+0] = rx; _verts[_vertCount+1*S+1] = ty; _verts[_vertCount+1*S+2] = cr; _verts[_vertCount+1*S+3] = cg; _verts[_vertCount+1*S+4] = cb;
-  _verts[_vertCount+2*S+0] = lx; _verts[_vertCount+2*S+1] = by; _verts[_vertCount+2*S+2] = cr; _verts[_vertCount+2*S+3] = cg; _verts[_vertCount+2*S+4] = cb;
-  _verts[_vertCount+3*S+0] = rx; _verts[_vertCount+3*S+1] = by; _verts[_vertCount+3*S+2] = cr; _verts[_vertCount+3*S+3] = cg; _verts[_vertCount+3*S+4] = cb;
-  _verts[_vertCount+4*S+0] = rx; _verts[_vertCount+4*S+1] = ty; _verts[_vertCount+4*S+2] = cr; _verts[_vertCount+4*S+3] = cg; _verts[_vertCount+4*S+4] = cb;
-  _verts[_vertCount+5*S+0] = lx; _verts[_vertCount+5*S+1] = by; _verts[_vertCount+5*S+2] = cr; _verts[_vertCount+5*S+3] = cg; _verts[_vertCount+5*S+4] = cb;
-  _vertCount += 30;
+  float u0, v0, u1, v1;
+  _texSet.getUV(tileIndex, u0, v0, u1, v1);
+
+  // Triangle 1: top-left, top-right, bottom-left
+  _verts[_vertCount+0*S+0] = lx; _verts[_vertCount+0*S+1] = ty;
+  _verts[_vertCount+0*S+2] = cr; _verts[_vertCount+0*S+3] = cg; _verts[_vertCount+0*S+4] = cb;
+  _verts[_vertCount+0*S+5] = u0; _verts[_vertCount+0*S+6] = v0;
+
+  _verts[_vertCount+1*S+0] = rx; _verts[_vertCount+1*S+1] = ty;
+  _verts[_vertCount+1*S+2] = cr; _verts[_vertCount+1*S+3] = cg; _verts[_vertCount+1*S+4] = cb;
+  _verts[_vertCount+1*S+5] = u1; _verts[_vertCount+1*S+6] = v0;
+
+  _verts[_vertCount+2*S+0] = lx; _verts[_vertCount+2*S+1] = by;
+  _verts[_vertCount+2*S+2] = cr; _verts[_vertCount+2*S+3] = cg; _verts[_vertCount+2*S+4] = cb;
+  _verts[_vertCount+2*S+5] = u0; _verts[_vertCount+2*S+6] = v1;
+
+  // Triangle 2: top-right, bottom-right, bottom-left
+  _verts[_vertCount+3*S+0] = rx; _verts[_vertCount+3*S+1] = ty;
+  _verts[_vertCount+3*S+2] = cr; _verts[_vertCount+3*S+3] = cg; _verts[_vertCount+3*S+4] = cb;
+  _verts[_vertCount+3*S+5] = u1; _verts[_vertCount+3*S+6] = v0;
+
+  _verts[_vertCount+4*S+0] = rx; _verts[_vertCount+4*S+1] = by;
+  _verts[_vertCount+4*S+2] = cr; _verts[_vertCount+4*S+3] = cg; _verts[_vertCount+4*S+4] = cb;
+  _verts[_vertCount+4*S+5] = u1; _verts[_vertCount+4*S+6] = v1;
+
+  _verts[_vertCount+5*S+0] = lx; _verts[_vertCount+5*S+1] = by;
+  _verts[_vertCount+5*S+2] = cr; _verts[_vertCount+5*S+3] = cg; _verts[_vertCount+5*S+4] = cb;
+  _verts[_vertCount+5*S+5] = u0; _verts[_vertCount+5*S+6] = v1;
+
+  _vertCount += 6 * S;
+}
+
+int GameView::tileForCell(int nodeIndex) const {
+  const Cell &cell = _model.node(nodeIndex);
+  switch (cell.content.type) {
+  case CellType::EMPTY:
+    return TILE_EMPTY;
+  case CellType::ITEM:
+    return TILE_ELEM_0 + cell.content.data.item.id;
+  case CellType::STATION:
+    return TILE_STATION;
+  case CellType::RESERVED: {
+    const ReservedData &rd = cell.content.data.reserved;
+    if (rd.itemId >= 0)
+      return TILE_ELEM_0 + rd.itemId;
+    switch (rd.role) {
+      case ReserveRole::INPUT:  return TILE_RSV_INPUT;
+      case ReserveRole::OUTPUT: return TILE_RSV_OUTPUT;
+      case ReserveRole::BUFFER: return TILE_RSV_BUFFER;
+      default: return TILE_WHITE;
+    }
+  }
+  default:
+    return TILE_WHITE;
+  }
 }
 
 void GameView::renderCellItems(float centerX, float centerY, int count,
@@ -96,7 +154,7 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
   float spacingX = itemDotW * 2.5f;
   float spacingY = itemDotH * 2.5f;
   auto dot = [&](float cx, float cy) {
-    addQuad({cx - itemDotW, cy - itemDotH, itemDotW * 2, itemDotH * 2}, color);
+    addQuad({cx - itemDotW, cy - itemDotH, itemDotW * 2, itemDotH * 2}, color, TILE_WHITE);
   };
   switch (count) {
   case 1:
@@ -131,12 +189,17 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
 }
 
 void GameView::renderEmpty(Rect r, const float bgColor[3]) {
-  addQuad(r, bgColor ? bgColor : _grey);
+  const float *col = bgColor ? bgColor : _grey;
+  addQuad(r, col, TILE_EMPTY);
 }
 
 void GameView::renderItem(Rect r, int itemId, int count, float scale,
                           const float bgColor[3]) {
-  addQuad(r, bgColor ? bgColor : _grey);
+  // Background: show element texture with a slight tint
+  int tile = (itemId >= 0 && itemId < GameModel::ELEMS) ? TILE_ELEM_0 + itemId : TILE_WHITE;
+  const float *bgCol = bgColor ? bgColor : _grey;
+  addQuad(r, bgCol, tile);
+  // Item count dots (solid colored, no texture)
   const float *col = _elemColors[itemId];
   renderCellItems(r.cx(), r.cy(), count, col, scale);
 }
@@ -167,7 +230,7 @@ void GameView::renderGrid(int nodeIndex, Rect r, int depth, int excludeChild) {
     absDepth++;
   float grayValue = 0.45f - std::min(absDepth, 10) * 0.03f;
   const float gridBg[3] = {grayValue, grayValue, grayValue + 0.03f};
-  addQuad(r, (_showAnchor && depth == 0) ? _gridBg : gridBg);
+  addQuad(r, (_showAnchor && depth == 0) ? _gridBg : gridBg, TILE_WHITE);
 
   for (int row = 0; row < gridDim; row++) {
     for (int col = 0; col < gridDim; col++) {
@@ -186,7 +249,8 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
     absDepth++;
   if (absDepth >= MAX_PREVIEW_DEPTH)
     return;
-  if (_vertCount + 30 > _maxVerts)
+  constexpr int S = _vertStride;
+  if (_vertCount + 6 * S > _maxVerts)
     return;
   if (r.outsideClip())
     return;
@@ -210,16 +274,19 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
     renderGrid(nodeIndex, r, depth);
     break;
   case CellType::STATION:
-    addQuad(r, _stationColor);
+    addQuad(r, _white, TILE_STATION);
     break;
   case CellType::RESERVED: {
     const ReservedData &rd = cell.content.data.reserved;
+    int tile = TILE_WHITE;
+    const float *col = _grey;
     switch (rd.role) {
-      case ReserveRole::INPUT:  addQuad(r, _reservedInput); break;
-      case ReserveRole::OUTPUT: addQuad(r, _reservedOutput); break;
-      case ReserveRole::BUFFER: addQuad(r, _reservedBuffer); break;
-      default: addQuad(r, _grey); break;
+      case ReserveRole::INPUT:  tile = TILE_RSV_INPUT;  col = _reservedInput; break;
+      case ReserveRole::OUTPUT: tile = TILE_RSV_OUTPUT; col = _reservedOutput; break;
+      case ReserveRole::BUFFER: tile = TILE_RSV_BUFFER; col = _reservedBuffer; break;
+      default: break;
     }
+    addQuad(r, col, tile);
     if (rd.itemId >= 0) {
       renderCellItems(r.cx(), r.cy(), rd.itemCount, _elemColors[rd.itemId]);
     }
@@ -542,7 +609,8 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
 
   if (depth >= MAX_PREVIEW_DEPTH)
     return;
-  if (_vertCount + 30 > _maxVerts)
+  constexpr int S = _vertStride;
+  if (_vertCount + 6 * S > _maxVerts)
     return;
   if (r.outsideClip())
     return;
@@ -561,6 +629,13 @@ void GameView::render(int winW, int winH) {
   _vertCount = 0;
 
   glUseProgram(_prog);
+
+  // Ensure texture is bound
+  if (_texSet.loaded()) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _texSet.texture());
+    glUniform1i(_uTexLoc, 0);
+  }
 
   constexpr float anchorW = _anchorWidth;
   float ox = -anchorW * 0.5f * _zoom + _panX;
@@ -611,19 +686,24 @@ void GameView::render(int winW, int winH) {
   Uint64 t2 = SDL_GetPerformanceCounter();
   _lastUploadMs = (float)((double)(t2 - t1) / (double)freq * 1000.0);
 
-  glVertexAttribPointer(_aPosLoc, 2, GL_FLOAT, GL_FALSE, 5 * (int)sizeof(float),
-                        0);
+  constexpr int strideBytes = _vertStride * (int)sizeof(float);
+  glVertexAttribPointer(_aPosLoc, 2, GL_FLOAT, GL_FALSE, strideBytes, 0);
   glEnableVertexAttribArray(_aPosLoc);
-  glVertexAttribPointer(_aColorLoc, 3, GL_FLOAT, GL_FALSE,
-                        5 * (int)sizeof(float), (void *)(2 * sizeof(float)));
+  glVertexAttribPointer(_aColorLoc, 3, GL_FLOAT, GL_FALSE, strideBytes,
+                        (void *)(2 * sizeof(float)));
   glEnableVertexAttribArray(_aColorLoc);
+  glVertexAttribPointer(_aTexCoordLoc, 2, GL_FLOAT, GL_FALSE, strideBytes,
+                        (void *)(5 * sizeof(float)));
+  glEnableVertexAttribArray(_aTexCoordLoc);
 
-  glDrawArrays(GL_TRIANGLES, 0, totalFloats / 5);
-  _lastVertexCount = totalFloats / 5;
+  int numVertices = totalFloats / _vertStride;
+  glDrawArrays(GL_TRIANGLES, 0, numVertices);
+  _lastVertexCount = numVertices;
 
   Uint64 t3 = SDL_GetPerformanceCounter();
   _lastDrawMs = (float)((double)(t3 - t2) / (double)freq * 1000.0);
 
+  glDisableVertexAttribArray(_aTexCoordLoc);
   glDisableVertexAttribArray(_aColorLoc);
   glDisableVertexAttribArray(_aPosLoc);
 }

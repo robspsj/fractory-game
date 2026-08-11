@@ -217,7 +217,16 @@ int main(int argc, char *argv[]) {
   SDL_GLContext ctx = SDL_GL_CreateContext(win);
   SDL_GL_SetSwapInterval(0);
 
-  s_game = std::make_unique<Game>(Config{});
+  Config cfg;
+  for (int a = 1; a < argc; a++) {
+    if (std::string(argv[a]) == "--empty-grid") {
+      cfg.emptyGrid = true;
+      if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
+        cfg.initialGridSize = std::atoi(argv[++a]);
+    }
+  }
+
+  s_game = std::make_unique<Game>(cfg);
   s_input = std::make_unique<InputHandler>(*s_game);
   clearScreen();
   initFont(s_game->program());

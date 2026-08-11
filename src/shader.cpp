@@ -2,12 +2,15 @@
 #include <cstdio>
 
 const char *vertSrc = R"(
-attribute vec2 aPos;       // Pre-transformed clip-space position
-attribute vec3 aColor;     // The color of the vertex
+attribute vec2 aPos;
+attribute vec3 aColor;
+attribute vec2 aTexCoord;
 varying vec3 vColor;
+varying vec2 vTexCoord;
 void main() {
     gl_Position = vec4(aPos, 0.0, 1.0);
     vColor = aColor;
+    vTexCoord = aTexCoord;
 }
 )";
 
@@ -15,12 +18,22 @@ void main() {
 const char *fragSrc = R"(
 precision mediump float;
 varying vec3 vColor;
-void main() { gl_FragColor = vec4(vColor, 1.0); }
+varying vec2 vTexCoord;
+uniform sampler2D uTex;
+void main() {
+    vec4 texColor = texture2D(uTex, vTexCoord);
+    gl_FragColor = texColor * vec4(vColor, 1.0);
+}
 )";
 #else
 const char *fragSrc = R"(
 varying vec3 vColor;
-void main() { gl_FragColor = vec4(vColor, 1.0); }
+varying vec2 vTexCoord;
+uniform sampler2D uTex;
+void main() {
+    vec4 texColor = texture2D(uTex, vTexCoord);
+    gl_FragColor = texColor * vec4(vColor, 1.0);
+}
 )";
 #endif
 
