@@ -190,7 +190,7 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
 
 void GameView::renderEmpty(Rect r, const float bgColor[3]) {
   const float *col = bgColor ? bgColor : _grey;
-  addQuad(r, col, TILE_EMPTY);
+  addQuad(r, col, TILE_WHITE);
 }
 
 void GameView::renderItem(Rect r, int itemId, int count, float scale,
@@ -667,6 +667,7 @@ void GameView::render(int winW, int winH) {
 
     float sx = _dragWX * _zoom + _panX;
     float sy = _dragWY * _aspect * _zoom + _panY;
+    _itemTile = (dragId >= 0 && dragId < GameModel::ELEMS) ? TILE_ELEM_0 + dragId : TILE_WHITE;
     renderCellItems(sx, sy, dragAmount, col, scale);
   }
   _dragWasActive = _model.hasDrag();
