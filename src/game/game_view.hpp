@@ -84,8 +84,9 @@ private:
     static constexpr double _dragAnimDuration = 0.15;
 
     GLuint _prog = 0, _vbo = 0;
-    GLint _aPosLoc = -1, _aColorLoc = -1, _aTexCoordLoc = -1;
-    GLint _uTexLoc = -1;
+    GLint _aPosLoc = -1, _aColorLoc = -1;
+    GLint _aTileMinLoc = -1, _aTileMaxLoc = -1, _aTileUVLoc = -1;
+    GLint _uTexLoc = -1, _uAtlasSizeLoc = -1;
 
     TextureSet _texSet;
 
@@ -101,8 +102,8 @@ private:
     static constexpr float _cellSize = 0.30f;
     static constexpr float _gapRatio = 0.0714f;
     static constexpr float _anchorWidth = 1.5f;
-    static constexpr int _vertStride = 7;  // floats per vertex: pos(2) + color(3) + uv(2)
-    static constexpr size_t _maxVerts = 196608;
+    static constexpr int _vertStride = 11;  // pos(2) + color(3) + tileMin(2) + tileMax(2) + tileUV(2)
+    static constexpr size_t _maxVerts = 327680;
 
     float _verts[_maxVerts];
     size_t _vertCount = 0;

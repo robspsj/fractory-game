@@ -60,8 +60,11 @@ void GameView::initGL() {
 
   _aPosLoc = glGetAttribLocation(_prog, "aPos");
   _aColorLoc = glGetAttribLocation(_prog, "aColor");
-  _aTexCoordLoc = glGetAttribLocation(_prog, "aTexCoord");
+  _aTileMinLoc = glGetAttribLocation(_prog, "aTileMin");
+  _aTileMaxLoc = glGetAttribLocation(_prog, "aTileMax");
+  _aTileUVLoc = glGetAttribLocation(_prog, "aTileUV");
   _uTexLoc = glGetUniformLocation(_prog, "uTex");
+  _uAtlasSizeLoc = glGetUniformLocation(_prog, "uAtlasSize");
 
   // Load texture atlas
   _texSet.loadAtlas("assets/tileset.png", 16, 16);
@@ -69,6 +72,7 @@ void GameView::initGL() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _texSet.texture());
     glUniform1i(_uTexLoc, 0);
+    glUniform2f(_uAtlasSizeLoc, (float)_texSet.atlasWidth(), (float)_texSet.atlasHeight());
   }
 }
 
@@ -78,7 +82,7 @@ void GameView::addQuad(Rect const r, const float color[3], int tileIndex) {
   const float by = r.oy;
   const float ty = r.oy + r.h;
 
-  constexpr int S = _vertStride; // 7 floats per vertex
+  constexpr int S = _vertStride;
   if (_vertCount + 6 * S > _maxVerts)
     return;
   if (rx <= -1.0f || lx >= 1.0f || ty <= -1.0f || by >= 1.0f)
@@ -88,36 +92,34 @@ void GameView::addQuad(Rect const r, const float color[3], int tileIndex) {
   const float cg = color[1];
   const float cb = color[2];
 
-  float u0, v0, u1, v1;
-  _texSet.getUV(tileIndex, u0, v0, u1, v1);
+  // Tile bounds in atlas UV space
+  float tileMinU, tileMinV, tileMaxU, tileMaxV;
+  _texSet.getUV(tileIndex, tileMinU, tileMinV, tileMaxU, tileMaxV);
 
-  // Triangle 1: top-left, top-right, bottom-left
-  _verts[_vertCount+0*S+0] = lx; _verts[_vertCount+0*S+1] = ty;
-  _verts[_vertCount+0*S+2] = cr; _verts[_vertCount+0*S+3] = cg; _verts[_vertCount+0*S+4] = cb;
-  _verts[_vertCount+0*S+5] = u0; _verts[_vertCount+0*S+6] = v0;
+  // Per-vertex tile UV: (0,0) at bottom-left, (1,1) at top-right of tile
+  // Rect coords: oy=bottom, oy+h=top → v=0 at bottom, v=1 at top
+  // Vertex order: top-left, top-right, bottom-left, top-right, bottom-right, bottom-left
+  //   top-left:     u=0, v=1
+  //   top-right:    u=1, v=1
+  //   bottom-left:  u=0, v=0
+  //   bottom-right: u=1, v=0
 
-  _verts[_vertCount+1*S+0] = rx; _verts[_vertCount+1*S+1] = ty;
-  _verts[_vertCount+1*S+2] = cr; _verts[_vertCount+1*S+3] = cg; _verts[_vertCount+1*S+4] = cb;
-  _verts[_vertCount+1*S+5] = u1; _verts[_vertCount+1*S+6] = v0;
+  auto writeVert = [&](float px, float py, float u, float v) {
+    float *dst = &_verts[_vertCount];
+    dst[0] = px;  dst[1] = py;
+    dst[2] = cr;  dst[3] = cg;  dst[4] = cb;
+    dst[5] = tileMinU; dst[6] = tileMinV;
+    dst[7] = tileMaxU; dst[8] = tileMaxV;
+    dst[9] = u;  dst[10] = v;
+    _vertCount += S;
+  };
 
-  _verts[_vertCount+2*S+0] = lx; _verts[_vertCount+2*S+1] = by;
-  _verts[_vertCount+2*S+2] = cr; _verts[_vertCount+2*S+3] = cg; _verts[_vertCount+2*S+4] = cb;
-  _verts[_vertCount+2*S+5] = u0; _verts[_vertCount+2*S+6] = v1;
-
-  // Triangle 2: top-right, bottom-right, bottom-left
-  _verts[_vertCount+3*S+0] = rx; _verts[_vertCount+3*S+1] = ty;
-  _verts[_vertCount+3*S+2] = cr; _verts[_vertCount+3*S+3] = cg; _verts[_vertCount+3*S+4] = cb;
-  _verts[_vertCount+3*S+5] = u1; _verts[_vertCount+3*S+6] = v0;
-
-  _verts[_vertCount+4*S+0] = rx; _verts[_vertCount+4*S+1] = by;
-  _verts[_vertCount+4*S+2] = cr; _verts[_vertCount+4*S+3] = cg; _verts[_vertCount+4*S+4] = cb;
-  _verts[_vertCount+4*S+5] = u1; _verts[_vertCount+4*S+6] = v1;
-
-  _verts[_vertCount+5*S+0] = lx; _verts[_vertCount+5*S+1] = by;
-  _verts[_vertCount+5*S+2] = cr; _verts[_vertCount+5*S+3] = cg; _verts[_vertCount+5*S+4] = cb;
-  _verts[_vertCount+5*S+5] = u0; _verts[_vertCount+5*S+6] = v1;
-
-  _vertCount += 6 * S;
+  writeVert(lx, ty, 0.0f, 1.0f);  // top-left
+  writeVert(rx, ty, 1.0f, 1.0f);  // top-right
+  writeVert(lx, by, 0.0f, 0.0f);  // bottom-left
+  writeVert(rx, ty, 1.0f, 1.0f);  // top-right
+  writeVert(rx, by, 1.0f, 0.0f);  // bottom-right
+  writeVert(lx, by, 0.0f, 0.0f);  // bottom-left
 }
 
 int GameView::tileForCell(int nodeIndex) const {
@@ -633,6 +635,7 @@ void GameView::render(int winW, int winH) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _texSet.texture());
     glUniform1i(_uTexLoc, 0);
+    glUniform2f(_uAtlasSizeLoc, (float)_texSet.atlasWidth(), (float)_texSet.atlasHeight());
   }
 
   constexpr float anchorW = _anchorWidth;
@@ -690,9 +693,15 @@ void GameView::render(int winW, int winH) {
   glVertexAttribPointer(_aColorLoc, 3, GL_FLOAT, GL_FALSE, strideBytes,
                         (void *)(2 * sizeof(float)));
   glEnableVertexAttribArray(_aColorLoc);
-  glVertexAttribPointer(_aTexCoordLoc, 2, GL_FLOAT, GL_FALSE, strideBytes,
+  glVertexAttribPointer(_aTileMinLoc, 2, GL_FLOAT, GL_FALSE, strideBytes,
                         (void *)(5 * sizeof(float)));
-  glEnableVertexAttribArray(_aTexCoordLoc);
+  glEnableVertexAttribArray(_aTileMinLoc);
+  glVertexAttribPointer(_aTileMaxLoc, 2, GL_FLOAT, GL_FALSE, strideBytes,
+                        (void *)(7 * sizeof(float)));
+  glEnableVertexAttribArray(_aTileMaxLoc);
+  glVertexAttribPointer(_aTileUVLoc, 2, GL_FLOAT, GL_FALSE, strideBytes,
+                        (void *)(9 * sizeof(float)));
+  glEnableVertexAttribArray(_aTileUVLoc);
 
   int numVertices = totalFloats / _vertStride;
   glDrawArrays(GL_TRIANGLES, 0, numVertices);
@@ -701,7 +710,9 @@ void GameView::render(int winW, int winH) {
   Uint64 t3 = SDL_GetPerformanceCounter();
   _lastDrawMs = (float)((double)(t3 - t2) / (double)freq * 1000.0);
 
-  glDisableVertexAttribArray(_aTexCoordLoc);
+  glDisableVertexAttribArray(_aTileUVLoc);
+  glDisableVertexAttribArray(_aTileMaxLoc);
+  glDisableVertexAttribArray(_aTileMinLoc);
   glDisableVertexAttribArray(_aColorLoc);
   glDisableVertexAttribArray(_aPosLoc);
 }
