@@ -190,13 +190,13 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
 
 void GameView::renderEmpty(Rect r, const float bgColor[3]) {
   const float *col = bgColor ? bgColor : _grey;
-  addQuad(r, col, TILE_WHITE);
+  addQuad(r, col, TILE_EMPTY);
 }
 
 void GameView::renderItem(Rect r, int itemId, int count, float scale,
                           const float bgColor[3]) {
   const float *bgCol = bgColor ? bgColor : _grey;
-  addQuad(r, bgCol, TILE_WHITE);
+  addQuad(r, bgCol, TILE_EMPTY);
   // Item count dots textured with element tile
   _itemTile = (itemId >= 0 && itemId < GameModel::ELEMS) ? TILE_ELEM_0 + itemId : TILE_WHITE;
   renderCellItems(r.cx(), r.cy(), count, _white, scale);
