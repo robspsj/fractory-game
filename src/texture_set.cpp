@@ -9,6 +9,7 @@ TextureSet::~TextureSet() {
 
 bool TextureSet::loadAtlas(const char *path, int tileW, int tileH) {
   int channels;
+  stbi_set_flip_vertically_on_load(true);
   // Force RGBA loading
   unsigned char *data = stbi_load(path, &_atlasW, &_atlasH, &channels, 4);
   if (!data) {

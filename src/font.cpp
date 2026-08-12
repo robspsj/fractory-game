@@ -253,6 +253,8 @@ void drawText(float x, float y, const char *text, float scale, float *vertsOut,
 void drawTextGl(const float *verts, int len, GLuint mainProg, int w, int h) {
   glUseProgram(textProg);
   glUniform2f(textUScreen, (float)w, (float)h);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, fontTex);
 
   glBindBuffer(GL_ARRAY_BUFFER, textVbo);
   glBufferData(GL_ARRAY_BUFFER, len * 24 * sizeof(float), verts,
