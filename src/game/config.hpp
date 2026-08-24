@@ -12,6 +12,7 @@ struct Config {
     const bool showAnchor;
     const int ticksPerSecond;
     bool emptyGrid = false;
+    bool vsync = false;  // sync present to display refresh; off = unlocked FPS
     int initialGridSize = 3;
     int stationChance = 10;
     std::string reactionsCsvPath;

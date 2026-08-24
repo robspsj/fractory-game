@@ -26,6 +26,14 @@ cmake --build build -j
 Controls: left-click = pick up / drop item, shift+click = interact,
 middle-drag = pan, scroll = zoom, F1 = reset view.
 
+Launch flags (all optional):
+```
+./build/fractory --empty-grid [N]          # start with an empty N×N grid
+./build/fractory --vsync                   # cap FPS to display refresh (default: off = unlocked FPS)
+```
+An on-screen HUD shows FPS plus a frame-time breakdown (Render / Copy /
+Present) so you can see where time is actually spent.
+
 ## Build & run (web)
 
 ```

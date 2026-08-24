@@ -21,6 +21,24 @@ static int s_frameCount = 0;
 static uint32_t s_lastFpsTime = 0;
 static float s_fps = 0.0f;
 
+// Frame-time breakdown (ms), smoothed via EMA for stable HUD numbers.
+static float s_msFrame = 0.0f;   // full measured frame (render->present)
+static float s_msRender = 0.0f;  // Blend2D render + HUD
+static float s_msCopy = 0.0f;    // pixel swizzle copy
+static float s_msPresent = 0.0f; // texture upload + present (+vsync wait)
+static uint64_t s_perfFreq = 0;
+static bool s_vsyncOn = false;
+
+static float ema(float prev, float cur) {
+  const float a = 0.2f;
+  return prev + a * (cur - prev);
+}
+
+static uint64_t perfNow() { return SDL_GetPerformanceCounter(); }
+static double perfMs(uint64_t a, uint64_t b) {
+  return (double)(b - a) / (double)s_perfFreq * 1000.0;
+}
+
 // Uniform RGBA8888 byte buffer shared by native upload and web putImageData.
 static std::vector<uint8_t> s_rgba;
 static int s_rgbaW = 0, s_rgbaH = 0;
@@ -44,15 +62,17 @@ static void drawHud() {
   BLImage &img = const_cast<BLImage &>(s_game->image());
   BLContext ctx(img);
   ctx.set_comp_op(BL_COMP_OP_SRC_OVER);
-  char t[7][64];
-  snprintf(t[0], 64, "FPS: %d", disp);
-  snprintf(t[1], 64, "Zoom: x%.1f", (double)s_game->zoomFactor());
-  snprintf(t[2], 64, "Cells: %d", s_game->lastCellDrawCount());
-  snprintf(t[3], 64, "Depth: %d", s_game->anchorDepth());
-  snprintf(t[4], 64, "Gen: %.0fus", (double)(s_game->lastGenMs() * 1000.0f));
-  snprintf(t[5], 64, "Draw: %.0fus", (double)(s_game->lastDrawMs() * 1000.0f));
-  snprintf(t[6], 64, "v%s", FRACTORY_VERSION);
-  for (int i = 0; i < 7; i++)
+  char t[11][72];
+  snprintf(t[0],  72, "FPS: %d  %c", disp, s_vsyncOn ? 'V' : 'v');
+  snprintf(t[1],  72, "Frame: %.2fms", (double)s_msFrame);
+  snprintf(t[2],  72, "  Render: %.2fms", (double)s_msRender);
+  snprintf(t[3],  72, "  Copy:   %.2fms", (double)s_msCopy);
+  snprintf(t[4],  72, "  Present:%.2fms", (double)s_msPresent);
+  snprintf(t[5],  72, "Cells: %d  Depth: %d", s_game->lastCellDrawCount(), s_game->anchorDepth());
+  snprintf(t[6],  72, "Zoom: x%.2f", (double)s_game->zoomFactor());
+  snprintf(t[7],  72, "res: %dx%d", (int)img.width(), (int)img.height());
+  snprintf(t[8],  72, "v%s", FRACTORY_VERSION);
+  for (int i = 0; i < 9; i++)
     drawText(ctx, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
   ctx.end();
 }
@@ -198,6 +218,8 @@ int main(int argc, char *argv[]) {
       cfg.emptyGrid = true;
       if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
         cfg.initialGridSize = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--vsync") {
+      cfg.vsync = true;
     }
   }
 
@@ -219,8 +241,10 @@ int main(int argc, char *argv[]) {
   SDL_GetWindowSize(s_window, &ww, &wh);
   winW = ww; winH = wh;
 
-  SDL_Renderer *renderer = SDL_CreateRenderer(s_window, -1,
-      SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  Uint32 rflags = SDL_RENDERER_ACCELERATED;
+  if (cfg.vsync) rflags |= SDL_RENDERER_PRESENTVSYNC;
+  s_vsyncOn = cfg.vsync;
+  SDL_Renderer *renderer = SDL_CreateRenderer(s_window, -1, rflags);
   if (!renderer)
     renderer = SDL_CreateRenderer(s_window, -1, 0);
   if (!renderer) {
@@ -230,6 +254,7 @@ int main(int argc, char *argv[]) {
   SDL_Texture *tex = nullptr;
 
   s_game = std::make_unique<Game>(cfg);
+  s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();
   s_lastFpsTime = s_lastFrameMs;
 
@@ -268,9 +293,12 @@ int main(int argc, char *argv[]) {
     s_game->step((int)(now - s_lastFrameMs));
     s_lastFrameMs = now;
 
+    uint64_t f0 = perfNow();
     s_game->render(winW, winH);
     drawHud();
+    uint64_t f1 = perfNow();
     copyImageToRGBA();   // resizes s_rgba + updates s_rgbaW/H to match render
+    uint64_t f2 = perfNow();
 
     // (Re)create the texture to match the rendered buffer size exactly.
     if (!tex || _texW != s_rgbaW || _texH != s_rgbaH) {
@@ -283,6 +311,12 @@ int main(int argc, char *argv[]) {
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, tex, nullptr, nullptr);
     SDL_RenderPresent(renderer);
+    uint64_t f3 = perfNow();
+
+    s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
+    s_msRender  = ema(s_msRender,  (float)perfMs(f0, f1));
+    s_msCopy    = ema(s_msCopy,    (float)perfMs(f1, f2));
+    s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
   }
 
   saveWindowState();
