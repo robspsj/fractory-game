@@ -60,8 +60,85 @@ void GameView::addQuad(Rect const r, const float color[3], float alpha) {
   _ctx->fill_rect(BLRect(r.ox, r.oy, r.w, r.h), BLRgba32(rgba(color, alpha)));
 }
 
+// Draw a vector symbol filled with a radial gradient, plus a soft glow disc
+// behind it (radial falloff reads as blur). Coordinates/radii are in NDC.
+void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
+                        float halfW, float halfH) {
+  if (!_ctx)
+    return;
+  const float r = std::min(halfW, halfH);
+  if (r <= 0.0f)
+    return;
+  _lastVertexCount++;
+
+  // --- Glow halo: big radial gradient disc fading out ---
+  {
+    BLGradient glow(BLRadialGradientValues{cx, cy, 0.0, cx, cy, r * 2.2f});
+    glow.add_stop(0.0, BLRgba32(rgba(color, 0.28f)));
+    glow.add_stop(1.0, BLRgba32(rgba(color, 0.0f)));
+    _ctx->fill_circle(BLCircle(cx, cy, r * 2.2f), glow);
+  }
+
+  // --- Symbol shape ---
+  BLPath p;
+  const double ux = halfW;  // unit half-width
+  const double uy = halfH;  // unit half-height
+  switch (icon) {
+  case 1: { // Heart (point down)
+    p.move_to(cx, cy + uy);
+    p.cubic_to(cx - ux * 1.8, cy + uy * 0.1, cx - ux * 1.4, cy - uy * 0.9, cx, cy - uy * 0.35);
+    p.cubic_to(cx + ux * 1.4, cy - uy * 0.9, cx + ux * 1.8, cy + uy * 0.1, cx, cy + uy);
+    break;
+  }
+  case 2: { // Star (5-point)
+    const int spikes = 5;
+    double outer = std::min(ux, uy), inner = outer * 0.45;
+    for (int i = 0; i < spikes * 2; i++) {
+      double ang = i * 3.14159265358979 / spikes - 1.57079632679489;
+      double rad = (i % 2 == 0) ? outer : inner;
+      double px = cx + std::cos(ang) * rad;
+      double py = cy + std::sin(ang) * rad;
+      if (i == 0) p.move_to(px, py); else p.line_to(px, py);
+    }
+    p.close();
+    break;
+  }
+  case 3: { // Apple: rounded body + brown-ish stem stub
+    p.add_circle(BLCircle(cx, cy + uy * 0.1, r * 0.82));
+    p.close();
+    const float stemCol[3] = {0.45f, 0.30f, 0.12f};
+    _ctx->set_stroke_width(std::max(0.015f, (float)(r * 0.22)));
+    _ctx->stroke_line(cx, cy + uy * 0.1 - r * 0.75, cx + ux * 0.2, cy - uy * 0.9,
+                      BLRgba32(rgba(stemCol, 1.0f)));
+    break;
+  }
+  case 4: { // Triangle (equilateral, up)
+    p.move_to(cx, cy - uy);
+    p.line_to(cx - ux * 1.1, cy + uy * 0.9);
+    p.line_to(cx + ux * 1.1, cy + uy * 0.9);
+    p.close();
+    break;
+  }
+  default: { // Diamond
+    p.move_to(cx, cy - uy);
+    p.line_to(cx + ux, cy);
+    p.line_to(cx, cy + uy);
+    p.line_to(cx - ux, cy);
+    p.close();
+    break;
+  }
+  }
+
+  // Fill the symbol with a radial gradient (bright core -> element color).
+  BLGradient sym(BLRadialGradientValues{cx, cy - r * 0.35, 0.0, cx, cy, r * 1.05});
+  sym.add_stop(0.0, BLRgba32(rgba(_white, 0.92f)));
+  sym.add_stop(0.45, BLRgba32(rgba(color, 1.0f)));
+  sym.add_stop(1.0, BLRgba32(rgba(color, 0.85f)));
+  _ctx->fill_path(p, sym);
+}
+
 void GameView::renderCellItems(float centerX, float centerY, int count,
-                               const float color[3], float scale) {
+                               const float color[3], float scale, int icon) {
   if (count <= 0)
     return;
   float itemDotW = 0.05f * scale * _zoom;
@@ -69,7 +146,7 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
   float spacingX = itemDotW * 2.5f;
   float spacingY = itemDotH * 2.5f;
   auto dot = [&](float cx, float cy) {
-    addQuad({cx - itemDotW, cy - itemDotH, itemDotW * 2, itemDotH * 2}, color);
+    drawIcon(cx, cy, icon, color, itemDotW, itemDotH);
   };
   switch (count) {
   case 1:
@@ -114,7 +191,8 @@ void GameView::renderItem(Rect r, int itemId, int count, float scale,
   addQuad(r, bgCol);
   const float *elemCol =
       (itemId >= 0 && itemId < GameModel::ELEMS) ? _elemColors[itemId] : _white;
-  renderCellItems(r.cx(), r.cy(), count, elemCol, scale);
+  int icon = (itemId >= 0) ? itemId % GameModel::ELEMS : 0;
+  renderCellItems(r.cx(), r.cy(), count, elemCol, scale, icon);
 }
 
 Rect GameView::childCellLayout(int nodeIndex, Rect r, int row, int col) const {
@@ -199,7 +277,8 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
     if (rd.itemId >= 0) {
       const float *elemCol =
           (rd.itemId >= 0 && rd.itemId < GameModel::ELEMS) ? _elemColors[rd.itemId] : _white;
-      renderCellItems(r.cx(), r.cy(), rd.itemCount, elemCol);
+      renderCellItems(r.cx(), r.cy(), rd.itemCount, elemCol, 1.0f,
+                      (rd.itemId >= 0) ? rd.itemId % GameModel::ELEMS : 0);
     }
     break;
   }
@@ -579,7 +658,8 @@ void GameView::render(int winW, int winH) {
     float sx = _dragWX * _zoom + _panX;
     float sy = _dragWY * _aspect * _zoom + _panY;
     const float *elemCol = (dragId >= 0 && dragId < GameModel::ELEMS) ? _elemColors[dragId] : _white;
-    renderCellItems(sx, sy, dragAmount, elemCol, scale);
+    int dragIcon = (dragId >= 0) ? dragId % GameModel::ELEMS : 0;
+    renderCellItems(sx, sy, dragAmount, elemCol, scale, dragIcon);
   }
   _dragWasActive = _model.hasDrag();
 

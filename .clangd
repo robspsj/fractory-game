@@ -1,0 +1,10 @@
+CompileFlags:
+  CompilationDatabase: build
+  Add:
+    - "--std=c++17"
+    # Fallback include paths so clangd can resolve FetchContent deps even if
+    # compile_commands.json is stale. The real paths come from the DB.
+    - "-I/Users/roberto/Documents/Projects/blend2d_game/build/_deps/blend2d-src"
+    - "-I/Users/roberto/Documents/Projects/blend2d_game/build/_deps/blend2d-src/src"
+    - "-I/opt/homebrew/include"
+    - "-I/opt/homebrew/include/SDL2"

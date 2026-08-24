@@ -3,6 +3,9 @@ project(fractory_blend2d CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Export a compile_commands.json so clangd (LSP) can resolve FetchContent
+# includes like blend2d/blend2d.h. Symlink at repo root: compile_commands.json.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 file(READ "${CMAKE_SOURCE_DIR}/VERSION" FRACTORY_VERSION)
 string(STRIP "${FRACTORY_VERSION}" FRACTORY_VERSION)

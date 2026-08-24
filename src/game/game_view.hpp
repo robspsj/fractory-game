@@ -65,7 +65,11 @@ private:
     Rect cellWorldCenter(int targetIdx) const;
     void focusTransform(int targetIdx);
     void addQuad(Rect r, const float color[3], float alpha = 1.0f);
-    void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
+    // Draw a distinct vector symbol (heart/diamond/star/apple/triangle) with a
+    // radial-gradient fill + soft glow, showcasing the rasterizer. cx/cy in NDC.
+    void drawIcon(float cx, float cy, int icon, const float color[3],
+                  float halfW, float halfH);
+    void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
     void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
     void renderGrid(int nodeIndex, Rect r, int depth, int excludeChild = -1);
