@@ -96,9 +96,6 @@ private:
     static constexpr float _gapRatio = 0.0714f;
     static constexpr float _anchorWidth = 1.5f;
 
-    int _maxDepth = 100;    // max recursion depth to render / resolve (from cfg)
-    float _minClipSize = 0.002f;  // cells smaller than this (NDC) are culled
-
     float _lastGenMs = 0.0f;
     float _lastDrawMs = 0.0f;
     int _lastVertexCount = 0;
