@@ -1,5 +1,5 @@
 #pragma once
-#include <blend2d/blend2d.h>
+#include <blend2d.h>
 #include <cstdint>
 
 // Build the shared 8x8 bitmap-font glyph atlas (once). Safe to call repeatedly.

@@ -1,7 +1,7 @@
 #pragma once
 #include "config.hpp"
 #include "game_model.hpp"
-#include <blend2d/blend2d.h>
+#include <blend2d.h>
 #include <cstddef>
 #include <cstdint>
 

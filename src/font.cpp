@@ -118,14 +118,16 @@ void initFont() {
   BLImage &s_atlas = fontAtlas();
   s_atlas.create(NUM_GLYPH * FONT_W, FONT_H, BL_FORMAT_PRGB32);
   BLContext ctx(s_atlas);
-  ctx.set_comp_op(BL_COMP_OP_SRC_COPY);
-  ctx.fill_all(BLRgba32(0x00000000)); // transparent background
+  ctx.setCompOp(BL_COMP_OP_SRC_COPY);
+  ctx.setFillStyle(BLRgba32(0x00000000)); // transparent background
+  ctx.fillAll();
+  ctx.setFillStyle(BLRgba32(0xFFFFFFFF));
   for (int g = 0; g < NUM_GLYPH; g++) {
     for (int r = 0; r < FONT_H; r++) {
       unsigned char bits = fontBits[g * FONT_H + r];
       for (int c = 0; c < FONT_W; c++) {
         if (bits & (0x80 >> c))
-          ctx.fill_rect(BLRect(g * FONT_W + c, r, 1, 1), BLRgba32(0xFFFFFFFF)); // note y-down; bit row 0 = top
+          ctx.fillRect(BLRect(g * FONT_W + c, r, 1, 1)); // note y-down; bit row 0 = top
       }
     }
   }
@@ -154,6 +156,6 @@ void drawText(BLContext &ctx, float x, float y, const char *text, float scale) {
       continue;
     BLRectI src(g * FONT_W, 0, FONT_W, FONT_H);
     BLRect dst(x + i * charW, y, charW, charH);
-    ctx.blit_image(dst, s_atlas, src);
+    ctx.blitImage(dst, s_atlas, src);
   }
 }

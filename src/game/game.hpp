@@ -2,7 +2,7 @@
 #include "config.hpp"
 #include "game_model.hpp"
 #include "game_view.hpp"
-#include <blend2d/blend2d.h>
+#include <blend2d.h>
 #include <memory>
 
 // Platform-independent key codes (mapped from SDL2 / DOM in main).

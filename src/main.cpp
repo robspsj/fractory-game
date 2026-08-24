@@ -2,7 +2,7 @@
 #include "game/config.hpp"
 #include "game/game.hpp"
 #include <SDL2/SDL.h>
-#include <blend2d/blend2d.h>
+#include <blend2d.h>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -61,7 +61,7 @@ static void drawHud() {
   int disp = (int)(s_fps + 0.5f);
   BLImage &img = const_cast<BLImage &>(s_game->image());
   BLContext ctx(img);
-  ctx.set_comp_op(BL_COMP_OP_SRC_OVER);
+  ctx.setCompOp(BL_COMP_OP_SRC_OVER);
   char t[11][72];
   snprintf(t[0],  72, "FPS: %d  %c", disp, s_vsyncOn ? 'V' : 'v');
   snprintf(t[1],  72, "Frame: %.2fms", (double)s_msFrame);
@@ -82,7 +82,7 @@ static void drawHud() {
 static void copyImageToRGBA() {
   const BLImage &img = s_game->image();
   BLImageData data;
-  if (img.get_data(&data) != BL_SUCCESS)
+  if (img.getData(&data) != BL_SUCCESS)
     return;
   int w = data.size.w, h = data.size.h;
   if (w != s_rgbaW || h != s_rgbaH) {
@@ -90,7 +90,7 @@ static void copyImageToRGBA() {
     s_rgbaH = h;
     s_rgba.resize((size_t)w * h * 4);
   }
-  const uint8_t *src = (const uint8_t *)data.pixel_data;
+  const uint8_t *src = (const uint8_t *)data.pixelData;
   const size_t srcStride = (size_t)data.stride;
   uint8_t *dst = s_rgba.data();
   for (int y = 0; y < h; y++) {
@@ -160,7 +160,7 @@ static void frame() {
 }
 
 int main() {
-  bl_runtime_init();
+  blRuntimeInit();
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   initFont();
 

@@ -57,7 +57,8 @@ void GameView::addQuad(Rect const r, const float color[3], float alpha) {
     return;
   _lastVertexCount++;
   // rect is in NDC; the context transform maps it to pixels (y-up -> y-down).
-  _ctx->fill_rect(BLRect(r.ox, r.oy, r.w, r.h), BLRgba32(rgba(color, alpha)));
+  _ctx->setFillStyle(BLRgba32(rgba(color, alpha)));
+  _ctx->fillRect(BLRect(r.ox, r.oy, r.w, r.h));
 }
 
 // Blend a color toward white by t in [0,1], clamped so it never hits pure
@@ -75,9 +76,9 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
                         float halfW, float halfH) {
   if (!_ctx)
     return;
-  // NDC -> pixel. target_width/height are the image pixel size.
-  const double W = _ctx->target_width();
-  const double H = _ctx->target_height();
+  // NDC -> pixel. targetWidth/Height are the image pixel size.
+  const double W = _ctx->targetWidth();
+  const double H = _ctx->targetHeight();
   const double px = (cx + 1.0) * 0.5 * W;   // x
   const double py = (1.0 - cy) * 0.5 * H;   // y (NDC y-up -> pixel y-down)
   // Pixel radius: keep it circular in screen space. halfW NDC spans W/2 px/unit.
@@ -89,15 +90,16 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
 
   // Work in pixel space so radial gradients are true circles.
   _ctx->save();
-  _ctx->reset_transform();
+  _ctx->resetMatrix();
 
   // --- Glow halo: big radial gradient disc fading out ---
   {
-    BLGradient glow(BLRadialGradientValues{px, py, 0.0, px, py, rPx * 2.2});
-    glow.add_stop(0.0, BLRgba32(rgba(color, 0.35f)));
-    glow.add_stop(0.60, BLRgba32(rgba(color, 0.08f)));
-    glow.add_stop(1.0, BLRgba32(rgba(color, 0.0f)));
-    _ctx->fill_circle(BLCircle(px, py, rPx * 2.2), glow);
+    BLGradient glow(BLRadialGradientValues{px, py, px, py, rPx * 2.2});
+    glow.addStop(0.0, BLRgba32(rgba(color, 0.35f)));
+    glow.addStop(0.60, BLRgba32(rgba(color, 0.08f)));
+    glow.addStop(1.0, BLRgba32(rgba(color, 0.0f)));
+    _ctx->setFillStyle(glow);
+    _ctx->fillCircle(BLCircle(px, py, rPx * 2.2));
   }
 
   // --- Symbol shape (drawn in pixel coords) ---
@@ -106,9 +108,9 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   const double uy = rPx;  // unit half-height in px (circular)
   switch (icon) {
   case 1: { // Heart (point down)
-    p.move_to(px, py + uy);
-    p.cubic_to(px - ux * 1.8, py + uy * 0.1, px - ux * 1.4, py - uy * 0.9, px, py - uy * 0.35);
-    p.cubic_to(px + ux * 1.4, py - uy * 0.9, px + ux * 1.8, py + uy * 0.1, px, py + uy);
+    p.moveTo(px, py + uy);
+    p.cubicTo(px - ux * 1.8, py + uy * 0.1, px - ux * 1.4, py - uy * 0.9, px, py - uy * 0.35);
+    p.cubicTo(px + ux * 1.4, py - uy * 0.9, px + ux * 1.8, py + uy * 0.1, px, py + uy);
     break;
   }
   case 2: { // Star (5-point)
@@ -119,32 +121,32 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
       double rad = (i % 2 == 0) ? outer : inner;
       double sx = px + std::cos(ang) * rad;
       double sy = py + std::sin(ang) * rad;
-      if (i == 0) p.move_to(sx, sy); else p.line_to(sx, sy);
+      if (i == 0) p.moveTo(sx, sy); else p.lineTo(sx, sy);
     }
     p.close();
     break;
   }
   case 3: { // Apple: rounded body + brown-ish stem stub
-    p.add_circle(BLCircle(px, py + uy * 0.1, rPx * 0.82));
+    p.addCircle(BLCircle(px, py + uy * 0.1, rPx * 0.82));
     p.close();
     const float stemCol[3] = {0.45f, 0.30f, 0.12f};
-    _ctx->set_stroke_width(std::max(1.0, rPx * 0.22));
-    _ctx->stroke_line(px, py + uy * 0.1 - rPx * 0.75, px + ux * 0.2, py - uy * 0.9,
-                      BLRgba32(rgba(stemCol, 1.0f)));
+    _ctx->setStrokeStyle(BLRgba32(rgba(stemCol, 1.0f)));
+    _ctx->setStrokeWidth(std::max(1.0, rPx * 0.22));
+    _ctx->strokeLine(px, py + uy * 0.1 - rPx * 0.75, px + ux * 0.2, py - uy * 0.9);
     break;
   }
   case 4: { // Triangle (equilateral, up)
-    p.move_to(px, py - uy);
-    p.line_to(px - ux * 1.1, py + uy * 0.9);
-    p.line_to(px + ux * 1.1, py + uy * 0.9);
+    p.moveTo(px, py - uy);
+    p.lineTo(px - ux * 1.1, py + uy * 0.9);
+    p.lineTo(px + ux * 1.1, py + uy * 0.9);
     p.close();
     break;
   }
   default: { // Diamond
-    p.move_to(px, py - uy);
-    p.line_to(px + ux, py);
-    p.line_to(px, py + uy);
-    p.line_to(px - ux, py);
+    p.moveTo(px, py - uy);
+    p.lineTo(px + ux, py);
+    p.lineTo(px, py + uy);
+    p.lineTo(px - ux, py);
     p.close();
     break;
   }
@@ -154,11 +156,12 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   // centered a bit above the middle for a polished highlight.
   float core[3];
   lighten(color, 0.55f, core);         // never pure white => no flash on tiny icons
-  BLGradient sym(BLRadialGradientValues{px, py - rPx * 0.35, 0.0, px, py, rPx * 1.05});
-  sym.add_stop(0.0, BLRgba32(rgba(core, 0.95f)));
-  sym.add_stop(0.45, BLRgba32(rgba(color, 1.0f)));
-  sym.add_stop(1.0, BLRgba32(rgba(color, 0.85f)));
-  _ctx->fill_path(p, sym);
+  BLGradient sym(BLRadialGradientValues{px, py - rPx * 0.35, px, py, rPx * 1.05});
+  sym.addStop(0.0, BLRgba32(rgba(core, 0.95f)));
+  sym.addStop(0.45, BLRgba32(rgba(color, 1.0f)));
+  sym.addStop(1.0, BLRgba32(rgba(color, 0.85f)));
+  _ctx->setFillStyle(sym);
+  _ctx->fillPath(p);
 
   _ctx->restore();
 }
@@ -649,12 +652,13 @@ void GameView::render(int winW, int winH) {
   _ctx = &ctx;
   // Fully replace the frame with the background colour each pass, then alpha-blend
   // the cells/icons/(DRAG glow) on top so gradients+glow composite correctly.
-  ctx.set_comp_op(BL_COMP_OP_SRC_COPY);
-  ctx.fill_all(BLRgba32(0x1A, 0x1A, 0x26));  // background
-  ctx.set_comp_op(BL_COMP_OP_SRC_OVER);
+  ctx.setCompOp(BL_COMP_OP_SRC_COPY);
+  ctx.setFillStyle(BLRgba32(0x1A, 0x1A, 0x26));  // background
+  ctx.fillAll();
+  ctx.setCompOp(BL_COMP_OP_SRC_OVER);
 
   // NDC -> pixel transform: px = (nx+1)*w/2, py = (1-ny)*h/2
-  ctx.set_transform(BLMatrix2D(winW * 0.5, 0.0, 0.0, -winH * 0.5, winW * 0.5, winH * 0.5));
+  ctx.setMatrix(BLMatrix2D(winW * 0.5, 0.0, 0.0, -winH * 0.5, winW * 0.5, winH * 0.5));
 
   uint64_t t0 = nowMs();
 

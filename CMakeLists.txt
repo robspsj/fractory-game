@@ -10,13 +10,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 file(READ "${CMAKE_SOURCE_DIR}/VERSION" FRACTORY_VERSION)
 string(STRIP "${FRACTORY_VERSION}" FRACTORY_VERSION)
 
-# --- Blend2D (pinned) ---
+# --- Blend2D (pinned to classic 0.0.18 API) ---
 include(FetchContent)
 FetchContent_Declare(
   blend2d
   GIT_REPOSITORY https://github.com/blend2d/blend2d
-  GIT_TAG 6dbc2cefbc996379e07104e34519a440b49b15d7
-  GIT_SHALLOW ON
+  GIT_TAG fc1061256cadc204ffa6a14c98923334df1bcfcc   # v0.0.18 (classic camelCase API)
 )
 option(BLEND2D_TEST "Build Blend2D tests" OFF)
 option(BLEND2D_DEMOS "Build Blend2D demos" OFF)
@@ -35,8 +34,8 @@ set(FRACTORY_SOURCES
 # Helper: attach Blend2D to a target (link + include the header root).
 function(link_blend2d TARGET)
   target_link_libraries(${TARGET} PRIVATE blend2d)
-  target_include_directories(${TARGET} PRIVATE
-      "${blend2d_SOURCE_DIR}" "${blend2d_SOURCE_DIR}/src")
+  # Classic 0.0.18 layout: umbrella <blend2d.h> + subheaders live in src/.
+  target_include_directories(${TARGET} PRIVATE "${blend2d_SOURCE_DIR}/src")
 endfunction()
 
 # --- Web (Emscripten) ---
