@@ -115,6 +115,10 @@ public:
   int getSubgridState(int subgridSeqIndex, int *outData, int &outSize) const;
   void getDragState(int &outId, int &outCount);
   int totalNodes() const { return (int)_nodes.size(); }
+  // Total heap owned by the model: the grid node vector (capacity, so reserved
+  // but unfilled capacity is counted too). This is the dominant allocation and
+  // grows with subgrid depth.
+  std::size_t allocatedBytes() const { return _nodes.capacity() * sizeof(Cell); }
 
 private:
   void initEmptyGrid(int size);

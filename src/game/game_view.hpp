@@ -37,6 +37,10 @@ public:
     int anchorDepth() const { return _anchorDepth; }
     float lastGenMs() const { return _lastGenMs; }
     float lastDrawMs() const { return _lastDrawMs; }
+    // Total heap owned by the view: SVG byte buffers + rasterized icon caches
+    // + the offscreen render target. Measured via getData() so it reflects the
+    // real Blend2D pixel allocations, not just the vector's own storage.
+    std::size_t allocatedBytes() const;
 
     void setDragWorldPos(float worldX, float worldY) { _dragWX = worldX; _dragWY = worldY; }
     void setHoveredCell(int row, int col) { _hoverRow = row; _hoverCol = col; }

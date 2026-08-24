@@ -139,3 +139,6 @@ int Game::lastCellDrawCount() const { return _view->lastVertexCount(); }
 int Game::anchorDepth() const { return _view->anchorDepth(); }
 float Game::lastGenMs() const { return _view->lastGenMs(); }
 float Game::lastDrawMs() const { return _view->lastDrawMs(); }
+std::size_t Game::allocatedMemory() const {
+  return _model->allocatedBytes() + _view->allocatedBytes();
+}

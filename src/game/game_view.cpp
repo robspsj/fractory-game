@@ -121,6 +121,25 @@ const BLImage* GameView::svgFor(int itemId) const {
   return svgLoaded(itemId) ? &_svgAssets[itemId] : nullptr;
 }
 
+std::size_t GameView::allocatedBytes() const {
+  std::size_t bytes = 0;
+  // Raw SVG bytes kept for re-rasterization.
+  for (const auto& v : _svgBytes)
+    bytes += v.capacity();
+  // Rasterized icon caches: each BLImage owns its pixel buffer through
+  // Blend2D's allocator, so measure it via getData() (stride * height).
+  for (const auto& img : _svgAssets) {
+    BLImageData d;
+    if (img.getData(&d) == BL_SUCCESS && d.pixelData)
+      bytes += (size_t)d.stride * (size_t)d.size.h;
+  }
+  // Offscreen render target (web / headless path; empty in native direct-to-screen).
+  BLImageData d;
+  if (_image.getData(&d) == BL_SUCCESS && d.pixelData)
+    bytes += (size_t)d.stride * (size_t)d.size.h;
+  return bytes;
+}
+
 // Manually alpha-composite the recorded SVG icons onto the frame. Classic
 // v0.0.18's blitImage is a no-op under BLEND2D_NO_JIT, so we blend pixels
 // ourselves: dst = src + dst*(1-srcA), with src premultiplied (PRGB32) and the

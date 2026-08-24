@@ -69,7 +69,15 @@ static void drawHud(BLImage &img) {
   snprintf(t[6],  72, "Zoom: x%.2f", (double)s_game->zoomFactor());
   snprintf(t[7],  72, "res: %dx%d", (int)img.width(), (int)img.height());
   snprintf(t[8],  72, "v%s", FRACTORY_VERSION);
-  for (int i = 0; i < 9; i++)
+  {
+    std::size_t mem = s_game->allocatedMemory();
+    const char* units[] = {"B", "KB", "MB", "GB"};
+    int u = 0;
+    double v = (double)mem;
+    while (v >= 1024.0 && u < 3) { v /= 1024.0; u++; }
+    snprintf(t[9], 72, "Mem: %.2f %s", v, units[u]);
+  }
+  for (int i = 0; i < 10; i++)
     drawText(ctx, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
   ctx.end();
 }

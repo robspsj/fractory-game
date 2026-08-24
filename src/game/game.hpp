@@ -34,6 +34,7 @@ public:
   int anchorDepth() const;
   float lastGenMs() const;
   float lastDrawMs() const;
+  std::size_t allocatedMemory() const;
 
 private:
   enum class MouseState {
