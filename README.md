@@ -52,7 +52,10 @@ bitmap-upscaled.
 > svg2b2d targets the classic camelCase API (the current dev master renamed it to
 > snake_case). Note: classic Blend2D's `blitImage` is a no-op when built with
 > `BLEND2D_NO_JIT=ON`, so SVG icons are composited manually (src-over) onto the
-> frame buffer rather than via `blitImage`.
+> frame buffer rather than via `blitImage`. Likewise the non-JIT rasterizer cannot
+> produce radial gradients (only solid + linear), so SVG radial-gradient fills are
+> software-rasterized in `svg_assets` (sentinel-marked + per-pixel fill), giving
+> correct gradients on both native and WASM.
 
 ## Build & run (web)
 
