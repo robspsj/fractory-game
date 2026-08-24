@@ -39,6 +39,9 @@ With `--svg <dir>`, per-element icons are loaded from `element0.svg`..`element4.
 in that directory and rendered in place of the built-in vector symbols. If any
 file is missing, that element falls back to its vector symbol. SVG rendering is
 provided by the vendored [`svg2b2d`](https://github.com/Wiladams/svg2b2d) parser.
+Each icon's SVG is re-rasterized at its exact on-screen pixel size (cached), so
+icons stay **crisp while zooming** — the vector paths are re-rendered, not
+bitmap-upscaled.
 
 > This project builds Blend2D at **classic v0.0.18** (pin `fc1061256`), because
 > svg2b2d targets the classic camelCase API (the current dev master renamed it to

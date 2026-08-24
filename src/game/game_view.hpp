@@ -121,7 +121,13 @@ private:
     int _hoverRow = -1, _hoverCol = -1;
 
     // Optional per-element SVG icon assets (rendered instead of vector symbols).
-    std::vector<BLImage> _svgAssets;
+    // We keep the raw SVG bytes and re-rasterize the vector at the icon's
+    // current on-screen pixel size, so the icon stays crisp at any zoom.
+    std::vector<std::vector<uint8_t>> _svgBytes;   // raw SVG per element
+    std::vector<BLImage> _svgAssets;               // last rasterization per element (cache keyed by size below)
+    std::vector<int> _svgRasterW, _svgRasterH;     // pixel size of _svgAssets[i]
+    // (re)rasterize _svgBytes[i] into _svgAssets[i] at size w x h if changed.
+    void rasterizeSvgAt(int i, int w, int h);
     bool _svgValid[GameModel::ELEMS] = {};
     // Deferred SVG icon draws (pixel-space dest rects), composited after ctx.end().
     struct SvgDraw { double x, y, w, h; int itemId; };

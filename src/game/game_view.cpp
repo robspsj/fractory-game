@@ -70,13 +70,39 @@ static void lighten(const float in[3], float t, float out[3]) {
 }
 
 void GameView::loadSvgAssets(const std::string& dir) {
+  _svgBytes.clear();
+  _svgBytes.resize(GameModel::ELEMS);
   _svgAssets.clear();
   _svgAssets.resize(GameModel::ELEMS);
+  _svgRasterW.assign(GameModel::ELEMS, 0);
+  _svgRasterH.assign(GameModel::ELEMS, 0);
   for (int i = 0; i < GameModel::ELEMS; i++) {
     _svgValid[i] = false;
+    // Read the raw SVG file bytes into memory (re-rasterized per size later).
     std::string path = dir + "/element" + std::to_string(i) + ".svg";
-    if (svgLoadFromFile(path, _svgAssets[i]))
-      _svgValid[i] = true;
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f)
+      continue;
+    fseek(f, 0, SEEK_END);
+    long n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (n > 0) {
+      _svgBytes[i].resize((size_t)n);
+      if (fread(_svgBytes[i].data(), 1, (size_t)n, f) == (size_t)n)
+        _svgValid[i] = true;
+    }
+    fclose(f);
+  }
+}
+
+void GameView::rasterizeSvgAt(int i, int w, int h) {
+  if (!_svgValid[i] || w < 1 || h < 1)
+    return;
+  if (w == _svgRasterW[i] && h == _svgRasterH[i] && !_svgAssets[i].empty())
+    return; // cache hit
+  if (svgLoadFromBytesAtSize(_svgBytes[i].data(), _svgBytes[i].size(), w, h, _svgAssets[i])) {
+    _svgRasterW[i] = w;
+    _svgRasterH[i] = h;
   }
 }
 
@@ -104,7 +130,12 @@ void GameView::compositeSvgIcons(BLImage& img) {
   for (const SvgDraw& d : _svgDraws) {
     if (!svgLoaded(d.itemId))
       continue;
-    const BLImage& srcImg = _svgAssets[d.itemId];
+    // Rasterize the SVG vector at exactly the icon's on-screen pixel size so
+    // icons stay crisp while zooming (no bitmap upscaling).
+    int rw = (int)std::ceil(d.w);
+    int rh = (int)std::ceil(d.h);
+    rasterizeSvgAt(d.itemId, rw, rh);
+    BLImage& srcImg = _svgAssets[d.itemId];
     if (srcImg.empty())
       continue;
     BLImageData dsrc;

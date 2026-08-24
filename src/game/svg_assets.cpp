@@ -4,13 +4,20 @@
 #include <cstdio>
 #include <vector>
 
-// svg2b2d's public single entry point (linked from third_party/svg2b2d/svg.cpp).
+// svg2b2d's public entry points (linked from third_party/svg2b2d/svg.cpp).
 extern "C" bool parseSVG(const void* bytes, size_t sz, BLImage& outImage);
+extern "C" bool parseSVGscaled(const void* bytes, size_t sz, int targetW, int targetH, BLImage& outImage);
 
 bool svgLoadFromBytes(const void* data, size_t size, BLImage& out) {
   if (!data || size == 0)
     return false;
   return parseSVG(data, size, out);
+}
+
+bool svgLoadFromBytesAtSize(const void* data, size_t size, int targetW, int targetH, BLImage& out) {
+  if (!data || size == 0)
+    return false;
+  return parseSVGscaled(data, size, targetW, targetH, out);
 }
 
 bool svgLoadFromFile(const std::string& path, BLImage& out) {

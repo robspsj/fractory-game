@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 bool parseSVG(const void *bytes, const size_t sz, BLImage &outImage);
+bool parseSVGscaled(const void *bytes, const size_t sz, int targetW, int targetH, BLImage &outImage);
 
 #ifdef __cplusplus
 }
