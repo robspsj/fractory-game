@@ -27,6 +27,12 @@ bool parseSVG(const void* bytes, const size_t sz, BLImage& outImage)
     // Draw the document into a IRender
     outImage.create(doc.width(), doc.height(), BL_FORMAT_PRGB32);
     SVGRenderer ctx(outImage);
+    // Clear to transparent — create() is uninitialized, and the vector only
+    // paints the glyphs, leaving the background garbage (leaks as wrong colors).
+    ctx.setCompOp(BL_COMP_OP_SRC_COPY);
+    ctx.setFillStyle(BLRgba32(0x00000000));
+    ctx.fillAll();
+    ctx.setCompOp(BL_COMP_OP_SRC_OVER);
     doc.draw(ctx);
     ctx.end();
     
@@ -48,13 +54,20 @@ bool parseSVGscaled(const void* bytes, const size_t sz, int targetW, int targetH
         return false;
     outImage.create(targetW, targetH, BL_FORMAT_PRGB32);
     SVGRenderer ctx(outImage);
+    // IMPORTANT: create() does NOT zero the buffer. Clear to fully transparent
+    // before drawing, otherwise pixels the vector never paints (the background)
+    // keep stale/garbage alpha from a previous (different-size) rasterization —
+    // those leak into the frame as crazy colors on resize/zoom.
+    ctx.setCompOp(BL_COMP_OP_SRC_COPY);
+    ctx.setFillStyle(BLRgba32(0x00000000));
+    ctx.fillAll();
     // Fit inside the target, preserving aspect ratio, centered.
     double scale = std::min((double)targetW / dw, (double)targetH / dh);
     double cx = (targetW - dw * scale) * 0.5;
     double cy = (targetH - dh * scale) * 0.5;
+    ctx.setCompOp(BL_COMP_OP_SRC_OVER);
     ctx.scale(scale, scale);
     ctx.translate(cx / scale, cy / scale);
-    ctx.setCompOp(BL_COMP_OP_SRC_OVER);
     doc.draw(ctx);
     ctx.end();
     return true;

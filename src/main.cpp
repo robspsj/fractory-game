@@ -213,7 +213,9 @@ static bool loadWindowState(int &x, int &y, int &w, int &h) {
 
 int main(int argc, char *argv[]) {
   Config cfg;
-  std::string svgDir;
+  // SVG icons load from assets/ by default; --no-svg disables. VSync is off by
+  // default (unlocked FPS); --vsync re-enables it.
+  std::string svgDir = "assets";
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -223,6 +225,8 @@ int main(int argc, char *argv[]) {
       cfg.vsync = true;
     } else if (std::string(argv[a]) == "--svg" && a + 1 < argc) {
       svgDir = argv[++a];
+    } else if (std::string(argv[a]) == "--no-svg") {
+      svgDir.clear();
     }
   }
 

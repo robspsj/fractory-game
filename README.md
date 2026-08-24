@@ -30,15 +30,18 @@ Launch flags (all optional):
 ```
 ./build/fractory --empty-grid [N]          # start with an empty N×N grid
 ./build/fractory --vsync                   # cap FPS to display refresh (default: off = unlocked FPS)
-./build/fractory --svg assets              # render item icons from SVG files in `assets/`
+./build/fractory --svg <dir>               # render item icons from SVG files in <dir> (default: assets/)
+./build/fractory --no-svg                  # disable SVG icons (use built-in vector symbols)
 ```
 An on-screen HUD shows FPS plus a frame-time breakdown (Render / Copy /
 Present) so you can see where time is actually spent.
 
-With `--svg <dir>`, per-element icons are loaded from `element0.svg`..`element4.svg`
-in that directory and rendered in place of the built-in vector symbols. If any
-file is missing, that element falls back to its vector symbol. SVG rendering is
-provided by the vendored [`svg2b2d`](https://github.com/Wiladams/svg2b2d) parser.
+SVG icons are enabled by default (loaded from `assets/`): per-element icons are
+loaded from `element0.svg`..`element4.svg` in that directory and rendered in
+place of the built-in vector symbols. If any file is missing, that element falls
+back to its vector symbol. Use `--svg <dir>` for a custom directory or
+`--no-svg` to disable. SVG rendering is provided by the vendored
+[`svg2b2d`](https://github.com/Wiladams/svg2b2d) parser.
 Each icon's SVG is re-rasterized at its exact on-screen pixel size (cached), so
 icons stay **crisp while zooming** — the vector paths are re-rendered, not
 bitmap-upscaled.
