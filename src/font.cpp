@@ -141,21 +141,29 @@ float textWidth(const char *text, float scale) {
 }
 
 void drawText(BLContext &ctx, float x, float y, const char *text, float scale) {
-  if (!s_atlasReady)
-    initFont();
   int len = (int)strlen(text);
   if (len > 64)
     len = 64;
 
   float charW = FONT_W * scale;
   float charH = FONT_H * scale;
-  BLImage &s_atlas = fontAtlas();
+  // Draw glyphs directly from the 8x8 bitmaps as filled rects (white). This
+  // avoids blitImage, which classic v0.0.18 silently no-ops under
+  // BLEND2D_NO_JIT. Coordinates are pixel space (caller's context is unscaled).
+  ctx.setFillStyle(BLRgba32(0xFFFFFFFF));
   for (int i = 0; i < len; i++) {
     int g = text[i] - 32;
     if (g < 0 || g >= NUM_GLYPH)
       continue;
-    BLRectI src(g * FONT_W, 0, FONT_W, FONT_H);
-    BLRect dst(x + i * charW, y, charW, charH);
-    ctx.blitImage(dst, s_atlas, src);
+    float gx = x + (float)i * charW;
+    for (int r = 0; r < FONT_H; r++) {
+      unsigned char bits = fontBits[g * FONT_H + r];
+      if (bits == 0)
+        continue;
+      for (int c = 0; c < FONT_W; c++) {
+        if (bits & (0x80 >> c))
+          ctx.fillRect(BLRect(gx + (float)c * scale, y + (float)r * scale, scale, scale));
+      }
+    }
   }
 }
