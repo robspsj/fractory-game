@@ -758,15 +758,19 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
 }
 
 void GameView::render(int winW, int winH) {
+  // Default path: own the target image.
+  if (_image.width() != winW || _image.height() != winH || _image.format() != BL_FORMAT_XRGB32) {
+    _image.create(winW, winH, BL_FORMAT_XRGB32);
+  }
+  renderTo(_image, winW, winH);
+}
+
+void GameView::renderTo(BLImage& target, int winW, int winH) {
   _aspect = (float)winW / (float)winH;
   _lastVertexCount = 0;
   _svgDraws.clear();
 
-  if (_image.width() != winW || _image.height() != winH || _image.format() != BL_FORMAT_XRGB32) {
-    _image.create(winW, winH, BL_FORMAT_XRGB32);
-  }
-
-  BLContext ctx(_image);
+  BLContext ctx(target);
   _ctx = &ctx;
   // Fully replace the frame with the background colour each pass, then alpha-blend
   // the cells/icons/(DRAG glow) on top so gradients+glow composite correctly.
@@ -821,7 +825,7 @@ void GameView::render(int winW, int winH) {
   _lastDrawMs = (float)(nowMs() - t1);
 
   // Composite recorded SVG icons onto the (now-finalized) frame manually.
-  compositeSvgIcons(_image);
+  compositeSvgIcons(target);
 }
 
 bool GameView::screenToGrid(int pixelX, int pixelY, int winW, int winH, int &row,

@@ -23,6 +23,8 @@ public:
   void mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW, int winH);
   void keyDown(Key key, bool shift, int winW, int winH);
   void render(int winW, int winH);
+  // Render into an externally-owned BLImage (e.g. SDL window surface memory).
+  void renderTo(BLImage& target, int winW, int winH);
   // Advance model logic. Returns whether a model tick ran.
   bool step(int elapsedMs);
   const BLImage& image() const { return _view->image(); }

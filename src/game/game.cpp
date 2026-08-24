@@ -130,6 +130,10 @@ void Game::render(int winW, int winH) {
   _view->render(winW, winH);
 }
 
+void Game::renderTo(BLImage& target, int winW, int winH) {
+  _view->renderTo(target, winW, winH);
+}
+
 float Game::zoomFactor() const { return _view->zoomFactor(); }
 int Game::lastCellDrawCount() const { return _view->lastVertexCount(); }
 int Game::anchorDepth() const { return _view->anchorDepth(); }

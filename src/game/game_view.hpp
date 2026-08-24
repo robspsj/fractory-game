@@ -28,6 +28,10 @@ public:
     ~GameView();
 
     void render(int winW, int winH);
+    // Render into an externally-owned BLImage (e.g. one that wraps the SDL
+    // window surface's pixel buffer), letting Blend2D rasterize straight to the
+    // screen with no texture upload / quad.
+    void renderTo(BLImage& target, int winW, int winH);
     const BLImage& image() const { return _image; }
     int lastVertexCount() const { return _lastVertexCount; }
     int anchorDepth() const { return _anchorDepth; }

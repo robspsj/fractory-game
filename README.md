@@ -6,8 +6,10 @@ web (WASM canvas), from one shared codebase.
 
 The game logic (`GameModel`) is inherited verbatim from fractory_cpp. The renderer
 is rewritten: cells and item dots are drawn with Blend2D `BLContext` into a `BLImage`,
-then presented as a packed RGBA buffer via an SDL2 texture (native) or `putImageData`
-on a 2D canvas (web).
+then presented on screen. Natively this rasterizes **directly into the SDL window
+surface's pixel buffer** (a `BLImage::createFromData` wrap of the surface memory) —
+no GPU texture, no fullscreen quad; on the web it presents via `putImageData` on a
+2D canvas.
 
 ## Requirements
 

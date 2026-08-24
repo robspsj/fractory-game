@@ -42,8 +42,6 @@ static double perfMs(uint64_t a, uint64_t b) {
 // Uniform RGBA8888 byte buffer shared by native upload and web putImageData.
 static std::vector<uint8_t> s_rgba;
 static int s_rgbaW = 0, s_rgbaH = 0;
-// Track the SDL texture's current pixel size so it's recreated on resize.
-static int _texW = 0, _texH = 0;
 
 static void updateFps() {
   s_frameCount++;
@@ -55,11 +53,10 @@ static void updateFps() {
   }
 }
 
-// Overlay the HUD onto the game image by re-opening a context on it.
-static void drawHud() {
+// Overlay the HUD onto the given image by re-opening a context on it.
+static void drawHud(BLImage &img) {
   updateFps();
   int disp = (int)(s_fps + 0.5f);
-  BLImage &img = const_cast<BLImage &>(s_game->image());
   BLContext ctx(img);
   ctx.setCompOp(BL_COMP_OP_SRC_OVER);
   char t[11][72];
@@ -154,7 +151,7 @@ static void frame() {
   s_lastFrameMs = now;
 
   s_game->render(winW, winH);
-  drawHud();
+  drawHud(const_cast<BLImage &>(s_game->image()));
   copyImageToRGBA();
   jsPresent(s_rgbaW, s_rgbaH, s_rgba.data());
 }
@@ -248,17 +245,24 @@ int main(int argc, char *argv[]) {
   SDL_GetWindowSize(s_window, &ww, &wh);
   winW = ww; winH = wh;
 
-  Uint32 rflags = SDL_RENDERER_ACCELERATED;
-  if (cfg.vsync) rflags |= SDL_RENDERER_PRESENTVSYNC;
+  // Direct-to-screen present: we draw Blend2D straight into the window's
+  // backing surface (no GPU texture / fullscreen quad). VSync is a no-op here
+  // (no renderer present); kept only to reflect the flag in the HUD.
   s_vsyncOn = cfg.vsync;
-  SDL_Renderer *renderer = SDL_CreateRenderer(s_window, -1, rflags);
-  if (!renderer)
-    renderer = SDL_CreateRenderer(s_window, -1, 0);
-  if (!renderer) {
-    fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
+  SDL_Surface *wSurface = SDL_GetWindowSurface(s_window);
+  if (!wSurface) {
+    fprintf(stderr, "SDL_GetWindowSurface failed: %s\n", SDL_GetError());
     return 1;
   }
-  SDL_Texture *tex = nullptr;
+  BLImage surfaceImg;  // wraps wSurface->pixels each frame after locking
+  int surfW = 0, surfH = 0;
+  // We require a 32-bpp surface so Blend2D's XRGB32 (B,G,R on LE) maps 1:1 onto
+  // its ARGB8888 [B,G,R,A] memory layout. macOS always provides ARGB8888.
+  if (wSurface->format->BytesPerPixel != 4) {
+    fprintf(stderr, "Unsupported window surface pixel depth: %d bpp\n",
+            wSurface->format->BytesPerPixel);
+    return 1;
+  }
 
   s_game = std::make_unique<Game>(cfg);
   if (!svgDir.empty())
@@ -303,34 +307,36 @@ int main(int argc, char *argv[]) {
     s_lastFrameMs = now;
 
     uint64_t f0 = perfNow();
-    s_game->render(winW, winH);
-    drawHud();
-    uint64_t f1 = perfNow();
-    copyImageToRGBA();   // resizes s_rgba + updates s_rgbaW/H to match render
-    uint64_t f2 = perfNow();
 
-    // (Re)create the texture to match the rendered buffer size exactly.
-    if (!tex || _texW != s_rgbaW || _texH != s_rgbaH) {
-      if (tex) SDL_DestroyTexture(tex);
-      tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
-                              SDL_TEXTUREACCESS_STREAMING, s_rgbaW, s_rgbaH);
-      _texW = s_rgbaW; _texH = s_rgbaH;
+    // (Re)lock the window surface, wrap its pixel buffer as a Blend2D image,
+    // and rasterize the game + HUD directly into it. No texture, no quad.
+    if (SDL_MUSTLOCK(wSurface))
+      SDL_LockSurface(wSurface);
+    // Re-wrap whenever the surface dimensions changed (e.g. after a resize).
+    if (surfW != wSurface->w || surfH != wSurface->h || surfaceImg.empty()) {
+      // XRGB32 (B,G,R on LE) matches the surface's ARGB8888 layout for opaque
+      // content.
+      surfaceImg.createFromData(wSurface->w, wSurface->h, BL_FORMAT_XRGB32,
+                                wSurface->pixels, wSurface->pitch);
+      surfW = wSurface->w; surfH = wSurface->h;
     }
-    SDL_UpdateTexture(tex, nullptr, s_rgba.data(), s_rgbaW * 4);
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, tex, nullptr, nullptr);
-    SDL_RenderPresent(renderer);
+    s_game->renderTo(surfaceImg, surfW, surfH);
+    drawHud(surfaceImg);
+    if (SDL_MUSTLOCK(wSurface))
+      SDL_UnlockSurface(wSurface);
+    uint64_t f1 = perfNow();
+
+    SDL_UpdateWindowSurface(s_window);   // blit our surface to the real window
     uint64_t f3 = perfNow();
 
     s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
     s_msRender  = ema(s_msRender,  (float)perfMs(f0, f1));
-    s_msCopy    = ema(s_msCopy,    (float)perfMs(f1, f2));
-    s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
+    s_msCopy    = s_msRender;
+    s_msPresent = ema(s_msPresent, (float)perfMs(f1, f3));
   }
 
   saveWindowState();
-  if (tex) SDL_DestroyTexture(tex);
-  SDL_DestroyRenderer(renderer);
+  // surfaceImg wraps wSurface->pixels; no explicit free needed.
   SDL_DestroyWindow(s_window);
   SDL_Quit();
   return 0;
