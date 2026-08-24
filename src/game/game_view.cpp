@@ -98,6 +98,14 @@ void GameView::loadSvgAssets(const std::string& dir) {
 void GameView::rasterizeSvgAt(int i, int w, int h) {
   if (!_svgValid[i] || w < 1 || h < 1)
     return;
+  // Cap the raster size. The software radial-gradient fill in svgLoadFromBytesAtSize
+  // is O(area), so an unbounded icon size at extreme zoom would cost seconds per
+  // frame (35,000+ px). At extreme zoom the icon is a tiny fraction of the
+  // viewport anyway, so clamping to a sensible max keeps it visually identical
+  // while bounding the cost to well under 1ms.
+  constexpr int MAX_ICON_RASTER = 512;
+  w = std::min(w, MAX_ICON_RASTER);
+  h = std::min(h, MAX_ICON_RASTER);
   if (w == _svgRasterW[i] && h == _svgRasterH[i] && !_svgAssets[i].empty())
     return; // cache hit
   if (svgLoadFromBytesAtSize(_svgBytes[i].data(), _svgBytes[i].size(), w, h, _svgAssets[i])) {
@@ -884,6 +892,8 @@ void GameView::zoom(float factor, float mouseNX, float mouseNY) {
   _zoom *= factor;
   if (_zoom < MIN_ZOOM)
     _zoom = MIN_ZOOM;
+  if (_zoom > MAX_ZOOM)
+    _zoom = MAX_ZOOM;
   float actualFactor = _zoom / oldZoom;
   _panX = mouseNX * (1.0f - actualFactor) + _panX * actualFactor;
   _panY = mouseNY * (1.0f - actualFactor) + _panY * actualFactor;

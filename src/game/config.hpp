@@ -2,6 +2,7 @@
 #include <string>
 
 constexpr float MIN_ZOOM = 0.0001f;
+constexpr float MAX_ZOOM = 1e6f;  // cap to avoid float-overflow in culling at extreme zoom
 constexpr float MIN_CELL_ON_SCREEN_PROPORTION_THRESHOLD = 1.15f/10;
 constexpr float MAX_CELL_ON_SCREEN_PROPORTION_THRESHOLD_PARENT = 0.7f/10;
 
