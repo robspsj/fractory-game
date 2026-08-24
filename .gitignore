@@ -1,0 +1,10 @@
+build/
+build*/ 
+cmake-build-*/
+*.o
+*.a
+index.js
+index.wasm
+index.data
+window_state.txt
+.DS_Store

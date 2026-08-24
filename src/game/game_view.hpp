@@ -1,0 +1,117 @@
+#pragma once
+#include "config.hpp"
+#include "game_model.hpp"
+#include <blend2d/blend2d.h>
+#include <cstddef>
+#include <cstdint>
+
+struct Rect {
+    float ox, oy, w, h;
+
+    float cx() const { return ox + w * 0.5f; }
+    float cy() const { return oy + h * 0.5f; }
+    float halfW() const { return w * 0.5f; }
+    float halfH() const { return h * 0.5f; }
+    bool contains(float x, float y) const {
+        return x >= ox && x <= ox + w && y >= oy && y <= oy + h;
+    }
+    bool outsideClip() const {
+        return ox + w <= -1.0f || ox >= 1.0f || oy + h <= -1.0f || oy >= 1.0f;
+    }
+};
+
+class GameView {
+public:
+    GameView(GameModel& model, const Config& cfg);
+    ~GameView();
+
+    void render(int winW, int winH);
+    const BLImage& image() const { return _image; }
+    int lastVertexCount() const { return _lastVertexCount; }
+    int anchorDepth() const { return _anchorDepth; }
+    float lastGenMs() const { return _lastGenMs; }
+    float lastDrawMs() const { return _lastDrawMs; }
+
+    void setDragWorldPos(float worldX, float worldY) { _dragWX = worldX; _dragWY = worldY; }
+    void setHoveredCell(int row, int col) { _hoverRow = row; _hoverCol = col; }
+    void clearHoveredCell() { _hoverRow = -1; _hoverCol = -1; }
+
+    void zoom(float factor, float mouseNX, float mouseNY);
+    float zoomFactor() const { return _zoom; }
+    const float* panPtr() const { return &_panX; }
+
+    bool isPanning() const { return _isPanning; }
+    void startPan(int pixelX, int pixelY);
+    void continuePan(int pixelX, int pixelY, int winW, int winH);
+    void endPan();
+
+    bool screenToGrid(int pixelX, int pixelY, int winW, int winH, int& row, int& col) const;
+    void screenToWorld(int pixelX, int pixelY, int winW, int winH, float& worldX, float& worldY) const;
+    int resolveLeafCell(float worldX, float worldY) const;
+
+    float gridToWorldX(int col) const;
+    float gridToWorldY(int row) const;
+
+    void focusCenterCell(int winW, int winH);
+    void resetView();
+
+private:
+    int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
+    int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
+    int resolveCenterCell(float worldX, float worldY) const;
+    bool unfocusOneLevel();
+    bool isDescendant(int ancestor, int node) const;
+    Rect childCellLayout(int nodeIndex, Rect r, int row, int col) const;
+    Rect cellWorldCenter(int targetIdx) const;
+    void focusTransform(int targetIdx);
+    void addQuad(Rect r, const float color[3], float alpha = 1.0f);
+    void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f);
+    void renderEmpty(Rect r, const float bgColor[3] = nullptr);
+    void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
+    void renderGrid(int nodeIndex, Rect r, int depth, int excludeChild = -1);
+    void renderCell(int nodeIndex, Rect r, int depth);
+    void renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild = -1);
+    static uint32_t rgba(const float color[3], float alpha);
+
+    GameModel& _model;
+
+    BLContext* _ctx = nullptr;
+
+    bool _showAnchor = false;
+    uint64_t _dragAnimStartMs = 0;
+    bool _dragWasActive = false;
+    static constexpr double _dragAnimDuration = 0.15;
+
+    BLImage _image;
+
+    float _zoom = 1.0f;
+    float _panX = 0.0f, _panY = 0.0f;
+    float _aspect = 1.0f;
+    float _dragWX = 0.0f, _dragWY = 0.0f;
+    bool _isPanning = false;
+    int _lastPanX = 0, _lastPanY = 0;
+
+    static constexpr float _gridMin = -0.75f;
+    static constexpr float _cellSize = 0.30f;
+    static constexpr float _gapRatio = 0.0714f;
+    static constexpr float _anchorWidth = 1.5f;
+
+    float _lastGenMs = 0.0f;
+    float _lastDrawMs = 0.0f;
+    int _lastVertexCount = 0;
+
+    int _anchorIndex = 0;
+    int _anchorSize = 0;
+    int _anchorDepth = 0;
+    int _hoverRow = -1, _hoverCol = -1;
+
+    static const float _elemColors[GameModel::ELEMS][3];
+    static const float _white[3];
+    static const float _yellow[3];
+    static const float _grey[3];
+    static const float _gridBg[3];
+    static const float _stationColor[3];
+    static const float _reservedInput[3];
+    static const float _reservedOutput[3];
+    static const float _reservedBuffer[3];
+};
