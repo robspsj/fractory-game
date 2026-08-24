@@ -615,18 +615,20 @@ void GameView::render(int winW, int winH) {
   _aspect = (float)winW / (float)winH;
   _lastVertexCount = 0;
 
-  if (_image.width() != winW || _image.height() != winH || _image.format() != BL_FORMAT_PRGB32) {
-    _image.create(winW, winH, BL_FORMAT_PRGB32);
+  if (_image.width() != winW || _image.height() != winH || _image.format() != BL_FORMAT_XRGB32) {
+    _image.create(winW, winH, BL_FORMAT_XRGB32);
   }
 
   BLContext ctx(_image);
   _ctx = &ctx;
+  // Fully replace the frame with the background colour each pass, then alpha-blend
+  // the cells/icons/(DRAG glow) on top so gradients+glow composite correctly.
   ctx.set_comp_op(BL_COMP_OP_SRC_COPY);
+  ctx.fill_all(BLRgba32(0x1A, 0x1A, 0x26));  // background
+  ctx.set_comp_op(BL_COMP_OP_SRC_OVER);
 
   // NDC -> pixel transform: px = (nx+1)*w/2, py = (1-ny)*h/2
   ctx.set_transform(BLMatrix2D(winW * 0.5, 0.0, 0.0, -winH * 0.5, winW * 0.5, winH * 0.5));
-
-  ctx.fill_all(BLRgba32(0x1A, 0x1A, 0x26));  // background
 
   uint64_t t0 = nowMs();
 
