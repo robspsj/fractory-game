@@ -274,7 +274,7 @@ int main(int argc, char *argv[]) {
     copyImageToRGBA();
 
     if (!tex) {
-      tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
+      tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
                               SDL_TEXTUREACCESS_STREAMING, winW, winH);
     }
     SDL_UpdateTexture(tex, nullptr, s_rgba.data(), s_rgbaW * 4);
