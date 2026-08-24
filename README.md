@@ -30,9 +30,21 @@ Launch flags (all optional):
 ```
 ./build/fractory --empty-grid [N]          # start with an empty N×N grid
 ./build/fractory --vsync                   # cap FPS to display refresh (default: off = unlocked FPS)
+./build/fractory --svg assets              # render item icons from SVG files in `assets/`
 ```
 An on-screen HUD shows FPS plus a frame-time breakdown (Render / Copy /
 Present) so you can see where time is actually spent.
+
+With `--svg <dir>`, per-element icons are loaded from `element0.svg`..`element4.svg`
+in that directory and rendered in place of the built-in vector symbols. If any
+file is missing, that element falls back to its vector symbol. SVG rendering is
+provided by the vendored [`svg2b2d`](https://github.com/Wiladams/svg2b2d) parser.
+
+> This project builds Blend2D at **classic v0.0.18** (pin `fc1061256`), because
+> svg2b2d targets the classic camelCase API (the current dev master renamed it to
+> snake_case). Note: classic Blend2D's `blitImage` is a no-op when built with
+> `BLEND2D_NO_JIT=ON`, so SVG icons are composited manually (src-over) onto the
+> frame buffer rather than via `blitImage`.
 
 ## Build & run (web)
 

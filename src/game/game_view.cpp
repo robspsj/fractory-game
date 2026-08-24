@@ -1,5 +1,6 @@
 #include "game_view.hpp"
 #include "config.hpp"
+#include "svg_assets.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -68,6 +69,83 @@ static void lighten(const float in[3], float t, float out[3]) {
     out[i] = std::min(in[i] + (1.0f - in[i]) * t, 0.93f);
 }
 
+void GameView::loadSvgAssets(const std::string& dir) {
+  _svgAssets.clear();
+  _svgAssets.resize(GameModel::ELEMS);
+  for (int i = 0; i < GameModel::ELEMS; i++) {
+    _svgValid[i] = false;
+    std::string path = dir + "/element" + std::to_string(i) + ".svg";
+    if (svgLoadFromFile(path, _svgAssets[i]))
+      _svgValid[i] = true;
+  }
+}
+
+bool GameView::svgLoaded(int itemId) const {
+  return itemId >= 0 && itemId < GameModel::ELEMS && _svgValid[itemId];
+}
+const BLImage* GameView::svgFor(int itemId) const {
+  return svgLoaded(itemId) ? &_svgAssets[itemId] : nullptr;
+}
+
+// Manually alpha-composite the recorded SVG icons onto the frame. Classic
+// v0.0.18's blitImage is a no-op under BLEND2D_NO_JIT, so we blend pixels
+// ourselves: dst = src + dst*(1-srcA), with src premultiplied (PRGB32) and the
+// frame opaque (XRGB32). This is format- and platform-portable.
+void GameView::compositeSvgIcons(BLImage& img) {
+  if (_svgDraws.empty())
+    return;
+  BLImageData ddst;
+  if (img.getData(&ddst) != BL_SUCCESS || !ddst.pixelData)
+    return;
+  const int W = ddst.size.w, H = ddst.size.h;
+  uint8_t* dst = (uint8_t*)ddst.pixelData;
+  const size_t dstStride = (size_t)ddst.stride;
+
+  for (const SvgDraw& d : _svgDraws) {
+    if (!svgLoaded(d.itemId))
+      continue;
+    const BLImage& srcImg = _svgAssets[d.itemId];
+    if (srcImg.empty())
+      continue;
+    BLImageData dsrc;
+    if (srcImg.getData(&dsrc) != BL_SUCCESS || !dsrc.pixelData)
+      continue;
+    const int sw = dsrc.size.w, sh = dsrc.size.h;
+    if (sw <= 0 || sh <= 0)
+      continue;
+    const uint8_t* src = (const uint8_t*)dsrc.pixelData;
+    const size_t srcStride = (size_t)dsrc.stride;
+
+    // Destination rect (pixel coords); clamp to frame and iterate its range.
+    int x0 = (int)std::floor(d.x),        y0 = (int)std::floor(d.y);
+    int x1 = (int)std::ceil(d.x + d.w),   y1 = (int)std::ceil(d.y + d.h);
+    if (x1 <= x0 || y1 <= y0)
+      continue;
+    for (int dy = std::max(0, y0); dy < std::min(H, y1); dy++) {
+      int syI = (int)(((double)(dy - y0) + 0.5) / d.h * sh);
+      if (syI < 0 || syI >= sh)
+        continue;
+      const uint8_t* srow = src + (size_t)syI * srcStride;
+      uint8_t* drow = dst + (size_t)dy * dstStride;
+      for (int dx = std::max(0, x0); dx < std::min(W, x1); dx++) {
+        int sxI = (int)(((double)(dx - x0) + 0.5) / d.w * sw);
+        if (sxI < 0 || sxI >= sw)
+          continue;
+        const uint8_t* sp = srow + (size_t)sxI * 4;
+        uint8_t* dp = drow + (size_t)dx * 4;
+        uint32_t sa = sp[3];
+        if (sa == 0)
+          continue;
+        // premultiplied src-over over opaque dst
+        uint32_t inv = 255 - sa;
+        dp[0] = (uint8_t)((sp[0] * 255u + dp[0] * inv) / 255u); // B
+        dp[1] = (uint8_t)((sp[1] * 255u + dp[1] * inv) / 255u); // G
+        dp[2] = (uint8_t)((sp[2] * 255u + dp[2] * inv) / 255u); // R
+      }
+    }
+  }
+}
+
 // Draw a vector symbol filled with a radial gradient, plus a soft glow disc
 // behind it. Drawn in PIXEL space (transform reset) so the gradient is a true
 // circle in screen space — a NDC-space gradient would become an ellipse
@@ -87,6 +165,14 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   if (rPx <= 0.1)
     return;
   _lastVertexCount++;
+
+  // If the element has a rasterized SVG asset, record it for the manual
+  // composite pass (blitImage is broken under classic v0.0.18 BLEND2D_NO_JIT).
+  if (svgLoaded(icon)) {
+    _svgDraws.push_back({px - rPx, py - rPx, rPx * 2.0, rPx * 2.0, icon});
+    _lastVertexCount--;
+    return;
+  }
 
   // Work in pixel space so radial gradients are true circles.
   _ctx->save();
@@ -643,6 +729,7 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
 void GameView::render(int winW, int winH) {
   _aspect = (float)winW / (float)winH;
   _lastVertexCount = 0;
+  _svgDraws.clear();
 
   if (_image.width() != winW || _image.height() != winH || _image.format() != BL_FORMAT_XRGB32) {
     _image.create(winW, winH, BL_FORMAT_XRGB32);
@@ -701,6 +788,9 @@ void GameView::render(int winW, int winH) {
   ctx.end();
   _ctx = nullptr;
   _lastDrawMs = (float)(nowMs() - t1);
+
+  // Composite recorded SVG icons onto the (now-finalized) frame manually.
+  compositeSvgIcons(_image);
 }
 
 bool GameView::screenToGrid(int pixelX, int pixelY, int winW, int winH, int &row,

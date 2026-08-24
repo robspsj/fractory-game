@@ -4,6 +4,8 @@
 #include <blend2d.h>
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 struct Rect {
     float ox, oy, w, h;
@@ -40,6 +42,13 @@ public:
     float zoomFactor() const { return _zoom; }
     const float* panPtr() const { return &_panX; }
 
+    // Load optional per-element SVG icon assets from `dir`. Names expected:
+    // element0.svg..element4.svg (matching itemId). When an element has a loaded
+    // SVG, drawIcon renders it (scaled to fit) instead of the vector symbol.
+    void loadSvgAssets(const std::string& dir);
+    bool svgLoaded(int itemId) const;
+    const BLImage* svgFor(int itemId) const;
+
     bool isPanning() const { return _isPanning; }
     void startPan(int pixelX, int pixelY);
     void continuePan(int pixelX, int pixelY, int winW, int winH);
@@ -69,6 +78,8 @@ private:
     // radial-gradient fill + soft glow, showcasing the rasterizer. cx/cy in NDC.
     void drawIcon(float cx, float cy, int icon, const float color[3],
                   float halfW, float halfH);
+    // Manually composite any recorded SVG icons onto the frame (SVG render).
+    void compositeSvgIcons(BLImage& img);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
     void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
@@ -108,6 +119,13 @@ private:
     int _anchorSize = 0;
     int _anchorDepth = 0;
     int _hoverRow = -1, _hoverCol = -1;
+
+    // Optional per-element SVG icon assets (rendered instead of vector symbols).
+    std::vector<BLImage> _svgAssets;
+    bool _svgValid[GameModel::ELEMS] = {};
+    // Deferred SVG icon draws (pixel-space dest rects), composited after ctx.end().
+    struct SvgDraw { double x, y, w, h; int itemId; };
+    std::vector<SvgDraw> _svgDraws;
 
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];

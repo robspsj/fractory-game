@@ -28,7 +28,8 @@ FetchContent_MakeAvailable(blend2d)
 
 set(FRACTORY_SOURCES
     src/main.cpp src/font.cpp src/game/game.cpp src/game/game_view.cpp src/game/game_model.cpp
-    src/game/interact_config.cpp
+    src/game/interact_config.cpp third_party/svg2b2d/svg.cpp
+    src/game/svg_assets.cpp
 )
 
 # Helper: attach Blend2D to a target (link + include the header root).
@@ -36,6 +37,11 @@ function(link_blend2d TARGET)
   target_link_libraries(${TARGET} PRIVATE blend2d)
   # Classic 0.0.18 layout: umbrella <blend2d.h> + subheaders live in src/.
   target_include_directories(${TARGET} PRIVATE "${blend2d_SOURCE_DIR}/src")
+endfunction()
+
+# Helper: attach vendored svg2b2d (SVG -> BLImage).
+function(link_svg2b2d TARGET)
+  target_include_directories(${TARGET} PRIVATE "${CMAKE_SOURCE_DIR}/third_party/svg2b2d")
 endfunction()
 
 # --- Web (Emscripten) ---
@@ -55,6 +61,7 @@ if(EMSCRIPTEN)
       -sEXPORTED_RUNTIME_METHODS=HEAPU8
   )
   link_blend2d(fractory)
+  link_svg2b2d(fractory)
   return()
 endif()
 
@@ -69,3 +76,4 @@ target_link_libraries(fractory PRIVATE ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS})
 target_compile_options(fractory PRIVATE ${SDL2_CFLAGS_OTHER})
 target_compile_definitions(fractory PRIVATE FRACTORY_VERSION="${FRACTORY_VERSION}")
 link_blend2d(fractory)
+link_svg2b2d(fractory)

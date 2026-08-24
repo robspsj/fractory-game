@@ -213,6 +213,7 @@ static bool loadWindowState(int &x, int &y, int &w, int &h) {
 
 int main(int argc, char *argv[]) {
   Config cfg;
+  std::string svgDir;
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -220,6 +221,8 @@ int main(int argc, char *argv[]) {
         cfg.initialGridSize = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--vsync") {
       cfg.vsync = true;
+    } else if (std::string(argv[a]) == "--svg" && a + 1 < argc) {
+      svgDir = argv[++a];
     }
   }
 
@@ -254,6 +257,8 @@ int main(int argc, char *argv[]) {
   SDL_Texture *tex = nullptr;
 
   s_game = std::make_unique<Game>(cfg);
+  if (!svgDir.empty())
+    s_game->view().loadSvgAssets(svgDir);
   s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();
   s_lastFpsTime = s_lastFrameMs;
