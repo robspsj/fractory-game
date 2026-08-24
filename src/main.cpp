@@ -24,6 +24,8 @@ static float s_fps = 0.0f;
 // Uniform RGBA8888 byte buffer shared by native upload and web putImageData.
 static std::vector<uint8_t> s_rgba;
 static int s_rgbaW = 0, s_rgbaH = 0;
+// Track the SDL texture's current pixel size so it's recreated on resize.
+static int _texW = 0, _texH = 0;
 
 static void updateFps() {
   s_frameCount++;
@@ -265,10 +267,7 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    // Recreate texture on resize
-    if (tex && (winW != s_rgbaW || winH != s_rgbaH))
-      { SDL_DestroyTexture(tex); tex = nullptr; }
-
+    // Fetch current window size each frame (drives render + present size).
     SDL_GetWindowSize(s_window, &winW, &winH);
 
     uint32_t now = SDL_GetTicks();
@@ -277,11 +276,14 @@ int main(int argc, char *argv[]) {
 
     s_game->render(winW, winH);
     drawHud();
-    copyImageToRGBA();
+    copyImageToRGBA();   // resizes s_rgba + updates s_rgbaW/H to match render
 
-    if (!tex) {
+    // (Re)create the texture to match the rendered buffer size exactly.
+    if (!tex || _texW != s_rgbaW || _texH != s_rgbaH) {
+      if (tex) SDL_DestroyTexture(tex);
       tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888,
-                              SDL_TEXTUREACCESS_STREAMING, winW, winH);
+                              SDL_TEXTUREACCESS_STREAMING, s_rgbaW, s_rgbaH);
+      _texW = s_rgbaW; _texH = s_rgbaH;
     }
     SDL_UpdateTexture(tex, nullptr, s_rgba.data(), s_rgbaW * 4);
     SDL_RenderClear(renderer);
