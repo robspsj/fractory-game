@@ -60,81 +60,107 @@ void GameView::addQuad(Rect const r, const float color[3], float alpha) {
   _ctx->fill_rect(BLRect(r.ox, r.oy, r.w, r.h), BLRgba32(rgba(color, alpha)));
 }
 
+// Blend a color toward white by t in [0,1], clamped so it never hits pure
+// 255 for any channel (avoids white flashes when an icon rasterizes to 1-2px).
+static void lighten(const float in[3], float t, float out[3]) {
+  for (int i = 0; i < 3; i++)
+    out[i] = std::min(in[i] + (1.0f - in[i]) * t, 0.93f);
+}
+
 // Draw a vector symbol filled with a radial gradient, plus a soft glow disc
-// behind it (radial falloff reads as blur). Coordinates/radii are in NDC.
+// behind it. Drawn in PIXEL space (transform reset) so the gradient is a true
+// circle in screen space — a NDC-space gradient would become an ellipse
+// (x scaled by w/2, y by h/2), warping with window size. cx/cy/halfW/halfH in NDC.
 void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
                         float halfW, float halfH) {
   if (!_ctx)
     return;
-  const float r = std::min(halfW, halfH);
-  if (r <= 0.0f)
+  // NDC -> pixel. target_width/height are the image pixel size.
+  const double W = _ctx->target_width();
+  const double H = _ctx->target_height();
+  const double px = (cx + 1.0) * 0.5 * W;   // x
+  const double py = (1.0 - cy) * 0.5 * H;   // y (NDC y-up -> pixel y-down)
+  // Pixel radius: keep it circular in screen space. halfW NDC spans W/2 px/unit.
+  // halfH spans H/2 px/unit; for a square-ish icon choose min so it fits.
+  const double rPx = std::min(halfW * W * 0.5, halfH * H * 0.5);
+  if (rPx <= 0.1)
     return;
   _lastVertexCount++;
 
+  // Work in pixel space so radial gradients are true circles.
+  _ctx->save();
+  _ctx->reset_transform();
+
   // --- Glow halo: big radial gradient disc fading out ---
   {
-    BLGradient glow(BLRadialGradientValues{cx, cy, 0.0, cx, cy, r * 2.2f});
-    glow.add_stop(0.0, BLRgba32(rgba(color, 0.28f)));
+    BLGradient glow(BLRadialGradientValues{px, py, 0.0, px, py, rPx * 2.2});
+    glow.add_stop(0.0, BLRgba32(rgba(color, 0.35f)));
+    glow.add_stop(0.60, BLRgba32(rgba(color, 0.08f)));
     glow.add_stop(1.0, BLRgba32(rgba(color, 0.0f)));
-    _ctx->fill_circle(BLCircle(cx, cy, r * 2.2f), glow);
+    _ctx->fill_circle(BLCircle(px, py, rPx * 2.2), glow);
   }
 
-  // --- Symbol shape ---
+  // --- Symbol shape (drawn in pixel coords) ---
   BLPath p;
-  const double ux = halfW;  // unit half-width
-  const double uy = halfH;  // unit half-height
+  const double ux = rPx;  // unit half-width in px
+  const double uy = rPx;  // unit half-height in px (circular)
   switch (icon) {
   case 1: { // Heart (point down)
-    p.move_to(cx, cy + uy);
-    p.cubic_to(cx - ux * 1.8, cy + uy * 0.1, cx - ux * 1.4, cy - uy * 0.9, cx, cy - uy * 0.35);
-    p.cubic_to(cx + ux * 1.4, cy - uy * 0.9, cx + ux * 1.8, cy + uy * 0.1, cx, cy + uy);
+    p.move_to(px, py + uy);
+    p.cubic_to(px - ux * 1.8, py + uy * 0.1, px - ux * 1.4, py - uy * 0.9, px, py - uy * 0.35);
+    p.cubic_to(px + ux * 1.4, py - uy * 0.9, px + ux * 1.8, py + uy * 0.1, px, py + uy);
     break;
   }
   case 2: { // Star (5-point)
     const int spikes = 5;
-    double outer = std::min(ux, uy), inner = outer * 0.45;
+    double outer = ux, inner = outer * 0.45;
     for (int i = 0; i < spikes * 2; i++) {
       double ang = i * 3.14159265358979 / spikes - 1.57079632679489;
       double rad = (i % 2 == 0) ? outer : inner;
-      double px = cx + std::cos(ang) * rad;
-      double py = cy + std::sin(ang) * rad;
-      if (i == 0) p.move_to(px, py); else p.line_to(px, py);
+      double sx = px + std::cos(ang) * rad;
+      double sy = py + std::sin(ang) * rad;
+      if (i == 0) p.move_to(sx, sy); else p.line_to(sx, sy);
     }
     p.close();
     break;
   }
   case 3: { // Apple: rounded body + brown-ish stem stub
-    p.add_circle(BLCircle(cx, cy + uy * 0.1, r * 0.82));
+    p.add_circle(BLCircle(px, py + uy * 0.1, rPx * 0.82));
     p.close();
     const float stemCol[3] = {0.45f, 0.30f, 0.12f};
-    _ctx->set_stroke_width(std::max(0.015f, (float)(r * 0.22)));
-    _ctx->stroke_line(cx, cy + uy * 0.1 - r * 0.75, cx + ux * 0.2, cy - uy * 0.9,
+    _ctx->set_stroke_width(std::max(1.0, rPx * 0.22));
+    _ctx->stroke_line(px, py + uy * 0.1 - rPx * 0.75, px + ux * 0.2, py - uy * 0.9,
                       BLRgba32(rgba(stemCol, 1.0f)));
     break;
   }
   case 4: { // Triangle (equilateral, up)
-    p.move_to(cx, cy - uy);
-    p.line_to(cx - ux * 1.1, cy + uy * 0.9);
-    p.line_to(cx + ux * 1.1, cy + uy * 0.9);
+    p.move_to(px, py - uy);
+    p.line_to(px - ux * 1.1, py + uy * 0.9);
+    p.line_to(px + ux * 1.1, py + uy * 0.9);
     p.close();
     break;
   }
   default: { // Diamond
-    p.move_to(cx, cy - uy);
-    p.line_to(cx + ux, cy);
-    p.line_to(cx, cy + uy);
-    p.line_to(cx - ux, cy);
+    p.move_to(px, py - uy);
+    p.line_to(px + ux, py);
+    p.line_to(px, py + uy);
+    p.line_to(px - ux, py);
     p.close();
     break;
   }
   }
 
-  // Fill the symbol with a radial gradient (bright core -> element color).
-  BLGradient sym(BLRadialGradientValues{cx, cy - r * 0.35, 0.0, cx, cy, r * 1.05});
-  sym.add_stop(0.0, BLRgba32(rgba(_white, 0.92f)));
+  // Fill the symbol with a radial gradient (bright core -> element color),
+  // centered a bit above the middle for a polished highlight.
+  float core[3];
+  lighten(color, 0.55f, core);         // never pure white => no flash on tiny icons
+  BLGradient sym(BLRadialGradientValues{px, py - rPx * 0.35, 0.0, px, py, rPx * 1.05});
+  sym.add_stop(0.0, BLRgba32(rgba(core, 0.95f)));
   sym.add_stop(0.45, BLRgba32(rgba(color, 1.0f)));
   sym.add_stop(1.0, BLRgba32(rgba(color, 0.85f)));
   _ctx->fill_path(p, sym);
+
+  _ctx->restore();
 }
 
 void GameView::renderCellItems(float centerX, float centerY, int count,
