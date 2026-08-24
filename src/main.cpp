@@ -196,6 +196,12 @@ int main(int argc, char *argv[]) {
       cfg.emptyGrid = true;
       if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
         cfg.initialGridSize = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--grid-limit") {
+      if (a + 1 < argc) cfg.gridLimit = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--max-depth") {
+      if (a + 1 < argc) cfg.previewDepth = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--min-clip") {
+      if (a + 1 < argc) cfg.minClipSize = (float)std::atof(argv[++a]);
     }
   }
 

@@ -5,8 +5,6 @@
 #include <cmath>
 #include <cstdio>
 
-static constexpr int MAX_PREVIEW_DEPTH = 100;
-
 const float GameView::_elemColors[GameModel::ELEMS][3] = {
     {0.15f, 0.50f, 0.90f}, {0.90f, 0.30f, 0.30f}, {0.20f, 0.80f, 0.35f},
     {0.95f, 0.85f, 0.15f}, {0.80f, 0.30f, 0.85f},
@@ -28,7 +26,8 @@ static uint64_t nowMs() {
 }
 
 GameView::GameView(GameModel &model, const Config &cfg)
-    : _model(model), _showAnchor(cfg.showAnchor) {
+    : _model(model), _showAnchor(cfg.showAnchor), _maxDepth(cfg.previewDepth),
+      _minClipSize(cfg.minClipSize) {
   const Cell &cell = _model.node(_anchorIndex);
   _anchorSize =
       (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
@@ -160,12 +159,11 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
   int absDepth = 0;
   for (int i = nodeIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId)
     absDepth++;
-  if (absDepth >= MAX_PREVIEW_DEPTH)
+  if (absDepth >= _maxDepth)
     return;
   if (r.outsideClip())
     return;
-  constexpr float minClipSize = 0.002f;
-  if (r.w < minClipSize || r.h < minClipSize)
+  if (r.w < _minClipSize || r.h < _minClipSize)
     return;
 
   const Cell &cell = _model.node(nodeIndex);
@@ -518,12 +516,11 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
     }
   }
 
-  if (depth >= MAX_PREVIEW_DEPTH)
+  if (depth >= _maxDepth)
     return;
   if (r.outsideClip())
     return;
-  constexpr float minClipSize = 0.002f;
-  if (r.w < minClipSize || r.h < minClipSize)
+  if (r.w < _minClipSize || r.h < _minClipSize)
     return;
 
   if (cell.content.type == CellType::GRID)

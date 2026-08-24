@@ -26,6 +26,16 @@ cmake --build build -j
 Controls: left-click = pick up / drop item, shift+click = interact,
 middle-drag = pan, scroll = zoom, F1 = reset view.
 
+Launch flags (all optional):
+```
+./build/fractory --empty-grid [N]           # start with an empty N×N grid
+./build/fractory --grid-limit 2000000       # cap on how many GRID nodes the fractal can grow (default 2,000,000)
+./build/fractory --max-depth 100            # max recursion depth to render/resolve (default 100)
+./build/fractory --min-clip 0.0005          # cull cells smaller than this (NDC); lower = draw more tiny cells
+```
+Raising `--grid-limit` lets the world grow deeper/larger; lowering `--min-clip`
+and/or raising `--max-depth` renders more nested sub-grid cells when zoomed in.
+
 ## Build & run (web)
 
 ```
