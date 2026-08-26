@@ -65,7 +65,7 @@ if(EMSCRIPTEN)
   set(CMAKE_EXECUTABLE_SUFFIX ".html")
   target_compile_options(fractory PRIVATE -O2 -Wno-experimental)
   target_link_options(fractory PRIVATE
-      -sUSE_SDL=2
+      -sUSE_SDL=3
       --shell-file ${CMAKE_SOURCE_DIR}/web/index.html
       -sALLOW_MEMORY_GROWTH=1
       -sFILESYSTEM=0
@@ -77,15 +77,15 @@ if(EMSCRIPTEN)
   return()
 endif()
 
-# --- Native (macOS/Linux), SDL2 ---
+# --- Native (macOS/Linux), SDL3 ---
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2 REQUIRED sdl2)
+pkg_check_modules(SDL3 REQUIRED sdl3)
 
 add_executable(fractory ${FRACTORY_SOURCES})
-target_include_directories(fractory PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_directories(fractory PRIVATE ${SDL2_LIBRARY_DIRS})
-target_link_libraries(fractory PRIVATE ${SDL2_LIBRARIES} ${CMAKE_DL_LIBS})
-target_compile_options(fractory PRIVATE ${SDL2_CFLAGS_OTHER})
+target_include_directories(fractory PRIVATE ${SDL3_INCLUDE_DIRS})
+target_link_directories(fractory PRIVATE ${SDL3_LIBRARY_DIRS})
+target_link_libraries(fractory PRIVATE ${SDL3_LIBRARIES} ${CMAKE_DL_LIBS})
+target_compile_options(fractory PRIVATE ${SDL3_CFLAGS_OTHER})
 target_compile_definitions(fractory PRIVATE FRACTORY_VERSION="${FRACTORY_VERSION}")
 link_skia(fractory "out/native")
 # Skia CPU raster needs pthread + dl + math even though SDL is pulled first.

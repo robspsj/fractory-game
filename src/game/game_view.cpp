@@ -42,6 +42,13 @@ static uint64_t nowMs() {
       .count();
 }
 
+// Microsecond-res time for per-stage frame-budget timing (glow / SVG render).
+static uint64_t nowUs() {
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+
 GameView::GameView(GameModel &model, const Config &cfg)
     : _model(model), _showAnchor(cfg.showAnchor) {
   const Cell &cell = _model.node(_anchorIndex);
@@ -263,7 +270,11 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   _canvas->translate((SkScalar)px, (SkScalar)py);
   _canvas->scale((SkScalar)rPx, (SkScalar)rPx);
   // --- Glow halo: radial gradient disc fading out (behind the symbol) ---
-  _canvas->drawCircle(0.0f, 0.0f, 2.2f, st.glowPaint);
+  {
+    uint64_t t = nowUs();
+    _canvas->drawCircle(0.0f, 0.0f, 2.2f, st.glowPaint);
+    _bench.glowMs += (double)(nowUs() - t) / 1000.0;
+  }
   // --- Symbol shape: the embedded SVG piece when loaded, else the vector
   // symbol. Drawn here we're in unit coords under translate(px,py)*scale(rPx),
   // so the image dest rect [-1,1]^2 maps to the icon's on-screen box. ---
@@ -278,7 +289,10 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
     _canvas->save();
     _canvas->translate(-1.0f, -1.0f);
     _canvas->scale(2.0f / PieceLib::kBase, 2.0f / PieceLib::kBase);
+    uint64_t t = nowUs();
     dom->render(_canvas);
+    _bench.svgMs += (double)(nowUs() - t) / 1000.0;
+    _bench.svgN++;
     _canvas->restore();
   } else
 #endif

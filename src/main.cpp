@@ -2,7 +2,7 @@
 #include "game/config.hpp"
 #include "game/game.hpp"
 #include "test_runner.hpp"
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -19,9 +19,9 @@
 
 static std::unique_ptr<Game> s_game;
 static int winW = 800, winH = 600;
-static uint32_t s_lastFrameMs = 0;
+static uint64_t s_lastFrameMs = 0;
 static int s_frameCount = 0;
-static uint32_t s_lastFpsTime = 0;
+static uint64_t s_lastFpsTime = 0;
 static float s_fps = 0.0f;
 
 // Frame-time breakdown (ms), smoothed via EMA for stable HUD numbers.
@@ -111,27 +111,27 @@ static void frame() {
 
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
-    if (e.type == SDL_QUIT)
+    if (e.type == SDL_EVENT_QUIT)
       emscripten_cancel_main_loop();
     // mouse
-    if (e.type == SDL_MOUSEMOTION)
+    if (e.type == SDL_EVENT_MOUSE_MOTION)
       s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
-    else if (e.type == SDL_MOUSEBUTTONDOWN) {
-      int mod = (e.key.keysym.mod & KMOD_SHIFT) ? 1 : 0;
+    else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+      int mod = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1 : 0;
       s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
-    } else if (e.type == SDL_MOUSEBUTTONUP)
+    } else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
       s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-    else if (e.type == SDL_MOUSEWHEEL)
-      s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouseX, (int)e.wheel.mouseY, winW, winH);
-    else if (e.type == SDL_KEYDOWN) {
+    else if (e.type == SDL_EVENT_MOUSE_WHEEL)
+      s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
+    else if (e.type == SDL_EVENT_KEY_DOWN) {
       Key k = Key::UNKNOWN;
-      if (e.key.keysym.sym == SDLK_F1) k = Key::F1;
-      bool shift = (e.key.keysym.mod & KMOD_SHIFT) != 0;
+      if (e.key.key == SDLK_F1) k = Key::F1;
+      bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
       s_game->keyDown(k, shift, winW, winH);
     }
   }
 
-  uint32_t now = SDL_GetTicks();
+  uint64_t now = SDL_GetTicks();
   s_game->step((int)(now - s_lastFrameMs));
   s_lastFrameMs = now;
 
@@ -160,9 +160,7 @@ int main() {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   initFont();
 
-  s_window = SDL_CreateWindow("fractory blend2d", SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, 800, 600,
-                              SDL_WINDOW_RESIZABLE);
+  s_window = SDL_CreateWindow("fractory blend2d", 800, 600, SDL_WINDOW_RESIZABLE);
   if (!s_window)
     return 1;
 
@@ -189,7 +187,7 @@ int main() {
   return 0;
 }
 
-#else // ---- Native SDL2 ----
+#else // ---- Native SDL3 ----
 
 static SDL_Window *s_window;
 
@@ -232,6 +230,11 @@ int main(int argc, char *argv[]) {
   // pixel verification (no window, no SDL), writing a PPM (no codec needed).
   std::string headlessPath;
   int headW = 800, headH = 600;
+  // --bench [W H] [frames]: render N frames offscreen at W x H and report the
+  // frame-budget breakdown (step / render / SVG / glow / HUD / dither). No
+  // window, no SDL present; present (SDL UpdateWindowSurface) is not included.
+  bool benchMode = false;
+  int benchW = 3840, benchH = 2049, benchFrames = 5;
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -246,6 +249,15 @@ int main(int argc, char *argv[]) {
           std::string(argv[a + 2]).find_first_not_of("0123456789") == std::string::npos) {
         headW = std::atoi(argv[a + 1]); headH = std::atoi(argv[a + 2]); a += 2;
       }
+    } else if (std::string(argv[a]) == "--bench") {
+      benchMode = true;
+      if (a + 2 < argc &&
+          std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos &&
+          std::string(argv[a + 2]).find_first_not_of("0123456789") == std::string::npos) {
+        benchW = std::atoi(argv[a + 1]); benchH = std::atoi(argv[a + 2]); a += 2;
+      }
+      if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
+        benchFrames = std::atoi(argv[++a]);
     }
   }
 
@@ -275,13 +287,63 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
+  if (benchMode) {
+    s_game = std::make_unique<Game>(cfg);
+    s_perfFreq = SDL_GetPerformanceFrequency();
+#if !defined(__EMSCRIPTEN__)
+    s_game->view().loadChessAssets();
+#endif
+    std::vector<uint8_t> buf((size_t)benchW * benchH * 4);
+    SkImageInfo info = SkImageInfo::Make(benchW, benchH, kRGBA_8888_SkColorType,
+                                         kPremul_SkAlphaType);
+    sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, buf.data(), (size_t)benchW * 4);
+    if (!surf)
+      return 1;
+    double stepMs = 0, renderMs = 0, hudMs = 0, ditherMs = 0, svgMs = 0, glowMs = 0;
+    long svgN = 0;
+    for (int f = 0; f < benchFrames; f++) {
+      s_game->view().resetFramebench();
+      uint64_t t;
+      t = perfNow(); s_game->step(16); stepMs += perfMs(t, perfNow());
+      t = perfNow(); s_game->renderTo(surf->getCanvas(), benchW, benchH); renderMs += perfMs(t, perfNow());
+      const Framebench& fb = s_game->view().framebench();
+      svgMs += fb.svgMs; glowMs += fb.glowMs; svgN += fb.svgN;
+      t = perfNow(); drawHud(surf->getCanvas()); hudMs += perfMs(t, perfNow());
+      t = perfNow(); s_game->view().ditherIconNoise(buf.data(), benchW, benchH, (size_t)benchW * 4);
+      ditherMs += perfMs(t, perfNow());
+    }
+    const int n = benchFrames;
+    const double total = stepMs + renderMs + hudMs + ditherMs;
+    const double totalAvg = total / n;   // per-frame pipeline cost (ms)
+    const double renderCore = renderMs - svgMs - glowMs;   // cells/geom beyond glow+svg
+    auto row = [totalAvg](const char* what, double ms, const char* note) {
+      fprintf(stderr, "  %-34s %8.3f ms  %5.1f%%   %s\n", what, ms,
+              totalAvg > 0 ? 100.0 * ms / totalAvg : 0.0, note);
+    };
+    fprintf(stderr,
+            "== frame budget @ %dx%d (%d-frame avg; offscreen — present not "
+            "included) ==\n",
+            benchW, benchH, n);
+    row("Model step (game->step)", stepMs / n, "");
+    row("Render  (renderTo: cells+items)", renderMs / n, "");
+    row("  ├─ geometry/cells & other", renderCore / n, "(render minus svg+glow)");
+    row("  ├─ item glow radial gradients", glowMs / n, "per item");
+    row("  └─ chess-piece SVG (per-instance)", svgMs / n, "");
+    row("HUD", hudMs / n, "");
+    row("IGN dither (icon gradient areas)", ditherMs / n, "per-icon rects");
+    fprintf(stderr,
+            "  ------------------------------------------------\n"
+            "  frame (offscreen render pipeline) ≈ %8.3f ms  →  ~%.0f FPS\n",
+            total / n, 1000.0 / (total / n));
+    fprintf(stderr, "  SVG pieces drawn/frame ≈ %.1f\n", (double)svgN / n);
+    return 0;
+  }
+
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   initFont();
 
-  s_window = SDL_CreateWindow("fractory blend2d", SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, 800, 600,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN |
-                                  SDL_WINDOW_ALLOW_HIGHDPI);
+  s_window = SDL_CreateWindow("fractory blend2d", 800, 600,
+                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
   if (!s_window) {
     fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
     return 1;
@@ -303,9 +365,9 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "SDL_GetWindowSurface failed: %s\n", SDL_GetError());
     return 1;
   }
-  if (wSurface->format->BytesPerPixel != 4) {
+  if (SDL_BYTESPERPIXEL(wSurface->format) != 4) {
     fprintf(stderr, "Unsupported window surface pixel depth: %d bpp\n",
-            wSurface->format->BytesPerPixel);
+            SDL_BYTESPERPIXEL(wSurface->format));
     return 1;
   }
   {
@@ -332,26 +394,24 @@ int main(int argc, char *argv[]) {
   while (!quit) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
-      if (e.type == SDL_QUIT)
+      if (e.type == SDL_EVENT_QUIT)
         quit = true;
-      else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
+      else if (e.type == SDL_EVENT_WINDOW_RESIZED || e.type == SDL_EVENT_WINDOW_MOVED)
         saveWindowState();
-      else if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_MOVED)
-        saveWindowState();
-      else if (e.type == SDL_MOUSEMOTION)
+      else if (e.type == SDL_EVENT_MOUSE_MOTION)
         s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
-      else if (e.type == SDL_MOUSEBUTTONDOWN) {
-        int mod = (e.key.keysym.mod & KMOD_SHIFT) ? 1 : 0;
+      else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        int mod = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1 : 0;
         s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
       }
-      else if (e.type == SDL_MOUSEBUTTONUP)
+      else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
         s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-      else if (e.type == SDL_MOUSEWHEEL)
-        s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouseX, (int)e.wheel.mouseY, winW, winH);
-      else if (e.type == SDL_KEYDOWN) {
+      else if (e.type == SDL_EVENT_MOUSE_WHEEL)
+        s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
+      else if (e.type == SDL_EVENT_KEY_DOWN) {
         Key k = Key::UNKNOWN;
-        if (e.key.keysym.sym == SDLK_F1) k = Key::F1;
-        bool shift = (e.key.keysym.mod & KMOD_SHIFT) != 0;
+        if (e.key.key == SDLK_F1) k = Key::F1;
+        bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
         s_game->keyDown(k, shift, winW, winH);
       }
     }
@@ -359,7 +419,7 @@ int main(int argc, char *argv[]) {
     // Fetch current window size each frame (drives render + present size).
     SDL_GetWindowSize(s_window, &winW, &winH);
 
-    uint32_t now = SDL_GetTicks();
+    uint64_t now = SDL_GetTicks();
     s_game->step((int)(now - s_lastFrameMs));
     s_lastFrameMs = now;
 
@@ -371,7 +431,7 @@ int main(int argc, char *argv[]) {
     // it later can HANG SDL_UpdateWindowSurface (this was the monitor-change
     // freeze). A fresh surface means valid pixels/pitch on every frame.
     SDL_Surface *wSurf = SDL_GetWindowSurface(s_window);
-    if (wSurf && wSurf->format->BytesPerPixel == 4) {
+    if (wSurf && SDL_BYTESPERPIXEL(wSurf->format) == 4) {
       if (SDL_MUSTLOCK(wSurf))
         SDL_LockSurface(wSurf);
       // Wrap the current window surface pixels directly and rasterize in place.
