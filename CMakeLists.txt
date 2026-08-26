@@ -33,12 +33,18 @@ set(FRACTORY_SOURCES
     src/game/interact_config.cpp
 )
 
-# Helper: attach Skia to a target (link + include the header root so
-# `#include "include/core/SkCanvas.h"` resolves).
+# Helper: attach Skia to a target (include the header root so
+# `#include "include/core/SkCanvas.h"` resolves, and link the archive).
+# LIBDIR is "out/native" or "out/wasm"; Skia names wasm archives *.wasm.a.
 function(link_skia TARGET LIBDIR)
   target_include_directories(${TARGET} PRIVATE "${SKIA_DIR}")
-  target_link_directories(${TARGET} PRIVATE "${SKIA_DIR}/${LIBDIR}")
-  target_link_libraries(${TARGET} PRIVATE skia)
+  if(EMSCRIPTEN)
+    target_link_libraries(${TARGET} PRIVATE
+        "${SKIA_DIR}/${LIBDIR}/libskia.wasm.a"
+        "${SKIA_DIR}/${LIBDIR}/libskcms.wasm.a")
+  else()
+    target_link_libraries(${TARGET} PRIVATE "${SKIA_DIR}/${LIBDIR}/libskia.a")
+  endif()
 endfunction()
 
 # --- Web (Emscripten) ---
