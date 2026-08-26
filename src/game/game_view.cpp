@@ -194,10 +194,16 @@ struct PieceLib {
   static constexpr float kGlowSigma = 5.5f;  // blur spread (px, at kGlowBase)
   std::array<sk_sp<SkSVGDOM>, GameModel::ELEMS> doms;
   std::array<sk_sp<SkImage>, GameModel::ELEMS> glow;
+  // Alpha (visual) bounding box of each piece in kGlowBase-sprite pixels. Used to
+  // center BOTH the glow and the crisp piece on the piece's real silhouette, so
+  // they stay aligned even though the piece sits off-center in the 72 box.
+  std::array<SkRect, GameModel::ELEMS> bbox;
 
   explicit PieceLib() {
-    for (int i = 0; i < (int)GameModel::ELEMS; i++)
+    for (int i = 0; i < (int)GameModel::ELEMS; i++) {
       glow[i] = nullptr;
+      bbox[i] = SkRect::MakeWH(kGlowBase, kGlowBase);  // fallback = full box centre
+    }
     for (int i = 0; i < (int)GameModel::ELEMS; i++) {
       const chess::Svg& sv = chess::pieces[i % (int)GameModel::ELEMS];
       SkMemoryStream stream(sv.data, sv.size, false);
@@ -212,6 +218,10 @@ struct PieceLib {
   }
   sk_sp<SkImage> glowAt(int idx) const {
     return (idx >= 0 && idx < (int)GameModel::ELEMS) ? glow[idx] : nullptr;
+  }
+  SkRect bboxAt(int idx) const {
+    static const SkRect full = SkRect::MakeWH(kGlowBase, kGlowBase);
+    return (idx >= 0 && idx < (int)GameModel::ELEMS) ? bbox[idx] : full;
   }
 
   // Bake a soft, contour-following glow for piece `idx`: raster the piece, tint
@@ -229,6 +239,26 @@ struct PieceLib {
     doms[idx]->setContainerSize(SkSize::Make(kGlowBase, kGlowBase));
     doms[idx]->render(pieceSurf->getCanvas());
     sk_sp<SkImage> piece = pieceSurf->makeImageSnapshot();
+    // Compute the piece's visual (non-transparent) bounding box in the sprite, so
+    // we can center the crisp piece AND the glow on the same silhouette centre.
+    {
+      const int S = kGlowBase;
+      SkImageInfo pi = SkImageInfo::Make(S, S, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+      std::vector<uint8_t> px((size_t)S * S * 4);
+      piece->readPixels(pi, px.data(), pi.minRowBytes(), 0, 0);
+      int minx = S, maxx = -1, miny = S, maxy = -1;
+      for (int y = 0; y < S; y++) {
+        const uint8_t* row = px.data() + (size_t)y * S * 4;
+        for (int x = 0; x < S; x++) {
+          if (row[(size_t)x * 4 + 3] > 4) {
+            if (x < minx) minx = x; if (x > maxx) maxx = x;
+            if (y < miny) miny = y; if (y > maxy) maxy = y;
+          }
+        }
+      }
+      if (maxx < minx) { minx = 0; maxx = S - 1; miny = 0; maxy = S - 1; }
+      bbox[idx] = SkRect::MakeLTRB((float)minx, (float)miny, (float)maxx + 1, (float)maxy + 1);
+    }
     // Pass 1: tint the (white) silhouette RGB to the element color, keep its alpha.
     // (Separate pass from the blur — combining color+image filters in one paint can
     // drop the tint. The Matrix offset column is in [0,1], so use the raw color.)
@@ -324,20 +354,22 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
     // Glow: baked blurred + element-tinted silhouette (follows the piece contour,
     // far less area than a radial disc and inherently soft, so a scaled fixed
     // sprite is fine). Drawn behind the crisp piece.
+    const SkRect bb = _pieces->bboxAt(ti);   // piece silhouette bbox (sprite px)
     if (sk_sp<SkImage> g = _pieces->glowAt(ti)) {
       uint64_t t = nowUs();
       const float o = 1.6f;   // glow box reach past the piece's unit box (outward halo)
-      _canvas->drawImageRect(g, SkRect::MakeWH((float)g->width(), (float)g->height()),
-                             SkRect::MakeXYWH(-o, -o, 2.0f * o, 2.0f * o),
+      _canvas->drawImageRect(g, bb, SkRect::MakeXYWH(-o, -o, 2.0f * o, 2.0f * o),
                              SkSamplingOptions(), nullptr,
                              SkCanvas::kFast_SrcRectConstraint);
       _bench.glowMs += (double)(nowUs() - t) / 1000.0;
     }
     // Crisp vector piece, rendered from the SVG per instance at its on-screen box
-    // (no cached bitmap). We're in unit coords under translate(px,py)*scale(rPx);
-    // map the SVG container plane [0,kBase]^2 onto the unit box [-1,1]^2.
+    // (no cached bitmap). Both the piece and the glow are centred on the piece's
+    // silhouette bounding box (bboxAt), so they stay aligned even though the SVG
+    // geometry sits off-centre in the 72x72 viewBox.
     _canvas->save();
-    _canvas->translate(-1.0f, -1.0f);
+    _canvas->translate(-bb.centerX() * 2.0f / PieceLib::kGlowBase,
+                       -bb.centerY() * 2.0f / PieceLib::kGlowBase);
     _canvas->scale(2.0f / PieceLib::kBase, 2.0f / PieceLib::kBase);
     uint64_t t = nowUs();
     dom->render(_canvas);
