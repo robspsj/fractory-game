@@ -328,30 +328,42 @@ int main(int argc, char *argv[]) {
 
     uint64_t f0 = perfNow();
 
-    if (SDL_MUSTLOCK(wSurface))
-      SDL_LockSurface(wSurface);
-    // Wrap the window surface pixel buffer directly as an SkSurface and
-    // rasterize the game + HUD into it. No texture, no quad, no copy.
-    SkImageInfo info = SkImageInfo::Make(wSurface->w, wSurface->h,
-                                         kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, wSurface->pixels, (size_t)wSurface->pitch);
-    uint64_t f1 = surf ? perfNow() : f0;
-    if (surf) {
-      SkCanvas *canvas = surf->getCanvas();
-      s_game->renderTo(canvas, wSurface->w, wSurface->h);
-      drawHud(canvas);
+    // Re-fetch the window surface EVERY frame. SDL recreates the surface when
+    // the window moves to a display with a different backing scale / format
+    // (e.g. 1x vs 2x Retina), so a pointer cached at startup goes stale — using
+    // it later can HANG SDL_UpdateWindowSurface (this was the monitor-change
+    // freeze). A fresh surface means valid pixels/pitch on every frame.
+    SDL_Surface *wSurf = SDL_GetWindowSurface(s_window);
+    if (wSurf && wSurf->format->BytesPerPixel == 4) {
+      if (SDL_MUSTLOCK(wSurf))
+        SDL_LockSurface(wSurf);
+      // Wrap the current window surface pixels directly and rasterize in place.
+      // No texture, no quad, no copy.
+      SkImageInfo info = SkImageInfo::Make(wSurf->w, wSurf->h,
+                                           kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+      sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, wSurf->pixels, (size_t)wSurf->pitch);
+      uint64_t f1 = surf ? perfNow() : f0;
+      if (surf) {
+        SkCanvas *canvas = surf->getCanvas();
+        s_game->renderTo(canvas, wSurf->w, wSurf->h);
+        drawHud(canvas);
+      }
+      if (SDL_MUSTLOCK(wSurf))
+        SDL_UnlockSurface(wSurf);
+      uint64_t f2 = perfNow();
+
+      SDL_UpdateWindowSurface(s_window);   // blit our surface to the real window
+      uint64_t f3 = perfNow();
+
+      s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
+      s_msCopy    = ema(s_msCopy,    (float)perfMs(f0, f1));
+      s_msRender  = ema(s_msRender,  (float)perfMs(f1, f2));
+      s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
+    } else {
+      // Surface temporarily unavailable mid monitor-switch: skip present this
+      // frame but keep looping (don't peg the HUD / spin on a stale surface).
+      s_msFrame = ema(s_msFrame, (float)perfMs(f0, perfNow()));
     }
-    if (SDL_MUSTLOCK(wSurface))
-      SDL_UnlockSurface(wSurface);
-    uint64_t f2 = perfNow();
-
-    SDL_UpdateWindowSurface(s_window);   // blit our surface to the real window
-    uint64_t f3 = perfNow();
-
-    s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
-    s_msCopy    = ema(s_msCopy,    (float)perfMs(f0, f1));
-    s_msRender  = ema(s_msRender,  (float)perfMs(f1, f2));
-    s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
   }
 
   saveWindowState();
