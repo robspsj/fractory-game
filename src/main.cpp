@@ -280,7 +280,8 @@ int main(int argc, char *argv[]) {
 
   s_window = SDL_CreateWindow("fractory blend2d", SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED, 800, 600,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
+                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN |
+                                  SDL_WINDOW_ALLOW_HIGHDPI);
   if (!s_window) {
     fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
     return 1;
@@ -306,6 +307,17 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Unsupported window surface pixel depth: %d bpp\n",
             wSurface->format->BytesPerPixel);
     return 1;
+  }
+  {
+    // High-DPI diagnostic: real data is rendered to the window SURFACE at its
+    // size (wSurf->w/h), while input uses the LOGICAL window size. On a Retina/
+    // Apple-scaled display we expect surface ~= 2x logical (scale ~2.0) → crisp.
+    int lw = 0, lh = 0, pxl = 0, pyl = 0;
+    SDL_GetWindowSize(s_window, &lw, &lh);
+    SDL_GetWindowSizeInPixels(s_window, &pxl, &pyl);
+    fprintf(stderr, "[hidpi] logical=%dx%d pixels=%dx%d surface=%dx%d scale=%.2f\n",
+            lw, lh, pxl, pyl, wSurface->w, wSurface->h,
+            (lh > 0) ? (float)wSurface->h / (float)lh : 1.0f);
   }
 
   s_game = std::make_unique<Game>(cfg);
