@@ -143,6 +143,8 @@ static void frame() {
   SkCanvas *canvas = surf->getCanvas();
   s_game->renderTo(canvas, s_rgbaW, s_rgbaH);
   drawHud(canvas);
+  // IGN-dither the icon gradient regions to break 8-bit banding.
+  s_game->view().ditherIconNoise(s_rgba.data(), s_rgbaW, s_rgbaH, (size_t)s_rgbaW * 4);
   uint64_t f2 = perfNow();
   jsPresent(s_rgbaW, s_rgbaH, s_rgba.data());
   uint64_t f3 = perfNow();
@@ -239,6 +241,7 @@ int main(int argc, char *argv[]) {
     if (!surf)
       return 1;
     g.renderTo(surf->getCanvas(), headW, headH);
+    g.view().ditherIconNoise(buf.data(), headW, headH, (size_t)headW * 4);
     std::string hdr = "P6\n" + std::to_string(headW) + " " + std::to_string(headH) + "\n255\n";
     FILE *f = fopen(headlessPath.c_str(), "wb");
     if (!f)
@@ -347,6 +350,9 @@ int main(int argc, char *argv[]) {
         SkCanvas *canvas = surf->getCanvas();
         s_game->renderTo(canvas, wSurf->w, wSurf->h);
         drawHud(canvas);
+        // IGN-dither the icon gradient regions to break 8-bit banding.
+        s_game->view().ditherIconNoise((uint8_t*)wSurf->pixels, wSurf->w, wSurf->h,
+                                       (size_t)wSurf->pitch);
       }
       if (SDL_MUSTLOCK(wSurf))
         SDL_UnlockSurface(wSurf);

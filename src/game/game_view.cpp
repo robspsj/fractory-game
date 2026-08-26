@@ -192,6 +192,15 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
     return;
   _lastVertexCount++;
 
+  // Record the glow-disc pixel bounds so renderTo's caller can dither exactly
+  // the gradient regions (kills 8-bit banding) right before present.
+  {
+    const double rad = rPx * 2.2;   // glow extends to 2.2 * radius
+    _ditherRects.push_back(SkIRect::MakeLTRB(
+        (int)std::floor(px - rad), (int)std::floor(py - rad),
+        (int)std::ceil(px + rad), (int)std::ceil(py + rad)));
+  }
+
   const IconStyle &st = _icons[icon % GameModel::ELEMS];
   // Work in pixel space: reset to identity, position at (px,py), scale by the
   // on-screen radius. The cached unit-space shape/gradient are placed by the
@@ -690,6 +699,7 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   _targetH = winH;
   _aspect = (float)winW / (float)winH;
   _lastVertexCount = 0;
+  _ditherRects.clear();
 
   // NDC -> pixel transform: px = (nx+1)*w/2, py = (1-ny)*h/2
   SkMatrix ndc;
@@ -827,4 +837,46 @@ std::size_t GameView::allocatedBytes() const {
   std::size_t bytes = 0;
   bytes += _icons.size() * sizeof(IconStyle);  // cached icon paths + paints
   return bytes;
+}
+
+// Interleaved Gradient Noise (Jorge Jimenez, 2015): a smooth per-pixel hash in
+// [0,1) that adds sub-threshold luminance jitter. Adding a static, spatially
+// structured noise to the 8-bit gradient output breaks the hard quantization
+// bands into fine grain the eye averages away — the standard fix for gradient
+// banding. Static seed (pixel position only) avoids temporal shimmer; the noise
+// is <1 LSB so flat fills and HUD text are unaffected.
+static inline float ignNoise(int x, int y) {
+  const float fx = (float)x, fy = (float)y;
+  const float dot = fx * 0.06711056f + fy * 0.00583715f;
+  float inner = dot - std::floor(dot);             // fract(dot(pos))
+  float v = 52.9829189f * inner;
+  return v - std::floor(v);                        // fract(52.98 * inner) in [0,1)
+}
+
+void GameView::ditherIconNoise(uint8_t* pixels, int W, int H, size_t rowBytes) const {
+  if (!pixels || _ditherRects.empty())
+    return;
+  const float kAmplitude = 1.8f;   // ~ 0.9 LSB peak-per-side; tune to taste
+  for (const SkIRect& rc : _ditherRects) {
+    int y0 = rc.top(), y1 = rc.bottom(), x0 = rc.left(), x1 = rc.right();
+    if (y0 < 0) y0 = 0;
+    if (y1 > H) y1 = H;
+    if (x0 < 0) x0 = 0;
+    if (x1 > W) x1 = W;
+    if (y1 <= y0 || x1 <= x0)
+      continue;
+    for (int y = y0; y < y1; y++) {
+      uint8_t* p = pixels + (size_t)y * rowBytes + (size_t)x0 * 4;
+      for (int x = x0; x < x1; x++, p += 4) {
+        float n = ignNoise(x, y);
+        int d = (int)((n * 2.0f - 1.0f) * kAmplitude);  // same offset for all channels
+        for (int c = 0; c < 3; c++) {
+          int v = p[c] + d;
+          if (v < 0) v = 0; else if (v > 255) v = 255;
+          p[c] = (uint8_t)v;
+        }
+        // alpha (p[3]) untouched
+      }
+    }
+  }
 }
