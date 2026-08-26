@@ -233,6 +233,10 @@ int main(int argc, char *argv[]) {
   // window, no SDL present; present (SDL UpdateWindowSurface) is not included.
   bool benchMode = false;
   int benchW = 3840, benchH = 2049, benchFrames = 5;
+  // --single <out.ppm> <elementIdx> <size>: render ONE icon (piece+glow) centred
+  // on a <size>x<size> surface, to measure piece-vs-glow alignment.
+  std::string singlePath;
+  int singleIdx = 0, singleSize = 600;
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -256,6 +260,10 @@ int main(int argc, char *argv[]) {
       }
       if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
         benchFrames = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--single" && a + 3 < argc) {
+      singlePath = argv[++a];
+      singleIdx = std::atoi(argv[++a]);
+      singleSize = std::atoi(argv[++a]);
     }
   }
 
@@ -281,6 +289,31 @@ int main(int argc, char *argv[]) {
     fclose(f);
     fprintf(stderr, "headless frame written to %s (%dx%d)\n",
             headlessPath.c_str(), headW, headH);
+    return 0;
+  }
+
+  if (!singlePath.empty()) {
+    Game g(cfg);
+#if !defined(__EMSCRIPTEN__)
+    g.view().loadChessAssets();
+#endif
+    const int S = singleSize;
+    std::vector<uint8_t> buf((size_t)S * S * 4);
+    SkImageInfo info = SkImageInfo::Make(S, S, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+    sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, buf.data(), (size_t)S * 4);
+    if (!surf)
+      return 1;
+    g.view().debugIcon(surf->getCanvas(), S, S, singleIdx, 0.9f);
+    std::string hdr = "P6\n" + std::to_string(S) + " " + std::to_string(S) + "\n255\n";
+    FILE *f = fopen(singlePath.c_str(), "wb");
+    if (!f)
+      return 1;
+    fwrite(hdr.c_str(), 1, hdr.size(), f);
+    for (int y = 0; y < S; y++)
+      for (int x = 0; x < S; x++)
+        fwrite(&buf[((size_t)y * S + x) * 4], 1, 3, f);
+    fclose(f);
+    fprintf(stderr, "single icon %d -> %s (%dx%d)\n", singleIdx, singlePath.c_str(), S, S);
     return 0;
   }
 

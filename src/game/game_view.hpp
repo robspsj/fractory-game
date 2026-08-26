@@ -48,6 +48,9 @@ public:
     ~GameView();
 
     void renderTo(SkCanvas* canvas, int winW, int winH);
+    // Debug: render a single icon (piece + glow for `icon`) centered on the given
+    // canvas, so alignment of the silhouette vs its glow can be measured directly.
+    void debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac);
     // Frame-budget internals: reset the per-frame stage timers before renderTo,
     // then read back the Framebench breakdown (glow vs SVG piece time) after.
     void resetFramebench() { _bench.reset(); }
