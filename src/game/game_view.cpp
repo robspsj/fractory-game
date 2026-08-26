@@ -171,38 +171,26 @@ void GameView::buildIcon(int icon, const float color[3]) {
 // re-rendering each piece from the vector only when its on-screen pixel size
 // changes — so items stay crisp at any zoom (no fixed-PNG upscaling).
 #if !defined(__EMSCRIPTEN__)
+// Holds the parsed chess-piece SVGDOMs. Icons are rendered from the vector
+// directly (SkSVGDOM::render) at each instance's position/scale every frame —
+// no intermediate raster cache, so every copy is drawn at its correct place
+// and on-screen size with full vector fidelity (no resizing of a bitmap).
 struct PieceLib {
+  static constexpr float kBase = 72.0f;   // matches the SVG viewBox; maps to the icon box
   std::array<sk_sp<SkSVGDOM>, GameModel::ELEMS> doms;
-  std::array<sk_sp<SkImage>, GameModel::ELEMS> raster;
-  std::array<int, GameModel::ELEMS> rasterAt = {};   // px size each was rasterized at
 
   explicit PieceLib() {
     for (int i = 0; i < (int)GameModel::ELEMS; i++) {
       const chess::Svg& sv = chess::pieces[i % (int)GameModel::ELEMS];
       SkMemoryStream stream(sv.data, sv.size, false);
       doms[i] = SkSVGDOM::MakeFromStream(stream);
+      if (doms[i])
+        doms[i]->setContainerSize(SkSize::Make(kBase, kBase));
     }
   }
 
-  // Raster of piece `idx` sized to fit `sizePx` (clamped to bound extreme-zoom
-  // cost), re-rendered from the vector when the size changes. nullptr on failure.
-  sk_sp<SkImage> rasterAtSize(int idx, int sizePx) {
-    if (idx < 0 || idx >= (int)GameModel::ELEMS || !doms[idx])
-      return nullptr;
-    constexpr int kMaxRaster = 512;   // beyond this the icon fills the screen
-    sizePx = std::min(std::max(sizePx, 1), kMaxRaster);
-    if (raster[idx] && rasterAt[idx] == sizePx)
-      return raster[idx];
-    SkImageInfo info = SkImageInfo::Make(sizePx, sizePx, kRGBA_8888_SkColorType,
-                                         kPremul_SkAlphaType);
-    sk_sp<SkSurface> surf = SkSurfaces::Raster(info);
-    if (!surf)
-      return nullptr;
-    doms[idx]->setContainerSize(SkSize::Make(sizePx, sizePx));
-    doms[idx]->render(surf->getCanvas());
-    raster[idx] = surf->makeImageSnapshot();
-    rasterAt[idx] = sizePx;
-    return raster[idx];
+  sk_sp<SkSVGDOM> dom(int idx) const {
+    return (idx >= 0 && idx < (int)GameModel::ELEMS) ? doms[idx] : nullptr;
   }
 };
 
@@ -281,14 +269,17 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   // so the image dest rect [-1,1]^2 maps to the icon's on-screen box. ---
 #if !defined(__EMSCRIPTEN__)
   const int ti = icon % GameModel::ELEMS;
-  sk_sp<SkImage> img =
-      _pieces ? _pieces->rasterAtSize(ti, (int)std::ceil(2.0 * rPx)) : nullptr;
-  if (img) {
-    _canvas->drawImageRect(
-        img, SkRect::MakeWH((float)img->width(), (float)img->height()),
-        SkRect::MakeXYWH(-1.0f, -1.0f, 2.0f, 2.0f),
-        SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
-        nullptr, SkCanvas::kFast_SrcRectConstraint);
+  sk_sp<SkSVGDOM> dom = _pieces ? _pieces->dom(ti) : nullptr;
+  if (dom) {
+    // Render this instance straight from the vector at its on-screen box. We're
+    // in unit coords under translate(px,py)*scale(rPx); map the SVG's container
+    // plane [0,kBase]^2 onto the unit box [-1,1]^2 so it lands at the correct
+    // position and pixel size every frame — no cached bitmap, no resize.
+    _canvas->save();
+    _canvas->translate(-1.0f, -1.0f);
+    _canvas->scale(2.0f / PieceLib::kBase, 2.0f / PieceLib::kBase);
+    dom->render(_canvas);
+    _canvas->restore();
   } else
 #endif
   {
