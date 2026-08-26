@@ -336,8 +336,7 @@ int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   initFont();
 
-  s_window = SDL_CreateWindow("fractory blend2d", 800, 600,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+  s_window = SDL_CreateWindow("fractory blend2d", 800, 600, SDL_WINDOW_RESIZABLE);
   if (!s_window) {
     fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
     return 1;
@@ -365,9 +364,10 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   {
-    // High-DPI diagnostic: real data is rendered to the window SURFACE at its
-    // size (wSurf->w/h), while input uses the LOGICAL window size. On a Retina/
-    // Apple-scaled display we expect surface ~= 2x logical (scale ~2.0) → crisp.
+    // Window-surface diagnostic: real data is rendered to the window SURFACE at its
+    // size (wSurf->w/h) while input uses the LOGICAL window size. High-DPI is
+    // currently DISABLED (no SDL_WINDOW_HIGH_PIXEL_DENSITY) after it threw off
+    // some coordinate math, so we expect surface == logical (scale 1.0) for now.
     int lw = 0, lh = 0, pxl = 0, pyl = 0;
     SDL_GetWindowSize(s_window, &lw, &lh);
     SDL_GetWindowSizeInPixels(s_window, &pxl, &pyl);
