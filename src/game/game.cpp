@@ -1,6 +1,7 @@
 #include "game.hpp"
 #include <algorithm>
 #include <chrono>
+#include "include/core/SkCanvas.h"
 
 // Shift modifier bit, normalized across SDL2 (KMOD_SHIFT=1) and DOM (shiftKey).
 static constexpr int SHIFT_MOD = 1;
@@ -126,12 +127,8 @@ void Game::mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW,
   _view->focusCenterCell(winW, winH);
 }
 
-void Game::render(int winW, int winH) {
-  _view->render(winW, winH);
-}
-
-void Game::renderTo(BLImage& target, int winW, int winH) {
-  _view->renderTo(target, winW, winH);
+void Game::renderTo(SkCanvas* canvas, int winW, int winH) {
+  _view->renderTo(canvas, winW, winH);
 }
 
 float Game::zoomFactor() const { return _view->zoomFactor(); }

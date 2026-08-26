@@ -2,8 +2,8 @@
 #include "config.hpp"
 #include "game_model.hpp"
 #include "game_view.hpp"
-#include <blend2d.h>
 #include <memory>
+class SkCanvas;
 
 // Platform-independent key codes (mapped from SDL2 / DOM in main).
 enum class Key {
@@ -22,12 +22,12 @@ public:
   void mouseUp(int button, int mousePx, int mousePy, int winW, int winH);
   void mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW, int winH);
   void keyDown(Key key, bool shift, int winW, int winH);
-  void render(int winW, int winH);
-  // Render into an externally-owned BLImage (e.g. SDL window surface memory).
-  void renderTo(BLImage& target, int winW, int winH);
+  // Render into the given canvas (which wraps either the SDL window surface on
+  // native or a CPU RGBA buffer on web). The canvas matrix is left set to
+  // NDC->pixel; callers reset it before drawing overlays in pixel space.
+  void renderTo(SkCanvas* canvas, int winW, int winH);
   // Advance model logic. Returns whether a model tick ran.
   bool step(int elapsedMs);
-  const BLImage& image() const { return _view->image(); }
   GameView& view() { return *_view; }
   float zoomFactor() const;
   int lastCellDrawCount() const;

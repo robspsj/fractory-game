@@ -1,6 +1,9 @@
 #include "font.hpp"
 #include <algorithm>
 #include <cstring>
+#include "include/core/SkCanvas.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRect.h"
 
 #define FONT_W 8
 #define FONT_H 8
@@ -105,34 +108,9 @@ static const unsigned char fontBits[NUM_GLYPH * FONT_H] = {
     0x00, 0x60, 0x7B, 0x0C, 0x00, 0x00, 0x00, 0x00, // 126 '~'
 };
 
-// Function-local static so the BLImage is constructed after bl_runtime_init().
-static BLImage &fontAtlas() {
-  static BLImage s_atlas;
-  return s_atlas;
-}
-static bool s_atlasReady = false;
-
 void initFont() {
-  if (s_atlasReady)
-    return;
-  BLImage &s_atlas = fontAtlas();
-  s_atlas.create(NUM_GLYPH * FONT_W, FONT_H, BL_FORMAT_PRGB32);
-  BLContext ctx(s_atlas);
-  ctx.setCompOp(BL_COMP_OP_SRC_COPY);
-  ctx.setFillStyle(BLRgba32(0x00000000)); // transparent background
-  ctx.fillAll();
-  ctx.setFillStyle(BLRgba32(0xFFFFFFFF));
-  for (int g = 0; g < NUM_GLYPH; g++) {
-    for (int r = 0; r < FONT_H; r++) {
-      unsigned char bits = fontBits[g * FONT_H + r];
-      for (int c = 0; c < FONT_W; c++) {
-        if (bits & (0x80 >> c))
-          ctx.fillRect(BLRect(g * FONT_W + c, r, 1, 1)); // note y-down; bit row 0 = top
-      }
-    }
-  }
-  ctx.end();
-  s_atlasReady = true;
+  // 8x8 bitmap glyphs are drawn directly from fontBits on demand (no atlas
+  // rasterization needed). Nothing to precompute.
 }
 
 float textWidth(const char *text, float scale) {
@@ -140,17 +118,19 @@ float textWidth(const char *text, float scale) {
   return len * FONT_W * scale;
 }
 
-void drawText(BLContext &ctx, float x, float y, const char *text, float scale) {
+void drawText(SkCanvas* canvas, float x, float y, const char *text, float scale) {
+  if (!canvas)
+    return;
   int len = (int)strlen(text);
   if (len > 64)
     len = 64;
 
   float charW = FONT_W * scale;
   float charH = FONT_H * scale;
-  // Draw glyphs directly from the 8x8 bitmaps as filled rects (white). This
-  // avoids blitImage, which classic v0.0.18 silently no-ops under
-  // BLEND2D_NO_JIT. Coordinates are pixel space (caller's context is unscaled).
-  ctx.setFillStyle(BLRgba32(0xFFFFFFFF));
+
+  SkPaint paint;
+  paint.setAntiAlias(false);  // crisp 1:1 text pixels
+  paint.setColor(SK_ColorWHITE);
   for (int i = 0; i < len; i++) {
     int g = text[i] - 32;
     if (g < 0 || g >= NUM_GLYPH)
@@ -162,7 +142,7 @@ void drawText(BLContext &ctx, float x, float y, const char *text, float scale) {
         continue;
       for (int c = 0; c < FONT_W; c++) {
         if (bits & (0x80 >> c))
-          ctx.fillRect(BLRect(gx + (float)c * scale, y + (float)r * scale, scale, scale));
+          canvas->drawRect(SkRect::MakeXYWH(gx + (float)c * scale, y + (float)r * scale, scale, scale), paint);
       }
     }
   }

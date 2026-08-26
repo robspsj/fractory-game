@@ -1,11 +1,19 @@
 #pragma once
 #include "config.hpp"
 #include "game_model.hpp"
-#include <blend2d.h>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
+
+// Skia headers pulled into the header: SkPaint + SkPath are needed as value
+// members. We forward-declare SkCanvas (we only ever hold a pointer to it) so
+// the heavy SkCanvas.h stays out of this header, keeping TU parse times down
+// for fast incremental builds.
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+class SkCanvas;
 
 struct Rect {
     float ox, oy, w, h;
@@ -25,21 +33,14 @@ struct Rect {
 class GameView {
 public:
     GameView(GameModel& model, const Config& cfg);
-    ~GameView();
+    ~GameView() = default;
 
-    void render(int winW, int winH);
-    // Render into an externally-owned BLImage (e.g. one that wraps the SDL
-    // window surface's pixel buffer), letting Blend2D rasterize straight to the
-    // screen with no texture upload / quad.
-    void renderTo(BLImage& target, int winW, int winH);
-    const BLImage& image() const { return _image; }
+    void renderTo(SkCanvas* canvas, int winW, int winH);
     int lastVertexCount() const { return _lastVertexCount; }
     int anchorDepth() const { return _anchorDepth; }
     float lastGenMs() const { return _lastGenMs; }
     float lastDrawMs() const { return _lastDrawMs; }
-    // Total heap owned by the view: SVG byte buffers + rasterized icon caches
-    // + the offscreen render target. Measured via getData() so it reflects the
-    // real Blend2D pixel allocations, not just the vector's own storage.
+    // Small for Skia: cached icon paths/paints + the GL surface (GPU path).
     std::size_t allocatedBytes() const;
 
     void setDragWorldPos(float worldX, float worldY) { _dragWX = worldX; _dragWY = worldY; }
@@ -49,13 +50,6 @@ public:
     void zoom(float factor, float mouseNX, float mouseNY);
     float zoomFactor() const { return _zoom; }
     const float* panPtr() const { return &_panX; }
-
-    // Load optional per-element SVG icon assets from `dir`. Names expected:
-    // element0.svg..element4.svg (matching itemId). When an element has a loaded
-    // SVG, drawIcon renders it (scaled to fit) instead of the vector symbol.
-    void loadSvgAssets(const std::string& dir);
-    bool svgLoaded(int itemId) const;
-    const BLImage* svgFor(int itemId) const;
 
     bool isPanning() const { return _isPanning; }
     void startPan(int pixelX, int pixelY);
@@ -86,8 +80,6 @@ private:
     // radial-gradient fill + soft glow, showcasing the rasterizer. cx/cy in NDC.
     void drawIcon(float cx, float cy, int icon, const float color[3],
                   float halfW, float halfH);
-    // Manually composite any recorded SVG icons onto the frame (SVG render).
-    void compositeSvgIcons(BLImage& img);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
     void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
@@ -96,16 +88,29 @@ private:
     void renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild = -1);
     static uint32_t rgba(const float color[3], float alpha);
 
+    // Cached per-element icon style. Shapes+shaders live in UNIT space centred
+    // on the origin with radius ~1; drawIcon places them with a translate+scale
+    // so we construct each symbol's path/gradient exactly once (not per frame).
+    struct IconStyle {
+        SkPath symbol;    // unit-space symbol shape (filled)
+        SkPaint symPaint; // radial-gradient fill (unit radius)
+        SkPaint glowPaint; // radial-gradient glow disc (unit radius 2.2)
+        SkPath stem;      // apple stem (empty for other icons)
+        SkPaint stemPaint; // stroke
+    };
+    std::array<IconStyle, GameModel::ELEMS> _icons;
+    void buildIcon(int icon, const float color[3]);
+
     GameModel& _model;
 
-    BLContext* _ctx = nullptr;
+    SkCanvas* _canvas = nullptr;
+    SkPaint _quadPaint;   // scratch fill for the fast rect path
+    int _targetW = 0, _targetH = 0;
 
     bool _showAnchor = false;
     uint64_t _dragAnimStartMs = 0;
     bool _dragWasActive = false;
     static constexpr double _dragAnimDuration = 0.15;
-
-    BLImage _image;
 
     float _zoom = 1.0f;
     float _panX = 0.0f, _panY = 0.0f;
@@ -127,19 +132,6 @@ private:
     int _anchorSize = 0;
     int _anchorDepth = 0;
     int _hoverRow = -1, _hoverCol = -1;
-
-    // Optional per-element SVG icon assets (rendered instead of vector symbols).
-    // We keep the raw SVG bytes and re-rasterize the vector at the icon's
-    // current on-screen pixel size, so the icon stays crisp at any zoom.
-    std::vector<std::vector<uint8_t>> _svgBytes;   // raw SVG per element
-    std::vector<BLImage> _svgAssets;               // last rasterization per element (cache keyed by size below)
-    std::vector<int> _svgRasterW, _svgRasterH;     // pixel size of _svgAssets[i]
-    // (re)rasterize _svgBytes[i] into _svgAssets[i] at size w x h if changed.
-    void rasterizeSvgAt(int i, int w, int h);
-    bool _svgValid[GameModel::ELEMS] = {};
-    // Deferred SVG icon draws (pixel-space dest rects), composited after ctx.end().
-    struct SvgDraw { double x, y, w, h; int itemId; };
-    std::vector<SvgDraw> _svgDraws;
 
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];

@@ -2,12 +2,14 @@
 #include "game/config.hpp"
 #include "game/game.hpp"
 #include <SDL2/SDL.h>
-#include <blend2d.h>
 #include <cstdio>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
+#include "include/core/SkCanvas.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkSurface.h"
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
@@ -23,9 +25,9 @@ static float s_fps = 0.0f;
 
 // Frame-time breakdown (ms), smoothed via EMA for stable HUD numbers.
 static float s_msFrame = 0.0f;   // full measured frame (render->present)
-static float s_msRender = 0.0f;  // Blend2D render + HUD
-static float s_msCopy = 0.0f;    // pixel swizzle copy
-static float s_msPresent = 0.0f; // texture upload + present (+vsync wait)
+static float s_msRender = 0.0f;  // Skia render + HUD
+static float s_msCopy = 0.0f;    // surface binding / buffer wrap
+static float s_msPresent = 0.0f; // present (SDL surface blit / canvas putImageData)
 static uint64_t s_perfFreq = 0;
 static bool s_vsyncOn = false;
 
@@ -39,7 +41,8 @@ static double perfMs(uint64_t a, uint64_t b) {
   return (double)(b - a) / (double)s_perfFreq * 1000.0;
 }
 
-// Uniform RGBA8888 byte buffer shared by native upload and web putImageData.
+// Web RGBA8888 backing buffer (presented via canvas putImageData). Native draws
+// straight into the SDL window surface, so this is only used by the web build.
 static std::vector<uint8_t> s_rgba;
 static int s_rgbaW = 0, s_rgbaH = 0;
 
@@ -53,12 +56,12 @@ static void updateFps() {
   }
 }
 
-// Overlay the HUD onto the given image by re-opening a context on it.
-static void drawHud(BLImage &img) {
+// Overlay the HUD. The caller's canvas carries the game's NDC matrix; we reset
+// to an identity (pixel) matrix before drawing the monospace 8x8 font.
+static void drawHud(SkCanvas *canvas) {
   updateFps();
+  canvas->resetMatrix();
   int disp = (int)(s_fps + 0.5f);
-  BLContext ctx(img);
-  ctx.setCompOp(BL_COMP_OP_SRC_OVER);
   char t[11][72];
   snprintf(t[0],  72, "FPS: %d  %c", disp, s_vsyncOn ? 'V' : 'v');
   snprintf(t[1],  72, "Frame: %.2fms", (double)s_msFrame);
@@ -67,7 +70,7 @@ static void drawHud(BLImage &img) {
   snprintf(t[4],  72, "  Present:%.2fms", (double)s_msPresent);
   snprintf(t[5],  72, "Cells: %d  Depth: %d", s_game->lastCellDrawCount(), s_game->anchorDepth());
   snprintf(t[6],  72, "Zoom: x%.2f", (double)s_game->zoomFactor());
-  snprintf(t[7],  72, "res: %dx%d", (int)img.width(), (int)img.height());
+  snprintf(t[7],  72, "res: %dx%d", winW, winH);
   snprintf(t[8],  72, "v%s", FRACTORY_VERSION);
   {
     std::size_t mem = s_game->allocatedMemory();
@@ -77,40 +80,9 @@ static void drawHud(BLImage &img) {
     while (v >= 1024.0 && u < 3) { v /= 1024.0; u++; }
     snprintf(t[9], 72, "Mem: %.2f %s", v, units[u]);
   }
+  t[10][0] = '\0';
   for (int i = 0; i < 10; i++)
-    drawText(ctx, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
-  ctx.end();
-}
-
-// Copy a Blend2D PRGB32 image (B,G,R,A bytes on LE, native endian) into a packed
-// RGBA8888 buffer (R,G,B,A) suitable for SDL textures and canvas ImageData.
-static void copyImageToRGBA() {
-  const BLImage &img = s_game->image();
-  BLImageData data;
-  if (img.getData(&data) != BL_SUCCESS)
-    return;
-  int w = data.size.w, h = data.size.h;
-  if (w != s_rgbaW || h != s_rgbaH) {
-    s_rgbaW = w;
-    s_rgbaH = h;
-    s_rgba.resize((size_t)w * h * 4);
-  }
-  const uint8_t *src = (const uint8_t *)data.pixelData;
-  const size_t srcStride = (size_t)data.stride;
-  uint8_t *dst = s_rgba.data();
-  for (int y = 0; y < h; y++) {
-    const uint8_t *row = src + y * srcStride;
-    uint8_t *out = dst + (size_t)y * w * 4;
-    for (int x = 0; x < w; x++) {
-      uint8_t b = row[x * 4 + 0];
-      uint8_t g = row[x * 4 + 1];
-      uint8_t r = row[x * 4 + 2];
-      out[x * 4 + 0] = r;
-      out[x * 4 + 1] = g;
-      out[x * 4 + 2] = b;
-      out[x * 4 + 3] = 0xFF;
-    }
-  }
+    drawText(canvas, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
 }
 
 #if defined(__EMSCRIPTEN__)
@@ -130,6 +102,10 @@ static void frame() {
   if (w > 0 && h > 0 && (w != winW || h != winH)) {
     winW = w; winH = h;
     emscripten_set_canvas_element_size("#canvas", winW, winH);
+    if (w != s_rgbaW || h != s_rgbaH) {
+      s_rgbaW = w; s_rgbaH = h;
+      s_rgba.resize((size_t)w * h * 4);
+    }
   }
 
   SDL_Event e;
@@ -158,14 +134,26 @@ static void frame() {
   s_game->step((int)(now - s_lastFrameMs));
   s_lastFrameMs = now;
 
-  s_game->render(winW, winH);
-  drawHud(const_cast<BLImage &>(s_game->image()));
-  copyImageToRGBA();
+  uint64_t f0 = perfNow();
+  SkImageInfo info = SkImageInfo::Make(s_rgbaW, s_rgbaH, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, s_rgba.data(), (size_t)s_rgbaW * 4);
+  if (!surf)
+    return;
+  uint64_t f1 = perfNow();
+  SkCanvas *canvas = surf->getCanvas();
+  s_game->renderTo(canvas, s_rgbaW, s_rgbaH);
+  drawHud(canvas);
+  uint64_t f2 = perfNow();
   jsPresent(s_rgbaW, s_rgbaH, s_rgba.data());
+  uint64_t f3 = perfNow();
+
+  s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
+  s_msCopy    = ema(s_msCopy,    (float)perfMs(f0, f1));
+  s_msRender  = ema(s_msRender,  (float)perfMs(f1, f2));
+  s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
 }
 
 int main() {
-  blRuntimeInit();
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   initFont();
 
@@ -178,6 +166,8 @@ int main() {
   int w, h;
   SDL_GetWindowSize(s_window, &w, &h);
   winW = w; winH = h;
+  s_rgbaW = w; s_rgbaH = h;
+  s_rgba.resize((size_t)w * h * 4);
   emscripten_set_canvas_element_size("#canvas", winW, winH);
 
   EM_ASM({
@@ -185,6 +175,7 @@ int main() {
   });
 
   s_game = std::make_unique<Game>(Config{});
+  s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();
   s_lastFpsTime = s_lastFrameMs;
 
@@ -218,9 +209,11 @@ static bool loadWindowState(int &x, int &y, int &w, int &h) {
 
 int main(int argc, char *argv[]) {
   Config cfg;
-  // SVG icons load from assets/ by default; --no-svg disables. VSync is off by
-  // default (unlocked FPS); --vsync re-enables it.
-  std::string svgDir = "assets";
+  // VSync is off by default (unlocked FPS); --vsync re-enables it.
+  // --headless <out.ppm> [W H] renders one frame offscreen for deterministic
+  // pixel verification (no window, no SDL), writing a PPM (no codec needed).
+  std::string headlessPath;
+  int headW = 800, headH = 600;
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -228,11 +221,36 @@ int main(int argc, char *argv[]) {
         cfg.initialGridSize = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--vsync") {
       cfg.vsync = true;
-    } else if (std::string(argv[a]) == "--svg" && a + 1 < argc) {
-      svgDir = argv[++a];
-    } else if (std::string(argv[a]) == "--no-svg") {
-      svgDir.clear();
+    } else if (std::string(argv[a]) == "--headless" && a + 1 < argc) {
+      headlessPath = argv[++a];
+      if (a + 2 < argc &&
+          std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos &&
+          std::string(argv[a + 2]).find_first_not_of("0123456789") == std::string::npos) {
+        headW = std::atoi(argv[a + 1]); headH = std::atoi(argv[a + 2]); a += 2;
+      }
     }
+  }
+
+  if (!headlessPath.empty()) {
+    Game g(cfg);
+    std::vector<uint8_t> buf((size_t)headW * headH * 4);
+    SkImageInfo info = SkImageInfo::Make(headW, headH, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+    sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, buf.data(), (size_t)headW * 4);
+    if (!surf)
+      return 1;
+    g.renderTo(surf->getCanvas(), headW, headH);
+    std::string hdr = "P6\n" + std::to_string(headW) + " " + std::to_string(headH) + "\n255\n";
+    FILE *f = fopen(headlessPath.c_str(), "wb");
+    if (!f)
+      return 1;
+    fwrite(hdr.c_str(), 1, hdr.size(), f);
+    for (int y = 0; y < headH; y++)
+      for (int x = 0; x < headW; x++)
+        fwrite(&buf[((size_t)y * headW + x) * 4], 1, 3, f); // RGBA -> RGB
+    fclose(f);
+    fprintf(stderr, "headless frame written to %s (%dx%d)\n",
+            headlessPath.c_str(), headW, headH);
+    return 0;
   }
 
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
@@ -253,19 +271,15 @@ int main(int argc, char *argv[]) {
   SDL_GetWindowSize(s_window, &ww, &wh);
   winW = ww; winH = wh;
 
-  // Direct-to-screen present: we draw Blend2D straight into the window's
-  // backing surface (no GPU texture / fullscreen quad). VSync is a no-op here
-  // (no renderer present); kept only to reflect the flag in the HUD.
+  // Direct-to-screen present: Skia rasterizes straight into the window's
+  // backing surface (RasterDirect — no GPU texture / fullscreen quad). VSync
+  // is a no-op here (no renderer present); kept only to reflect the flag.
   s_vsyncOn = cfg.vsync;
   SDL_Surface *wSurface = SDL_GetWindowSurface(s_window);
   if (!wSurface) {
     fprintf(stderr, "SDL_GetWindowSurface failed: %s\n", SDL_GetError());
     return 1;
   }
-  BLImage surfaceImg;  // wraps wSurface->pixels each frame after locking
-  int surfW = 0, surfH = 0;
-  // We require a 32-bpp surface so Blend2D's XRGB32 (B,G,R on LE) maps 1:1 onto
-  // its ARGB8888 [B,G,R,A] memory layout. macOS always provides ARGB8888.
   if (wSurface->format->BytesPerPixel != 4) {
     fprintf(stderr, "Unsupported window surface pixel depth: %d bpp\n",
             wSurface->format->BytesPerPixel);
@@ -273,8 +287,6 @@ int main(int argc, char *argv[]) {
   }
 
   s_game = std::make_unique<Game>(cfg);
-  if (!svgDir.empty())
-    s_game->view().loadSvgAssets(svgDir);
   s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();
   s_lastFpsTime = s_lastFrameMs;
@@ -316,35 +328,33 @@ int main(int argc, char *argv[]) {
 
     uint64_t f0 = perfNow();
 
-    // (Re)lock the window surface, wrap its pixel buffer as a Blend2D image,
-    // and rasterize the game + HUD directly into it. No texture, no quad.
     if (SDL_MUSTLOCK(wSurface))
       SDL_LockSurface(wSurface);
-    // Re-wrap whenever the surface dimensions changed (e.g. after a resize).
-    if (surfW != wSurface->w || surfH != wSurface->h || surfaceImg.empty()) {
-      // XRGB32 (B,G,R on LE) matches the surface's ARGB8888 layout for opaque
-      // content.
-      surfaceImg.createFromData(wSurface->w, wSurface->h, BL_FORMAT_XRGB32,
-                                wSurface->pixels, wSurface->pitch);
-      surfW = wSurface->w; surfH = wSurface->h;
+    // Wrap the window surface pixel buffer directly as an SkSurface and
+    // rasterize the game + HUD into it. No texture, no quad, no copy.
+    SkImageInfo info = SkImageInfo::Make(wSurface->w, wSurface->h,
+                                         kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, wSurface->pixels, (size_t)wSurface->pitch);
+    uint64_t f1 = surf ? perfNow() : f0;
+    if (surf) {
+      SkCanvas *canvas = surf->getCanvas();
+      s_game->renderTo(canvas, wSurface->w, wSurface->h);
+      drawHud(canvas);
     }
-    s_game->renderTo(surfaceImg, surfW, surfH);
-    drawHud(surfaceImg);
     if (SDL_MUSTLOCK(wSurface))
       SDL_UnlockSurface(wSurface);
-    uint64_t f1 = perfNow();
+    uint64_t f2 = perfNow();
 
     SDL_UpdateWindowSurface(s_window);   // blit our surface to the real window
     uint64_t f3 = perfNow();
 
     s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
-    s_msRender  = ema(s_msRender,  (float)perfMs(f0, f1));
-    s_msCopy    = s_msRender;
-    s_msPresent = ema(s_msPresent, (float)perfMs(f1, f3));
+    s_msCopy    = ema(s_msCopy,    (float)perfMs(f0, f1));
+    s_msRender  = ema(s_msRender,  (float)perfMs(f1, f2));
+    s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
   }
 
   saveWindowState();
-  // surfaceImg wraps wSurface->pixels; no explicit free needed.
   SDL_DestroyWindow(s_window);
   SDL_Quit();
   return 0;

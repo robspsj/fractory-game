@@ -1,10 +1,15 @@
 #include "game_view.hpp"
 #include "config.hpp"
-#include "svg_assets.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include "include/core/SkCanvas.h"
+#include "include/core/SkM44.h"
+#include "include/core/SkPathBuilder.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkSpan.h"
+#include "include/effects/SkGradient.h"
 
 static constexpr int MAX_PREVIEW_DEPTH = 100;
 
@@ -36,9 +41,18 @@ GameView::GameView(GameModel &model, const Config &cfg)
   _anchorDepth = 0;
   for (int i = _anchorIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId)
     _anchorDepth++;
+  // Pre-cache the vector-symbol styles (paths + radial gradients) once, so per
+  // frame we only place them via canvas transforms.
+  for (int i = 0; i < GameModel::ELEMS; i++)
+    buildIcon(i, _elemColors[i]);
 }
 
-GameView::~GameView() = default;
+// Blend a color toward white by t in [0,1], clamped so it never hits pure
+// 255 for any channel (avoids white flashes when an icon rasterizes to 1-2px).
+static void lighten(const float in[3], float t, float out[3]) {
+  for (int i = 0; i < 3; i++)
+    out[i] = std::min(in[i] + (1.0f - in[i]) * t, 0.93f);
+}
 
 uint32_t GameView::rgba(const float color[3], float alpha) {
   int r = (int)(color[0] * 255.0f + 0.5f);
@@ -49,265 +63,150 @@ uint32_t GameView::rgba(const float color[3], float alpha) {
   return (uint32_t)((a << 24) | (r << 16) | (g << 8) | b);
 }
 
+// Build the cached icon style for element `icon` (0..ELEMS-1). Shapes and
+// gradients are defined in UNIT space centred on the origin with radius ~1,
+// then placed at any on-screen radius/position via canvas translate+scale.
+void GameView::buildIcon(int icon, const float color[3]) {
+  IconStyle &st = _icons[icon];
+  st.glowPaint.setAntiAlias(true);
+  st.symPaint.setAntiAlias(true);
+  st.stemPaint.setAntiAlias(true);
+  st.stemPaint.setStyle(SkPaint::kStroke_Style);
+  // apple stem colour (ARGB). 0x73,0x4D,0x1F = {0.45,0.30,0.12}
+  st.stemPaint.setColor(0xFF734D1F);
+  st.stemPaint.setStrokeWidth(0.22f);  // unit width (scaled by radius at draw)
+
+  // --- soft glow disc: radial gradient fading out to radius 2.2 (unit) ---
+  auto makeRadial = [](SkPoint c, float r, const SkColor4f cols[3],
+                       const float pos[3], SkPaint& paint) {
+    SkGradient::Colors gc =
+        SkGradient::Colors(SkSpan<const SkColor4f>(cols, 3), SkSpan<const float>(pos, 3),
+                           SkTileMode::kClamp);
+    SkGradient grad(gc, SkGradient::Interpolation{});
+    paint.setShader(SkShaders::RadialGradient(c, r, grad, nullptr));
+  };
+  {
+    SkColor4f gcol[3] = {
+        {color[0], color[1], color[2], 0.35f},
+        {color[0], color[1], color[2], 0.08f},
+        {color[0], color[1], color[2], 0.00f},
+    };
+    float gpos[3] = {0.0f, 0.6f, 1.0f};
+    makeRadial(SkPoint::Make(0.0f, 0.0f), 2.2f, gcol, gpos, st.glowPaint);
+  }
+
+  // --- symbol shape (unit coords), built via SkPathBuilder then detached ---
+  SkPathBuilder sym;
+  switch (icon) {
+  case 1: { // Heart (point down)
+    sym.moveTo(0.0f, 1.0f);
+    sym.cubicTo(-1.8f, 0.1f, -1.4f, -0.9f, 0.0f, -0.35f);
+    sym.cubicTo(1.4f, -0.9f, 1.8f, 0.1f, 0.0f, 1.0f);
+    break;
+  }
+  case 2: { // Star (5-point)
+    const int spikes = 5;
+    const double outer = 1.0, inner = 0.45;
+    for (int i = 0; i < spikes * 2; i++) {
+      double ang = i * 3.14159265358979 / spikes - 1.57079632679489;
+      double rad = (i % 2 == 0) ? outer : inner;
+      double sx = std::cos(ang) * rad, sy = std::sin(ang) * rad;
+      if (i == 0) sym.moveTo((float)sx, (float)sy); else sym.lineTo((float)sx, (float)sy);
+    }
+    sym.close();
+    break;
+  }
+  case 3: { // Apple: rounded body + brown-ish stem stub
+    sym.addCircle(0.0f, 0.1f, 0.82f);
+    sym.close();
+    SkPathBuilder stem;
+    stem.moveTo(0.0f, -0.65f);
+    stem.lineTo(0.2f, -0.9f);
+    st.stem = stem.detach();
+    break;
+  }
+  case 4: { // Triangle (equilateral, up)
+    sym.moveTo(0.0f, -1.0f);
+    sym.lineTo(-1.1f, 0.9f);
+    sym.lineTo(1.1f, 0.9f);
+    sym.close();
+    break;
+  }
+  default: { // Diamond
+    sym.moveTo(0.0f, -1.0f);
+    sym.lineTo(1.0f, 0.0f);
+    sym.lineTo(0.0f, 1.0f);
+    sym.lineTo(-1.0f, 0.0f);
+    sym.close();
+    break;
+  }
+  }
+  st.symbol = sym.detach();
+
+  // --- symbol fill: radial highlight (bright core -> element color) ---
+  {
+    float core[3];
+    lighten(color, 0.55f, core);  // never pure white => no flash on tiny icons
+    SkColor4f scol[3] = {
+        {core[0], core[1], core[2], 0.95f},
+        {color[0], color[1], color[2], 1.00f},
+        {color[0], color[1], color[2], 0.85f},
+    };
+    // gradient centred slightly above the symbol for a polished highlight
+    float spos[3] = {0.0f, 0.45f, 1.0f};
+    makeRadial(SkPoint::Make(0.0f, -0.35f), 1.0f, scol, spos, st.symPaint);
+  }
+}
+
 void GameView::addQuad(Rect const r, const float color[3], float alpha) {
   if (r.outsideClip())
     return;
   if (r.w < 0.002f || r.h < 0.002f)
     return;
-  if (!_ctx)
+  if (!_canvas)
     return;
   _lastVertexCount++;
   // rect is in NDC; the context transform maps it to pixels (y-up -> y-down).
-  _ctx->setFillStyle(BLRgba32(rgba(color, alpha)));
-  _ctx->fillRect(BLRect(r.ox, r.oy, r.w, r.h));
-}
-
-// Blend a color toward white by t in [0,1], clamped so it never hits pure
-// 255 for any channel (avoids white flashes when an icon rasterizes to 1-2px).
-static void lighten(const float in[3], float t, float out[3]) {
-  for (int i = 0; i < 3; i++)
-    out[i] = std::min(in[i] + (1.0f - in[i]) * t, 0.93f);
-}
-
-void GameView::loadSvgAssets(const std::string& dir) {
-  _svgBytes.clear();
-  _svgBytes.resize(GameModel::ELEMS);
-  _svgAssets.clear();
-  _svgAssets.resize(GameModel::ELEMS);
-  _svgRasterW.assign(GameModel::ELEMS, 0);
-  _svgRasterH.assign(GameModel::ELEMS, 0);
-  for (int i = 0; i < GameModel::ELEMS; i++) {
-    _svgValid[i] = false;
-    // Read the raw SVG file bytes into memory (re-rasterized per size later).
-    std::string path = dir + "/element" + std::to_string(i) + ".svg";
-    FILE* f = fopen(path.c_str(), "rb");
-    if (!f)
-      continue;
-    fseek(f, 0, SEEK_END);
-    long n = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (n > 0) {
-      _svgBytes[i].resize((size_t)n);
-      if (fread(_svgBytes[i].data(), 1, (size_t)n, f) == (size_t)n)
-        _svgValid[i] = true;
-    }
-    fclose(f);
-  }
-}
-
-void GameView::rasterizeSvgAt(int i, int w, int h) {
-  if (!_svgValid[i] || w < 1 || h < 1)
-    return;
-  // Cap the raster size. The software radial-gradient fill in svgLoadFromBytesAtSize
-  // is O(area), so an unbounded icon size at extreme zoom would cost seconds per
-  // frame (35,000+ px). At extreme zoom the icon is a tiny fraction of the
-  // viewport anyway, so clamping to a sensible max keeps it visually identical
-  // while bounding the cost to well under 1ms.
-  constexpr int MAX_ICON_RASTER = 512;
-  w = std::min(w, MAX_ICON_RASTER);
-  h = std::min(h, MAX_ICON_RASTER);
-  if (w == _svgRasterW[i] && h == _svgRasterH[i] && !_svgAssets[i].empty())
-    return; // cache hit
-  if (svgLoadFromBytesAtSize(_svgBytes[i].data(), _svgBytes[i].size(), w, h, _svgAssets[i])) {
-    _svgRasterW[i] = w;
-    _svgRasterH[i] = h;
-  }
-}
-
-bool GameView::svgLoaded(int itemId) const {
-  return itemId >= 0 && itemId < GameModel::ELEMS && _svgValid[itemId];
-}
-const BLImage* GameView::svgFor(int itemId) const {
-  return svgLoaded(itemId) ? &_svgAssets[itemId] : nullptr;
-}
-
-std::size_t GameView::allocatedBytes() const {
-  std::size_t bytes = 0;
-  // Raw SVG bytes kept for re-rasterization.
-  for (const auto& v : _svgBytes)
-    bytes += v.capacity();
-  // Rasterized icon caches: each BLImage owns its pixel buffer through
-  // Blend2D's allocator, so measure it via getData() (stride * height).
-  for (const auto& img : _svgAssets) {
-    BLImageData d;
-    if (img.getData(&d) == BL_SUCCESS && d.pixelData)
-      bytes += (size_t)d.stride * (size_t)d.size.h;
-  }
-  // Offscreen render target (web / headless path; empty in native direct-to-screen).
-  BLImageData d;
-  if (_image.getData(&d) == BL_SUCCESS && d.pixelData)
-    bytes += (size_t)d.stride * (size_t)d.size.h;
-  return bytes;
-}
-
-// Manually alpha-composite the recorded SVG icons onto the frame. Classic
-// v0.0.18's blitImage is a no-op under BLEND2D_NO_JIT, so we blend pixels
-// ourselves: dst = src + dst*(1-srcA), with src premultiplied (PRGB32) and the
-// frame opaque (XRGB32). This is format- and platform-portable.
-void GameView::compositeSvgIcons(BLImage& img) {
-  if (_svgDraws.empty())
-    return;
-  BLImageData ddst;
-  if (img.getData(&ddst) != BL_SUCCESS || !ddst.pixelData)
-    return;
-  const int W = ddst.size.w, H = ddst.size.h;
-  uint8_t* dst = (uint8_t*)ddst.pixelData;
-  const size_t dstStride = (size_t)ddst.stride;
-
-  for (const SvgDraw& d : _svgDraws) {
-    if (!svgLoaded(d.itemId))
-      continue;
-    // Rasterize the SVG vector at exactly the icon's on-screen pixel size so
-    // icons stay crisp while zooming (no bitmap upscaling).
-    int rw = (int)std::ceil(d.w);
-    int rh = (int)std::ceil(d.h);
-    rasterizeSvgAt(d.itemId, rw, rh);
-    BLImage& srcImg = _svgAssets[d.itemId];
-    if (srcImg.empty())
-      continue;
-    BLImageData dsrc;
-    if (srcImg.getData(&dsrc) != BL_SUCCESS || !dsrc.pixelData)
-      continue;
-    const int sw = dsrc.size.w, sh = dsrc.size.h;
-    if (sw <= 0 || sh <= 0)
-      continue;
-    const uint8_t* src = (const uint8_t*)dsrc.pixelData;
-    const size_t srcStride = (size_t)dsrc.stride;
-
-    // Destination rect (pixel coords); clamp to frame and iterate its range.
-    int x0 = (int)std::floor(d.x),        y0 = (int)std::floor(d.y);
-    int x1 = (int)std::ceil(d.x + d.w),   y1 = (int)std::ceil(d.y + d.h);
-    if (x1 <= x0 || y1 <= y0)
-      continue;
-    for (int dy = std::max(0, y0); dy < std::min(H, y1); dy++) {
-      int syI = (int)(((double)(dy - y0) + 0.5) / d.h * sh);
-      if (syI < 0 || syI >= sh)
-        continue;
-      const uint8_t* srow = src + (size_t)syI * srcStride;
-      uint8_t* drow = dst + (size_t)dy * dstStride;
-      for (int dx = std::max(0, x0); dx < std::min(W, x1); dx++) {
-        int sxI = (int)(((double)(dx - x0) + 0.5) / d.w * sw);
-        if (sxI < 0 || sxI >= sw)
-          continue;
-        const uint8_t* sp = srow + (size_t)sxI * 4;
-        uint8_t* dp = drow + (size_t)dx * 4;
-        uint32_t sa = sp[3];
-        if (sa == 0)
-          continue;
-        // premultiplied src-over over opaque dst
-        uint32_t inv = 255 - sa;
-        dp[0] = (uint8_t)((sp[0] * 255u + dp[0] * inv) / 255u); // B
-        dp[1] = (uint8_t)((sp[1] * 255u + dp[1] * inv) / 255u); // G
-        dp[2] = (uint8_t)((sp[2] * 255u + dp[2] * inv) / 255u); // R
-      }
-    }
-  }
+  _quadPaint.setColor(rgba(color, alpha));
+  _quadPaint.setAntiAlias(true);
+  _canvas->drawRect(SkRect::MakeXYWH(r.ox, r.oy, r.w, r.h), _quadPaint);
 }
 
 // Draw a vector symbol filled with a radial gradient, plus a soft glow disc
-// behind it. Drawn in PIXEL space (transform reset) so the gradient is a true
+// behind it. Drawn in PIXEL space (matrix reset) so the gradient is a true
 // circle in screen space — a NDC-space gradient would become an ellipse
 // (x scaled by w/2, y by h/2), warping with window size. cx/cy/halfW/halfH in NDC.
 void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
                         float halfW, float halfH) {
-  if (!_ctx)
+  (void)color;  // colour is baked into the cached style per element
+  if (!_canvas)
     return;
   // NDC -> pixel. targetWidth/Height are the image pixel size.
-  const double W = _ctx->targetWidth();
-  const double H = _ctx->targetHeight();
+  const double W = _targetW;
+  const double H = _targetH;
   const double px = (cx + 1.0) * 0.5 * W;   // x
   const double py = (1.0 - cy) * 0.5 * H;   // y (NDC y-up -> pixel y-down)
-  // Pixel radius: keep it circular in screen space. halfW NDC spans W/2 px/unit.
-  // halfH spans H/2 px/unit; for a square-ish icon choose min so it fits.
+  // Pixel radius: keep it circular in screen space.
   const double rPx = std::min(halfW * W * 0.5, halfH * H * 0.5);
   if (rPx <= 0.1)
     return;
   _lastVertexCount++;
 
-  // If the element has a rasterized SVG asset, record it for the manual
-  // composite pass (blitImage is broken under classic v0.0.18 BLEND2D_NO_JIT).
-  if (svgLoaded(icon)) {
-    _svgDraws.push_back({px - rPx, py - rPx, rPx * 2.0, rPx * 2.0, icon});
-    _lastVertexCount--;
-    return;
-  }
-
-  // Work in pixel space so radial gradients are true circles.
-  _ctx->save();
-  _ctx->resetMatrix();
-
-  // --- Glow halo: big radial gradient disc fading out ---
-  {
-    BLGradient glow(BLRadialGradientValues{px, py, px, py, rPx * 2.2});
-    glow.addStop(0.0, BLRgba32(rgba(color, 0.35f)));
-    glow.addStop(0.60, BLRgba32(rgba(color, 0.08f)));
-    glow.addStop(1.0, BLRgba32(rgba(color, 0.0f)));
-    _ctx->setFillStyle(glow);
-    _ctx->fillCircle(BLCircle(px, py, rPx * 2.2));
-  }
-
-  // --- Symbol shape (drawn in pixel coords) ---
-  BLPath p;
-  const double ux = rPx;  // unit half-width in px
-  const double uy = rPx;  // unit half-height in px (circular)
-  switch (icon) {
-  case 1: { // Heart (point down)
-    p.moveTo(px, py + uy);
-    p.cubicTo(px - ux * 1.8, py + uy * 0.1, px - ux * 1.4, py - uy * 0.9, px, py - uy * 0.35);
-    p.cubicTo(px + ux * 1.4, py - uy * 0.9, px + ux * 1.8, py + uy * 0.1, px, py + uy);
-    break;
-  }
-  case 2: { // Star (5-point)
-    const int spikes = 5;
-    double outer = ux, inner = outer * 0.45;
-    for (int i = 0; i < spikes * 2; i++) {
-      double ang = i * 3.14159265358979 / spikes - 1.57079632679489;
-      double rad = (i % 2 == 0) ? outer : inner;
-      double sx = px + std::cos(ang) * rad;
-      double sy = py + std::sin(ang) * rad;
-      if (i == 0) p.moveTo(sx, sy); else p.lineTo(sx, sy);
-    }
-    p.close();
-    break;
-  }
-  case 3: { // Apple: rounded body + brown-ish stem stub
-    p.addCircle(BLCircle(px, py + uy * 0.1, rPx * 0.82));
-    p.close();
-    const float stemCol[3] = {0.45f, 0.30f, 0.12f};
-    _ctx->setStrokeStyle(BLRgba32(rgba(stemCol, 1.0f)));
-    _ctx->setStrokeWidth(std::max(1.0, rPx * 0.22));
-    _ctx->strokeLine(px, py + uy * 0.1 - rPx * 0.75, px + ux * 0.2, py - uy * 0.9);
-    break;
-  }
-  case 4: { // Triangle (equilateral, up)
-    p.moveTo(px, py - uy);
-    p.lineTo(px - ux * 1.1, py + uy * 0.9);
-    p.lineTo(px + ux * 1.1, py + uy * 0.9);
-    p.close();
-    break;
-  }
-  default: { // Diamond
-    p.moveTo(px, py - uy);
-    p.lineTo(px + ux, py);
-    p.lineTo(px, py + uy);
-    p.lineTo(px - ux, py);
-    p.close();
-    break;
-  }
-  }
-
-  // Fill the symbol with a radial gradient (bright core -> element color),
-  // centered a bit above the middle for a polished highlight.
-  float core[3];
-  lighten(color, 0.55f, core);         // never pure white => no flash on tiny icons
-  BLGradient sym(BLRadialGradientValues{px, py - rPx * 0.35, px, py, rPx * 1.05});
-  sym.addStop(0.0, BLRgba32(rgba(core, 0.95f)));
-  sym.addStop(0.45, BLRgba32(rgba(color, 1.0f)));
-  sym.addStop(1.0, BLRgba32(rgba(color, 0.85f)));
-  _ctx->setFillStyle(sym);
-  _ctx->fillPath(p);
-
-  _ctx->restore();
+  const IconStyle &st = _icons[icon % GameModel::ELEMS];
+  // Work in pixel space: reset to identity, position at (px,py), scale by the
+  // on-screen radius. The cached unit-space shape/gradient are placed by the
+  // transform, so the radial gradient stays a true circle and scales with zoom.
+  _canvas->save();
+  _canvas->resetMatrix();
+  _canvas->translate((SkScalar)px, (SkScalar)py);
+  _canvas->scale((SkScalar)rPx, (SkScalar)rPx);
+  // --- Glow halo: radial gradient disc fading out (behind the symbol) ---
+  _canvas->drawCircle(0.0f, 0.0f, 2.2f, st.glowPaint);
+  // --- Symbol shape ---
+  _canvas->drawPath(st.symbol, st.symPaint);
+  if (!st.stem.isEmpty())
+    _canvas->drawPath(st.stem, st.stemPaint);
+  _canvas->restore();
 }
 
 void GameView::renderCellItems(float centerX, float centerY, int count,
@@ -542,7 +441,7 @@ int GameView::resolveCellAt(float worldX, float worldY, int nodeIndex, int gridD
                          {centerX - half, centerY - half, childCellSize, childCellSize});
   }
 
-    return childIdx;
+  return childIdx;
 }
 
 int GameView::resolveCenterCell(float worldX, float worldY) const {
@@ -784,32 +683,25 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
     renderCell(anchorIndex, r, depth);
 }
 
-void GameView::render(int winW, int winH) {
-  // Default path: own the target image.
-  if (_image.width() != winW || _image.height() != winH || _image.format() != BL_FORMAT_XRGB32) {
-    _image.create(winW, winH, BL_FORMAT_XRGB32);
-  }
-  renderTo(_image, winW, winH);
-}
-
-void GameView::renderTo(BLImage& target, int winW, int winH) {
+void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
+  if (!canvas) return;
+  _canvas = canvas;
+  _targetW = winW;
+  _targetH = winH;
   _aspect = (float)winW / (float)winH;
   _lastVertexCount = 0;
-  _svgDraws.clear();
-
-  BLContext ctx(target);
-  _ctx = &ctx;
-  // Fully replace the frame with the background colour each pass, then alpha-blend
-  // the cells/icons/(DRAG glow) on top so gradients+glow composite correctly.
-  ctx.setCompOp(BL_COMP_OP_SRC_COPY);
-  ctx.setFillStyle(BLRgba32(0x1A, 0x1A, 0x26));  // background
-  ctx.fillAll();
-  ctx.setCompOp(BL_COMP_OP_SRC_OVER);
 
   // NDC -> pixel transform: px = (nx+1)*w/2, py = (1-ny)*h/2
-  ctx.setMatrix(BLMatrix2D(winW * 0.5, 0.0, 0.0, -winH * 0.5, winW * 0.5, winH * 0.5));
+  SkMatrix ndc;
+  ndc.setScaleTranslate((SkScalar)(winW * 0.5), (SkScalar)(-winH * 0.5),
+                        (SkScalar)(winW * 0.5), (SkScalar)(winH * 0.5));
+  canvas->setMatrix(SkM44(ndc));
 
   uint64_t t0 = nowMs();
+
+  // Fully replace the frame with the background, then alpha-blend the
+  // cells/icons/(drag glow) on top so gradients + glow composite correctly.
+  canvas->clear(SkColorSetARGB(0xFF, 0x1A, 0x1A, 0x26));
 
   constexpr float anchorW = _anchorWidth;
   float ox = -anchorW * 0.5f * _zoom + _panX;
@@ -846,13 +738,9 @@ void GameView::renderTo(BLImage& target, int winW, int winH) {
 
   uint64_t t1 = nowMs();
   _lastGenMs = (float)(t1 - t0);
-
-  ctx.end();
-  _ctx = nullptr;
   _lastDrawMs = (float)(nowMs() - t1);
 
-  // Composite recorded SVG icons onto the (now-finalized) frame manually.
-  compositeSvgIcons(target);
+  _canvas = nullptr;
 }
 
 bool GameView::screenToGrid(int pixelX, int pixelY, int winW, int winH, int &row,
@@ -934,3 +822,9 @@ void GameView::continuePan(int pixelX, int pixelY, int winW, int winH) {
 }
 
 void GameView::endPan() { _isPanning = false; }
+
+std::size_t GameView::allocatedBytes() const {
+  std::size_t bytes = 0;
+  bytes += _icons.size() * sizeof(IconStyle);  // cached icon paths + paints
+  return bytes;
+}
