@@ -1,0 +1,26 @@
+# Initial state: cell[1,2] has item id=0 count=1, cell[1,3] is a subgrid
+init:-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,0:1,-2:-1,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+
+# Check initial state
+expect_cell,1,2,0,1
+expect_cell,1,3,-2,-1
+expect_drag,-1,0
+
+# Pick up item from cell [1,2], drop on subgrid at [1,3]
+pickup,1,2
+drop,1,3
+expect_cell,1,3,0,1
+expect_cell,1,2,-2,-1
+
+# Now pick up the item at [1,3] and drop on [2,2]
+pickup,1,3
+drop,2,2
+expect_cell,1,3,-1,0
+expect_cell,2,2,0,1
+
+# Pick up from [2,2] and drop back on [1,3] (empty now)
+pickup,2,2
+drop,1,3
+expect_drag,-1,0
+expect_cell,1,3,0,1
+expect_cell,2,2,-1,0

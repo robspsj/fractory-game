@@ -1,6 +1,7 @@
 #include "font.hpp"
 #include "game/config.hpp"
 #include "game/game.hpp"
+#include "test_runner.hpp"
 #include <SDL2/SDL.h>
 #include <cstdio>
 #include <cstring>
@@ -213,6 +214,18 @@ static bool loadWindowState(int &x, int &y, int &w, int &h) {
 }
 
 int main(int argc, char *argv[]) {
+  // Headless model tests: `fractory --test <file.csv> [--grid-limit N]` runs the
+  // CSV scenario suite and exits 0/1. Renders nothing (pure model logic).
+  if (argc >= 3 && std::string(argv[1]) == "--test") {
+    int gridLimit = 100;
+    for (int a = 3; a + 1 < argc; a++) {
+      if (std::string(argv[a]) == "--grid-limit")
+        gridLimit = std::atoi(argv[a + 1]);
+    }
+    bool success = ModelTestRunner::runTest(argv[2], gridLimit);
+    return success ? 0 : 1;
+  }
+
   Config cfg;
   // VSync is off by default (unlocked FPS); --vsync re-enables it.
   // --headless <out.ppm> [W H] renders one frame offscreen for deterministic

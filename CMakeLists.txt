@@ -27,6 +27,8 @@ set(SKIA_DIR "${CMAKE_SOURCE_DIR}/../skia")
 set(FRACTORY_SOURCES
     src/main.cpp
     src/font.cpp
+    src/test_runner.cpp
+    src/print_state.cpp
     src/game/game.cpp
     src/game/game_view.cpp
     src/game/game_model.cpp

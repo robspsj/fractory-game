@@ -1,0 +1,18 @@
+# Initial state: cell[1,2] has item id=0 count=1, cell[1,3] is a subgrid
+init:-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,0:1,-2:-1,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+
+# Check initial state
+expect_cell,1,2,0,1
+expect_cell,1,3,-2,-1
+expect_drag,-1,0
+
+# Pick up item from cell [1,2]
+pickup,1,2
+expect_drag,0,1
+expect_cell,1,2,-1,0
+
+# Drop on subgrid at [1,3] — should swap: ITEM goes to [1,3], GRID goes to [1,2]
+drop,1,3
+expect_drag,-1,0
+expect_cell,1,3,0,1
+expect_cell,1,2,-2,-1

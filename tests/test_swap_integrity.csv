@@ -1,0 +1,40 @@
+# Initial state: item id=0 count=1 at [1,2], GRID at [1,3]
+init:-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,0:1,-2:-1,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+
+# Verify initial state
+expect_cell,1,2,0,1
+expect_cell,1,3,-2,-1
+expect_drag,-1,0
+
+# Swap: ITEM -> GRID position, GRID moves to ITEM position
+pickup,1,2
+drop,1,3
+expect_cell,1,3,0,1
+expect_cell,1,2,-2,-1
+expect_drag,-1,0
+
+# Swap back: ITEM -> GRID position, GRID returns to original
+pickup,1,3
+drop,1,2
+expect_cell,1,2,0,1
+expect_cell,1,3,-2,-1
+expect_drag,-1,0
+
+# Swap to GRID, then pick up the GRID's new item and drop elsewhere,
+# then swap a different item back onto the GRID
+pickup,1,2
+drop,1,3
+expect_cell,1,3,0,1
+expect_cell,1,2,-2,-1
+
+pickup,1,3
+drop,2,2
+expect_cell,1,3,-1,0
+expect_cell,2,2,0,1
+
+# The GRID at [1,2] should still be valid — swap the item back onto it
+pickup,2,2
+drop,1,2
+expect_cell,2,2,-2,-1
+expect_cell,1,2,0,1
+expect_drag,-1,0
