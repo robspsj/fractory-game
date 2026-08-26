@@ -11,6 +11,7 @@
 // members. We forward-declare SkCanvas (we only ever hold a pointer to it) so
 // the heavy SkCanvas.h stays out of this header, keeping TU parse times down
 // for fast incremental builds.
+#include "include/core/SkImage.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkRect.h"
@@ -58,6 +59,14 @@ public:
     void zoom(float factor, float mouseNX, float mouseNY);
     float zoomFactor() const { return _zoom; }
     const float* panPtr() const { return &_panX; }
+
+    // Load the embedded chess-piece SVGs (src/game/chess_assets.h) as the item
+    // icons. Stateless: safe to call once at startup; re-calling re-rasterizes.
+    // Native-only: needs modules/svg + system expat; web has no expat and stays
+    // on vector symbols.
+#if !defined(__EMSCRIPTEN__)
+    void loadChessAssets();
+#endif
 
     bool isPanning() const { return _isPanning; }
     void startPan(int pixelX, int pixelY);
@@ -108,6 +117,12 @@ private:
     };
     std::array<IconStyle, GameModel::ELEMS> _icons;
     void buildIcon(int icon, const float color[3]);
+    #if !defined(__EMSCRIPTEN__)
+    // Rasterized chess-piece icons per element (from embedded SVGs). When the
+    // element i has an image loaded, drawIcon draws it instead of the vector
+    // symbol. Used to showcase Skia SVG rendering and give items quality icons.
+    std::array<sk_sp<SkImage>, GameModel::ELEMS> _pieceImages;
+#endif
 
     GameModel& _model;
 

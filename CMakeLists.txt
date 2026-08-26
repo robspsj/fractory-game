@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(fractory_skia CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Export a compile_commands.json so clangd (LSP) can resolve Skia includes.
 # Symlink at repo root: compile_commands.json.
@@ -34,8 +34,12 @@ set(FRACTORY_SOURCES
 )
 
 # Helper: attach Skia to a target (include the header root so
-# `#include "include/core/SkCanvas.h"` resolves, and link the archive).
-# LIBDIR is "out/native" or "out/wasm"; Skia names wasm archives *.wasm.a.
+# `#include "include/core/SkCanvas.h"` and `"modules/svg/include/SkSVGDOM.h"`
+# resolve, and link the archives). LIBDIR is "out/native" or "out/wasm"; Skia
+# names wasm archives *.wasm.a.
+# Native links modules/svg (libsvg, which provides SkSVGDOM) + its shapier/resource
+# deps + system expat; its `skia_use_expat` is on (system expat). WASM has no
+# system expat, so it stays SVG-less (web falls back to vector symbols).
 function(link_skia TARGET LIBDIR)
   target_include_directories(${TARGET} PRIVATE "${SKIA_DIR}")
   if(EMSCRIPTEN)
@@ -43,7 +47,11 @@ function(link_skia TARGET LIBDIR)
         "${SKIA_DIR}/${LIBDIR}/libskia.wasm.a"
         "${SKIA_DIR}/${LIBDIR}/libskcms.wasm.a")
   else()
-    target_link_libraries(${TARGET} PRIVATE "${SKIA_DIR}/${LIBDIR}/libskia.a")
+    target_link_libraries(${TARGET} PRIVATE
+        "${SKIA_DIR}/${LIBDIR}/libskia.a"
+        "${SKIA_DIR}/${LIBDIR}/libsvg.a"
+        "${SKIA_DIR}/${LIBDIR}/libskshaper.a"
+        "${SKIA_DIR}/${LIBDIR}/libskresources.a")
   endif()
 endfunction()
 
@@ -80,4 +88,6 @@ target_compile_definitions(fractory PRIVATE FRACTORY_VERSION="${FRACTORY_VERSION
 link_skia(fractory "out/native")
 # Skia CPU raster needs pthread + dl + math even though SDL is pulled first.
 find_package(Threads REQUIRED)
-target_link_libraries(fractory PRIVATE Threads::Threads ${CMAKE_DL_LIBS} m)
+# expat: Skia's SkXMLParser/SkSVGDOM link against the system expat
+# (skia_use_system_expat defaults on for official builds).
+target_link_libraries(fractory PRIVATE Threads::Threads ${CMAKE_DL_LIBS} m expat)

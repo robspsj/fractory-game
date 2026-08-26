@@ -177,6 +177,9 @@ int main() {
   });
 
   s_game = std::make_unique<Game>(Config{});
+#if !defined(__EMSCRIPTEN__)
+  s_game->view().loadChessAssets();
+#endif
   s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();
   s_lastFpsTime = s_lastFrameMs;
@@ -235,6 +238,9 @@ int main(int argc, char *argv[]) {
 
   if (!headlessPath.empty()) {
     Game g(cfg);
+#if !defined(__EMSCRIPTEN__)
+    g.view().loadChessAssets();
+#endif
     std::vector<uint8_t> buf((size_t)headW * headH * 4);
     SkImageInfo info = SkImageInfo::Make(headW, headH, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
     sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, buf.data(), (size_t)headW * 4);
@@ -290,6 +296,9 @@ int main(int argc, char *argv[]) {
   }
 
   s_game = std::make_unique<Game>(cfg);
+#if !defined(__EMSCRIPTEN__)
+  s_game->view().loadChessAssets();
+#endif
   s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();
   s_lastFpsTime = s_lastFrameMs;

@@ -1,15 +1,24 @@
 #include "game_view.hpp"
+#include "chess_assets.h"
 #include "config.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include "include/core/SkCanvas.h"
+#include "include/core/SkImage.h"
 #include "include/core/SkM44.h"
 #include "include/core/SkPathBuilder.h"
 #include "include/core/SkRect.h"
+#include "include/core/SkSamplingOptions.h"
+#include "include/core/SkSize.h"
 #include "include/core/SkSpan.h"
+#include "include/core/SkStream.h"
+#include "include/core/SkSurface.h"
 #include "include/effects/SkGradient.h"
+#if !defined(__EMSCRIPTEN__)
+#include "modules/svg/include/SkSVGDOM.h"
+#endif
 
 static constexpr int MAX_PREVIEW_DEPTH = 100;
 
@@ -158,6 +167,36 @@ void GameView::buildIcon(int icon, const float color[3]) {
   }
 }
 
+// Rasterize a parsed SVGDOM to a square sk_sp<SkImage> (premultiplied RGBA).
+#if !defined(__EMSCRIPTEN__)
+static sk_sp<SkImage> rasterizeSvg(const sk_sp<SkSVGDOM>& dom, int px) {
+  SkImageInfo info = SkImageInfo::Make(px, px, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkSurface> surf = SkSurfaces::Raster(info);
+  if (!surf)
+    return nullptr;
+  dom->setContainerSize(SkSize::Make(px, px));
+  dom->render(surf->getCanvas());
+  return surf->makeImageSnapshot();
+}
+
+void GameView::loadChessAssets() {
+  constexpr int kIconRaster = 224;   // source px; icons are downscaled on draw
+  int ok = 0;
+  for (int i = 0; i < GameModel::ELEMS; i++) {
+    _pieceImages[i] = nullptr;
+    const int pi = i % (int)GameModel::ELEMS;
+    SkMemoryStream stream(chess::pieces[pi].data, chess::pieces[pi].size, false);
+    sk_sp<SkSVGDOM> dom = SkSVGDOM::MakeFromStream(stream);
+    if (dom) {
+      _pieceImages[i] = rasterizeSvg(dom, kIconRaster);
+      if (_pieceImages[i]) ok++;
+    }
+  }
+  fprintf(stderr, "loadChessAssets: %d/%d piece SVGs rasterized\n", ok,
+          (int)GameModel::ELEMS);
+}
+#endif
+
 void GameView::addQuad(Rect const r, const float color[3], float alpha) {
   if (r.outsideClip())
     return;
@@ -211,10 +250,26 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   _canvas->scale((SkScalar)rPx, (SkScalar)rPx);
   // --- Glow halo: radial gradient disc fading out (behind the symbol) ---
   _canvas->drawCircle(0.0f, 0.0f, 2.2f, st.glowPaint);
-  // --- Symbol shape ---
-  _canvas->drawPath(st.symbol, st.symPaint);
-  if (!st.stem.isEmpty())
-    _canvas->drawPath(st.stem, st.stemPaint);
+  // --- Symbol shape: the embedded SVG piece when loaded, else the vector
+  // symbol. Drawn here we're in unit coords under translate(px,py)*scale(rPx),
+  // so the image dest rect [-1,1]^2 maps to the icon's on-screen box. ---
+#if !defined(__EMSCRIPTEN__)
+  const int ti = icon % GameModel::ELEMS;
+  if (_pieceImages[ti]) {
+    const sk_sp<SkImage>& img = _pieceImages[ti];
+    SkPaint p;
+    _canvas->drawImageRect(img,
+                           SkRect::MakeWH((float)img->width(), (float)img->height()),
+                           SkRect::MakeXYWH(-1.0f, -1.0f, 2.0f, 2.0f),
+                           SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
+                           &p, SkCanvas::kFast_SrcRectConstraint);
+  } else
+#endif
+  {
+    _canvas->drawPath(st.symbol, st.symPaint);
+    if (!st.stem.isEmpty())
+      _canvas->drawPath(st.stem, st.stemPaint);
+  }
   _canvas->restore();
 }
 
