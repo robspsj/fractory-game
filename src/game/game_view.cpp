@@ -167,35 +167,61 @@ void GameView::buildIcon(int icon, const float color[3]) {
   }
 }
 
-// Rasterize a parsed SVGDOM to a square sk_sp<SkImage> (premultiplied RGBA).
+// Owns the parsed chess-piece SVGDOMs and a one-slot-per-element raster cache,
+// re-rendering each piece from the vector only when its on-screen pixel size
+// changes — so items stay crisp at any zoom (no fixed-PNG upscaling).
 #if !defined(__EMSCRIPTEN__)
-static sk_sp<SkImage> rasterizeSvg(const sk_sp<SkSVGDOM>& dom, int px) {
-  SkImageInfo info = SkImageInfo::Make(px, px, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
-  sk_sp<SkSurface> surf = SkSurfaces::Raster(info);
-  if (!surf)
-    return nullptr;
-  dom->setContainerSize(SkSize::Make(px, px));
-  dom->render(surf->getCanvas());
-  return surf->makeImageSnapshot();
-}
+struct PieceLib {
+  std::array<sk_sp<SkSVGDOM>, GameModel::ELEMS> doms;
+  std::array<sk_sp<SkImage>, GameModel::ELEMS> raster;
+  std::array<int, GameModel::ELEMS> rasterAt = {};   // px size each was rasterized at
 
-void GameView::loadChessAssets() {
-  constexpr int kIconRaster = 224;   // source px; icons are downscaled on draw
-  int ok = 0;
-  for (int i = 0; i < GameModel::ELEMS; i++) {
-    _pieceImages[i] = nullptr;
-    const int pi = i % (int)GameModel::ELEMS;
-    SkMemoryStream stream(chess::pieces[pi].data, chess::pieces[pi].size, false);
-    sk_sp<SkSVGDOM> dom = SkSVGDOM::MakeFromStream(stream);
-    if (dom) {
-      _pieceImages[i] = rasterizeSvg(dom, kIconRaster);
-      if (_pieceImages[i]) ok++;
+  explicit PieceLib() {
+    for (int i = 0; i < (int)GameModel::ELEMS; i++) {
+      const chess::Svg& sv = chess::pieces[i % (int)GameModel::ELEMS];
+      SkMemoryStream stream(sv.data, sv.size, false);
+      doms[i] = SkSVGDOM::MakeFromStream(stream);
     }
   }
-  fprintf(stderr, "loadChessAssets: %d/%d piece SVGs rasterized\n", ok,
+
+  // Raster of piece `idx` sized to fit `sizePx` (clamped to bound extreme-zoom
+  // cost), re-rendered from the vector when the size changes. nullptr on failure.
+  sk_sp<SkImage> rasterAtSize(int idx, int sizePx) {
+    if (idx < 0 || idx >= (int)GameModel::ELEMS || !doms[idx])
+      return nullptr;
+    constexpr int kMaxRaster = 512;   // beyond this the icon fills the screen
+    sizePx = std::min(std::max(sizePx, 1), kMaxRaster);
+    if (raster[idx] && rasterAt[idx] == sizePx)
+      return raster[idx];
+    SkImageInfo info = SkImageInfo::Make(sizePx, sizePx, kRGBA_8888_SkColorType,
+                                         kPremul_SkAlphaType);
+    sk_sp<SkSurface> surf = SkSurfaces::Raster(info);
+    if (!surf)
+      return nullptr;
+    doms[idx]->setContainerSize(SkSize::Make(sizePx, sizePx));
+    doms[idx]->render(surf->getCanvas());
+    raster[idx] = surf->makeImageSnapshot();
+    rasterAt[idx] = sizePx;
+    return raster[idx];
+  }
+};
+
+void GameView::loadChessAssets() {
+  delete _pieces;
+  _pieces = new PieceLib();
+  int ok = 0;
+  for (int i = 0; i < (int)GameModel::ELEMS; i++)
+    if (_pieces->doms[i]) ok++;
+  fprintf(stderr, "loadChessAssets: %d/%d piece SVGs parsed\n", ok,
           (int)GameModel::ELEMS);
 }
 #endif
+
+GameView::~GameView() {
+#if !defined(__EMSCRIPTEN__)
+  delete _pieces;
+#endif
+}
 
 void GameView::addQuad(Rect const r, const float color[3], float alpha) {
   if (r.outsideClip())
@@ -255,14 +281,14 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   // so the image dest rect [-1,1]^2 maps to the icon's on-screen box. ---
 #if !defined(__EMSCRIPTEN__)
   const int ti = icon % GameModel::ELEMS;
-  if (_pieceImages[ti]) {
-    const sk_sp<SkImage>& img = _pieceImages[ti];
-    SkPaint p;
-    _canvas->drawImageRect(img,
-                           SkRect::MakeWH((float)img->width(), (float)img->height()),
-                           SkRect::MakeXYWH(-1.0f, -1.0f, 2.0f, 2.0f),
-                           SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
-                           &p, SkCanvas::kFast_SrcRectConstraint);
+  sk_sp<SkImage> img =
+      _pieces ? _pieces->rasterAtSize(ti, (int)std::ceil(2.0 * rPx)) : nullptr;
+  if (img) {
+    _canvas->drawImageRect(
+        img, SkRect::MakeWH((float)img->width(), (float)img->height()),
+        SkRect::MakeXYWH(-1.0f, -1.0f, 2.0f, 2.0f),
+        SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
+        nullptr, SkCanvas::kFast_SrcRectConstraint);
   } else
 #endif
   {

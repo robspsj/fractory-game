@@ -8,14 +8,14 @@
 #include <vector>
 
 // Skia headers pulled into the header: SkPaint + SkPath are needed as value
-// members. We forward-declare SkCanvas (we only ever hold a pointer to it) so
-// the heavy SkCanvas.h stays out of this header, keeping TU parse times down
-// for fast incremental builds.
-#include "include/core/SkImage.h"
+// members. We forward-declare SkCanvas and the SVG piece library (PieceLib) so
+// the heavy SkCanvas.h / SkSVGDOM.h stay out of this header, keeping TU parse
+// times down for fast incremental builds.
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkRect.h"
 class SkCanvas;
+struct PieceLib;
 
 struct Rect {
     float ox, oy, w, h;
@@ -35,7 +35,7 @@ struct Rect {
 class GameView {
 public:
     GameView(GameModel& model, const Config& cfg);
-    ~GameView() = default;
+    ~GameView();
 
     void renderTo(SkCanvas* canvas, int winW, int winH);
     int lastVertexCount() const { return _lastVertexCount; }
@@ -118,10 +118,10 @@ private:
     std::array<IconStyle, GameModel::ELEMS> _icons;
     void buildIcon(int icon, const float color[3]);
     #if !defined(__EMSCRIPTEN__)
-    // Rasterized chess-piece icons per element (from embedded SVGs). When the
-    // element i has an image loaded, drawIcon draws it instead of the vector
-    // symbol. Used to showcase Skia SVG rendering and give items quality icons.
-    std::array<sk_sp<SkImage>, GameModel::ELEMS> _pieceImages;
+    // Chess-piece SVG library: parses the embedded SVGs once and lazily
+    // re-rasterizes each piece at the icon's current on-screen pixel size, so
+    // items stay crisp (vector-clean) at any zoom — never a fixed upscaled PNG.
+    PieceLib* _pieces = nullptr;
 #endif
 
     GameModel& _model;
