@@ -59,13 +59,6 @@ public:
     // Small for Skia: cached icon paths/paints + the GL surface (GPU path).
     std::size_t allocatedBytes() const;
 
-    // Apply interleaved-gradient-noise dithering to the icon gradient regions
-    // recorded during the last renderTo. Call right before present on the final
-    // 32-bpp buffer (native: SDL window surface / BGRA; web: RGBA buffer).
-    // Breaks the 8-bit gradient banding in the glow/symbol fills only. Both
-    // surface byte orders work (the first 3 bytes are treated as R,G,B).
-    void ditherIconNoise(uint8_t* pixels, int w, int h, size_t rowBytes) const;
-
     void setDragWorldPos(float worldX, float worldY) { _dragWX = worldX; _dragWY = worldY; }
     void setHoveredCell(int row, int col) { _hoverRow = row; _hoverCol = col; }
     void clearHoveredCell() { _hoverRow = -1; _hoverCol = -1; }
@@ -144,9 +137,6 @@ private:
     SkCanvas* _canvas = nullptr;
     SkPaint _quadPaint;   // scratch fill for the fast rect path
     int _targetW = 0, _targetH = 0;
-    // Pixel rects (surface resolution) of icon gradient/glow regions recorded
-    // during renderTo, consumed by ditherIconNoise() before present.
-    std::vector<SkIRect> _ditherRects;
 
     bool _showAnchor = false;
     uint64_t _dragAnimStartMs = 0;

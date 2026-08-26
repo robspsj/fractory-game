@@ -144,8 +144,6 @@ static void frame() {
   SkCanvas *canvas = surf->getCanvas();
   s_game->renderTo(canvas, s_rgbaW, s_rgbaH);
   drawHud(canvas);
-  // IGN-dither the icon gradient regions to break 8-bit banding.
-  s_game->view().ditherIconNoise(s_rgba.data(), s_rgbaW, s_rgbaH, (size_t)s_rgbaW * 4);
   uint64_t f2 = perfNow();
   jsPresent(s_rgbaW, s_rgbaH, s_rgba.data());
   uint64_t f3 = perfNow();
@@ -272,7 +270,6 @@ int main(int argc, char *argv[]) {
     if (!surf)
       return 1;
     g.renderTo(surf->getCanvas(), headW, headH);
-    g.view().ditherIconNoise(buf.data(), headW, headH, (size_t)headW * 4);
     std::string hdr = "P6\n" + std::to_string(headW) + " " + std::to_string(headH) + "\n255\n";
     FILE *f = fopen(headlessPath.c_str(), "wb");
     if (!f)
@@ -299,7 +296,7 @@ int main(int argc, char *argv[]) {
     sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, buf.data(), (size_t)benchW * 4);
     if (!surf)
       return 1;
-    double stepMs = 0, renderMs = 0, hudMs = 0, ditherMs = 0, svgMs = 0, glowMs = 0;
+    double stepMs = 0, renderMs = 0, hudMs = 0, svgMs = 0, glowMs = 0;
     long svgN = 0;
     for (int f = 0; f < benchFrames; f++) {
       s_game->view().resetFramebench();
@@ -309,11 +306,9 @@ int main(int argc, char *argv[]) {
       const Framebench& fb = s_game->view().framebench();
       svgMs += fb.svgMs; glowMs += fb.glowMs; svgN += fb.svgN;
       t = perfNow(); drawHud(surf->getCanvas()); hudMs += perfMs(t, perfNow());
-      t = perfNow(); s_game->view().ditherIconNoise(buf.data(), benchW, benchH, (size_t)benchW * 4);
-      ditherMs += perfMs(t, perfNow());
     }
     const int n = benchFrames;
-    const double total = stepMs + renderMs + hudMs + ditherMs;
+    const double total = stepMs + renderMs + hudMs;
     const double totalAvg = total / n;   // per-frame pipeline cost (ms)
     const double renderCore = renderMs - svgMs - glowMs;   // cells/geom beyond glow+svg
     auto row = [totalAvg](const char* what, double ms, const char* note) {
@@ -327,10 +322,9 @@ int main(int argc, char *argv[]) {
     row("Model step (game->step)", stepMs / n, "");
     row("Render  (renderTo: cells+items)", renderMs / n, "");
     row("  ├─ geometry/cells & other", renderCore / n, "(render minus svg+glow)");
-    row("  ├─ item glow radial gradients", glowMs / n, "per item");
+    row("  ├─ item contour glow (blurred sprite)", glowMs / n, "per item");
     row("  └─ chess-piece SVG (per-instance)", svgMs / n, "");
     row("HUD", hudMs / n, "");
-    row("IGN dither (icon gradient areas)", ditherMs / n, "per-icon rects");
     fprintf(stderr,
             "  ------------------------------------------------\n"
             "  frame (offscreen render pipeline) ≈ %8.3f ms  →  ~%.0f FPS\n",
@@ -444,9 +438,6 @@ int main(int argc, char *argv[]) {
         SkCanvas *canvas = surf->getCanvas();
         s_game->renderTo(canvas, wSurf->w, wSurf->h);
         drawHud(canvas);
-        // IGN-dither the icon gradient regions to break 8-bit banding.
-        s_game->view().ditherIconNoise((uint8_t*)wSurf->pixels, wSurf->w, wSurf->h,
-                                       (size_t)wSurf->pitch);
       }
       if (SDL_MUSTLOCK(wSurf))
         SDL_UnlockSurface(wSurf);
