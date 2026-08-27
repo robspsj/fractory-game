@@ -329,8 +329,8 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
       const float o = 1.6f;   // glow box reach past the piece's unit box (outward halo)
       _canvas->drawImageRect(g, SkRect::MakeWH((float)g->width(), (float)g->height()),
                              SkRect::MakeXYWH(-o, -o, 2.0f * o, 2.0f * o),
-                             SkSamplingOptions(), nullptr,
-                             SkCanvas::kFast_SrcRectConstraint);
+                             SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
+                             nullptr, SkCanvas::kFast_SrcRectConstraint);
       _bench.glowMs += (double)(nowUs() - t) / 1000.0;
     }
     // Crisp vector piece, rendered from the SVG per instance at its on-screen box
