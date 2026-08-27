@@ -51,11 +51,11 @@ static void drawHud(SkCanvas*);   // defined below; used by the GPU present path
 // GPU glue lives in metal_gpu.cpp (isolated so the Skia GPU headers don't clash
 // with the game's `Rect`). main.cpp only drives it via these C entry points.
 extern "C" {
-bool frct_gpu_init(void*);
+bool frct_gpu_init(void*, bool);
 bool frct_gpu_frame(void (*render)(void*, SkCanvas*, int, int), void* ctx);
 void frct_gpu_shutdown(void);
 }
-static bool gpuSetup(SDL_Window* win) { return (s_gpuActive = frct_gpu_init(win)); }
+static bool gpuSetup(SDL_Window* win) { return (s_gpuActive = frct_gpu_init(win, s_vsyncOn)); }
 static void gpuRenderCb(void*, SkCanvas* canvas, int w, int h) {
   s_game->renderTo(canvas, w, h);
   drawHud(canvas);

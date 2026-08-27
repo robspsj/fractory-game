@@ -22,7 +22,7 @@ typedef struct FRCTMetalContext {
   SDL_MetalView view; // not CF-managed; freed in destroy
 } FRCTMetalContext;
 
-void* frct_metal_create(void* sdlWindow, void** out_device, void** out_queue) {
+void* frct_metal_create(void* sdlWindow, void** out_device, void** out_queue, int vsync) {
   @autoreleasepool {
     id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
     if (!dev) return nullptr;
@@ -35,6 +35,9 @@ void* frct_metal_create(void* sdlWindow, void** out_device, void** out_queue) {
     layer.device = dev;
     layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     layer.framebufferOnly = YES;
+    // V-sync control: when vsync is OFF, disable the layer's display sync so the
+    // present drawable is NOT throttled to the display refresh (unlocked FPS).
+    layer.displaySyncEnabled = vsync ? YES : NO;
     // Match the layer's backing store to the window size (backing pixels).
     int ww = 0, hh = 0;
     SDL_GetWindowSizeInPixels(win, &ww, &hh);

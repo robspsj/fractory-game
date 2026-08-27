@@ -16,7 +16,7 @@
 
 // Metal window glue (metal_glue.mm): retained CFTypeRef handles.
 extern "C" {
-void* frct_metal_create(void*, void**, void**);
+void* frct_metal_create(void*, void**, void**, int);
 void* frct_metal_begin_frame(void*, void**, int*, int*, unsigned*);
 void  frct_metal_present(void*, void*);
 void  frct_metal_release(void*);
@@ -28,10 +28,11 @@ static sk_sp<GrDirectContext> s_dctx;
 
 extern "C" {
 
-// Create the MTLDevice/queue + CAMetalLayer view + Ganesh Metal context.
-bool frct_gpu_init(void* win) {
+// Create the MTLDevice/queue + CAMetalLayer view + Ganesh Metal context. `vsync`
+// toggles the layer's displaySyncEnabled (on = throttled to refresh, off = unlocked).
+bool frct_gpu_init(void* win, bool vsync) {
   void* dev = nullptr, *que = nullptr;
-  s_metalCtx = frct_metal_create(win, &dev, &que);
+  s_metalCtx = frct_metal_create(win, &dev, &que, vsync ? 1 : 0);
   if (!s_metalCtx) {
     fprintf(stderr, "GPU: Metal init failed; using CPU present\n");
     return false;
