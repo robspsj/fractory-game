@@ -81,7 +81,12 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED sdl3)
 
-add_executable(fractory ${FRACTORY_SOURCES})
+# Metal GPU present path: the ObjC++ glue (metal_glue.mm) creates the MTLDevice/
+# command queue + CAMetalLayer and presents the drawable. ARC is required for the
+# CFBridging calls in that file.
+enable_language(OBJCXX)
+add_executable(fractory ${FRACTORY_SOURCES} src/metal_gpu.cpp src/metal_glue.mm)
+set_source_files_properties(src/metal_glue.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 target_include_directories(fractory PRIVATE ${SDL3_INCLUDE_DIRS})
 target_link_directories(fractory PRIVATE ${SDL3_LIBRARY_DIRS})
 target_link_libraries(fractory PRIVATE ${SDL3_LIBRARIES} ${CMAKE_DL_LIBS})
@@ -93,3 +98,10 @@ find_package(Threads REQUIRED)
 # expat: Skia's SkXMLParser/SkSVGDOM link against the system expat
 # (skia_use_system_expat defaults on for official builds).
 target_link_libraries(fractory PRIVATE Threads::Threads ${CMAKE_DL_LIBS} m expat)
+# Metal Ganesh backend + the ObjC++ glue link these Apple frameworks.
+if(APPLE)
+  target_link_libraries(fractory PRIVATE
+      "-framework Metal" "-framework MetalKit" "-framework QuartzCore"
+      "-framework CoreGraphics" "-framework Foundation" "-framework IOSurface"
+      "-framework CoreFoundation" "-framework Cocoa")
+endif()

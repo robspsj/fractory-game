@@ -32,6 +32,10 @@ static float s_msPresent = 0.0f; // present (SDL surface blit / canvas putImageD
 static uint64_t s_perfFreq = 0;
 static bool s_vsyncOn = false;
 
+#if !defined(__EMSCRIPTEN__)
+static bool s_gpuActive = false;   // true when the Metal Ganesh path is live
+#endif
+
 static float ema(float prev, float cur) {
   const float a = 0.2f;
   return prev + a * (cur - prev);
@@ -41,6 +45,23 @@ static uint64_t perfNow() { return SDL_GetPerformanceCounter(); }
 static double perfMs(uint64_t a, uint64_t b) {
   return (double)(b - a) / (double)s_perfFreq * 1000.0;
 }
+
+#if !defined(__EMSCRIPTEN__)
+static void drawHud(SkCanvas*);   // defined below; used by the GPU present path
+// GPU glue lives in metal_gpu.cpp (isolated so the Skia GPU headers don't clash
+// with the game's `Rect`). main.cpp only drives it via these C entry points.
+extern "C" {
+bool frct_gpu_init(void*);
+bool frct_gpu_frame(void (*render)(void*, SkCanvas*, int, int), void* ctx);
+void frct_gpu_shutdown(void);
+}
+static bool gpuSetup(SDL_Window* win) { return (s_gpuActive = frct_gpu_init(win)); }
+static void gpuRenderCb(void*, SkCanvas* canvas, int w, int h) {
+  s_game->renderTo(canvas, w, h);
+  drawHud(canvas);
+}
+static bool gpuFrame() { return frct_gpu_frame(gpuRenderCb, nullptr); }
+#endif
 
 // Web RGBA8888 backing buffer (presented via canvas putImageData). Native draws
 // straight into the SDL window surface, so this is only used by the web build.
@@ -237,6 +258,7 @@ int main(int argc, char *argv[]) {
   // on a <size>x<size> surface, to measure piece-vs-glow alignment.
   std::string singlePath;
   int singleIdx = 0, singleSize = 600;
+  bool useGpu = true;   // native default; --cpu forces the CPU present path
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -244,6 +266,8 @@ int main(int argc, char *argv[]) {
         cfg.initialGridSize = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--vsync") {
       cfg.vsync = true;
+    } else if (std::string(argv[a]) == "--cpu") {
+      useGpu = false;
     } else if (std::string(argv[a]) == "--headless" && a + 1 < argc) {
       headlessPath = argv[++a];
       if (a + 2 < argc &&
@@ -382,31 +406,41 @@ int main(int argc, char *argv[]) {
   SDL_GetWindowSize(s_window, &ww, &wh);
   winW = ww; winH = wh;
 
-  // Direct-to-screen present: Skia rasterizes straight into the window's
-  // backing surface (RasterDirect — no GPU texture / fullscreen quad). VSync
-  // is a no-op here (no renderer present); kept only to reflect the flag.
   s_vsyncOn = cfg.vsync;
-  SDL_Surface *wSurface = SDL_GetWindowSurface(s_window);
-  if (!wSurface) {
-    fprintf(stderr, "SDL_GetWindowSurface failed: %s\n", SDL_GetError());
-    return 1;
-  }
-  if (SDL_BYTESPERPIXEL(wSurface->format) != 4) {
-    fprintf(stderr, "Unsupported window surface pixel depth: %d bpp\n",
-            SDL_BYTESPERPIXEL(wSurface->format));
-    return 1;
-  }
-  {
-    // Window-surface diagnostic: real data is rendered to the window SURFACE at its
-    // size (wSurf->w/h) while input uses the LOGICAL window size. High-DPI is
-    // currently DISABLED (no SDL_WINDOW_HIGH_PIXEL_DENSITY) after it threw off
-    // some coordinate math, so we expect surface == logical (scale 1.0) for now.
+#if !defined(__EMSCRIPTEN__)
+  s_gpuActive = false;
+  if (useGpu)
+    s_gpuActive = gpuSetup(s_window);   // init Metal Ganesh; false => CPU fallback
+  if (s_gpuActive) {
     int lw = 0, lh = 0, pxl = 0, pyl = 0;
     SDL_GetWindowSize(s_window, &lw, &lh);
     SDL_GetWindowSizeInPixels(s_window, &pxl, &pyl);
-    fprintf(stderr, "[hidpi] logical=%dx%d pixels=%dx%d surface=%dx%d scale=%.2f\n",
-            lw, lh, pxl, pyl, wSurface->w, wSurface->h,
-            (lh > 0) ? (float)wSurface->h / (float)lh : 1.0f);
+    fprintf(stderr, "[gpu] metal drawable=%dx%d (%dx%d px) vsync=%s\n",
+            lw, lh, pxl, pyl, s_vsyncOn ? "on" : "off");
+  } else
+#endif
+  {
+    // CPU direct-to-screen path: Skia rasterizes straight into the window's
+    // backing surface (RasterDirect, no GPU texture). VSync is a no-op here.
+    SDL_Surface *wSurface = SDL_GetWindowSurface(s_window);
+    if (!wSurface) {
+      fprintf(stderr, "SDL_GetWindowSurface failed: %s\n", SDL_GetError());
+      return 1;
+    }
+    if (SDL_BYTESPERPIXEL(wSurface->format) != 4) {
+      fprintf(stderr, "Unsupported window surface pixel depth: %d bpp\n",
+              SDL_BYTESPERPIXEL(wSurface->format));
+      return 1;
+    }
+    {
+      // Window-surface diagnostic (CPU path): surface == logical (HDPI off).
+      int lw = 0, lh = 0, pxl = 0, pyl = 0;
+      SDL_GetWindowSize(s_window, &lw, &lh);
+      SDL_GetWindowSizeInPixels(s_window, &pxl, &pyl);
+      fprintf(stderr, "[hidpi] logical=%dx%d pixels=%dx%d surface=%dx%d scale=%.2f\n",
+              lw, lh, pxl, pyl, wSurface->w, wSurface->h,
+              (lh > 0) ? (float)wSurface->h / (float)lh : 1.0f);
+    }
   }
 
   s_game = std::make_unique<Game>(cfg);
@@ -452,45 +486,61 @@ int main(int argc, char *argv[]) {
 
     uint64_t f0 = perfNow();
 
-    // Re-fetch the window surface EVERY frame. SDL recreates the surface when
-    // the window moves to a display with a different backing scale / format
-    // (e.g. 1x vs 2x Retina), so a pointer cached at startup goes stale — using
-    // it later can HANG SDL_UpdateWindowSurface (this was the monitor-change
-    // freeze). A fresh surface means valid pixels/pitch on every frame.
-    SDL_Surface *wSurf = SDL_GetWindowSurface(s_window);
-    if (wSurf && SDL_BYTESPERPIXEL(wSurf->format) == 4) {
-      if (SDL_MUSTLOCK(wSurf))
-        SDL_LockSurface(wSurf);
-      // Wrap the current window surface pixels directly and rasterize in place.
-      // No texture, no quad, no copy.
-      SkImageInfo info = SkImageInfo::Make(wSurf->w, wSurf->h,
-                                           kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-      sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, wSurf->pixels, (size_t)wSurf->pitch);
-      uint64_t f1 = surf ? perfNow() : f0;
-      if (surf) {
-        SkCanvas *canvas = surf->getCanvas();
-        s_game->renderTo(canvas, wSurf->w, wSurf->h);
-        drawHud(canvas);
-      }
-      if (SDL_MUSTLOCK(wSurf))
-        SDL_UnlockSurface(wSurf);
-      uint64_t f2 = perfNow();
-
-      SDL_UpdateWindowSurface(s_window);   // blit our surface to the real window
+#if !defined(__EMSCRIPTEN__)
+    if (s_gpuActive) {
+      uint64_t f1 = perfNow();
+      bool ok = gpuFrame();            // render to the Metal drawable + present
       uint64_t f3 = perfNow();
-
       s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
       s_msCopy    = ema(s_msCopy,    (float)perfMs(f0, f1));
-      s_msRender  = ema(s_msRender,  (float)perfMs(f1, f2));
-      s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
-    } else {
-      // Surface temporarily unavailable mid monitor-switch: skip present this
-      // frame but keep looping (don't peg the HUD / spin on a stale surface).
-      s_msFrame = ema(s_msFrame, (float)perfMs(f0, perfNow()));
+      s_msRender  = ema(s_msRender,  (float)perfMs(f1, f3));  // includes present wait
+      s_msPresent = ema(s_msPresent, (float)perfMs(f3, f3));
+    } else
+#endif
+    {
+      // Re-fetch the window surface EVERY frame. SDL recreates the surface when
+      // the window moves to a display with a different backing scale / format
+      // (e.g. 1x vs 2x Retina), so a pointer cached at startup goes stale — using
+      // it later can HANG SDL_UpdateWindowSurface (this was the monitor-change
+      // freeze). A fresh surface means valid pixels/pitch on every frame.
+      SDL_Surface *wSurf = SDL_GetWindowSurface(s_window);
+      if (wSurf && SDL_BYTESPERPIXEL(wSurf->format) == 4) {
+        if (SDL_MUSTLOCK(wSurf))
+          SDL_LockSurface(wSurf);
+        // Wrap the current window surface pixels directly and rasterize in place.
+        SkImageInfo info = SkImageInfo::Make(wSurf->w, wSurf->h,
+                                             kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, wSurf->pixels, (size_t)wSurf->pitch);
+        uint64_t f1 = surf ? perfNow() : f0;
+        if (surf) {
+          SkCanvas *canvas = surf->getCanvas();
+          s_game->renderTo(canvas, wSurf->w, wSurf->h);
+          drawHud(canvas);
+        }
+        if (SDL_MUSTLOCK(wSurf))
+          SDL_UnlockSurface(wSurf);
+        uint64_t f2 = perfNow();
+
+        SDL_UpdateWindowSurface(s_window);   // blit our surface to the real window
+        uint64_t f3 = perfNow();
+
+        s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
+        s_msCopy    = ema(s_msCopy,    (float)perfMs(f0, f1));
+        s_msRender  = ema(s_msRender,  (float)perfMs(f1, f2));
+        s_msPresent = ema(s_msPresent, (float)perfMs(f2, f3));
+      } else {
+        // Surface temporarily unavailable mid monitor-switch: skip present this
+        // frame but keep looping (don't peg the HUD / spin on a stale surface).
+        s_msFrame = ema(s_msFrame, (float)perfMs(f0, perfNow()));
+      }
     }
   }
 
   saveWindowState();
+#if !defined(__EMSCRIPTEN__)
+  if (s_gpuActive)
+    frct_gpu_shutdown();
+#endif
   SDL_DestroyWindow(s_window);
   SDL_Quit();
   return 0;
