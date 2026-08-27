@@ -20,6 +20,7 @@
 #include "include/core/SkColorFilter.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkTileMode.h"
+#include "include/core/SkPixmap.h"
 #if !defined(__EMSCRIPTEN__)
 #include "modules/svg/include/SkSVGDOM.h"
 #endif
@@ -214,47 +215,54 @@ struct PieceLib {
     return (idx >= 0 && idx < (int)GameModel::ELEMS) ? glow[idx] : nullptr;
   }
 
-  // Bake a soft, contour-following glow for piece `idx`: raster the piece, tint
-  // its silhouette to `color`, and gaussian-blur it so it spreads just past the
-  // outline. The result hugs the piece shape (no big disc) and is soft, so a small
-  // fixed sprite is fine — the crisp piece itself is still vector per-instance.
+  // Bake a coloured OUTLINE glow for piece `idx`: spread the piece silhouette
+  // outward with a gaussian blur, then subtract the crisp silhouette so only the
+  // outer blurred RIM remains — an "extra outline" whose blur falls outside the
+  // contour. Much tighter than a filled halo; hugs the piece shape. The crisp
+  // piece itself stays vector per-instance.
   void buildGlow(int idx, const float* color) {
     if (idx < 0 || idx >= (int)GameModel::ELEMS || !doms[idx])
       return;
-    SkImageInfo info = SkImageInfo::Make(kGlowBase, kGlowBase, kRGBA_8888_SkColorType,
-                                         kPremul_SkAlphaType);
+    const int S = kGlowBase;
+    SkImageInfo info = SkImageInfo::Make(S, S, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
     sk_sp<SkSurface> pieceSurf = SkSurfaces::Raster(info);
     if (!pieceSurf)
       return;
-    doms[idx]->setContainerSize(SkSize::Make(kGlowBase, kGlowBase));
+    doms[idx]->setContainerSize(SkSize::Make(S, S));
     doms[idx]->render(pieceSurf->getCanvas());
     sk_sp<SkImage> piece = pieceSurf->makeImageSnapshot();
-    // Pass 1: tint the (white) silhouette RGB to the element color, keep its alpha.
-    // (Separate pass from the blur — combining color+image filters in one paint can
-    // drop the tint. The Matrix offset column is in [0,1], so use the raw color.)
-    const float m[20] = {0, 0, 0, 0, color[0],
-                         0, 0, 0, 0, color[1],
-                         0, 0, 0, 0, color[2],
-                         0, 0, 0, 1, 0};
-    SkPaint tint;
-    tint.setColorFilter(SkColorFilters::Matrix(m));
-    sk_sp<SkSurface> tinted = SkSurfaces::Raster(info);
-    if (!tinted)
-      return;
-    tinted->getCanvas()->clear(SkColors::kTransparent);
-    tinted->getCanvas()->drawImage(piece, 0.0f, 0.0f, SkSamplingOptions(), &tint);
-    sk_sp<SkImage> tintedImg = tinted->makeImageSnapshot();
-    // Pass 2: gaussian-blur so the colored silhouette spreads softly just past the
-    // piece outline (a contour-following outward glow).
+    // Outward blur of the silhouette (spreads the edge a few px past the contour).
     SkPaint blur;
     blur.setImageFilter(SkImageFilters::Blur(kGlowSigma, kGlowSigma, SkTileMode::kClamp,
                                              nullptr));
-    sk_sp<SkSurface> out = SkSurfaces::Raster(info);
-    if (!out)
-      return;
-    out->getCanvas()->clear(SkColors::kTransparent);
-    out->getCanvas()->drawImage(tintedImg, 0.0f, 0.0f, SkSamplingOptions(), &blur);
-    glow[idx] = out->makeImageSnapshot();
+    sk_sp<SkSurface> blurredSurf = SkSurfaces::Raster(info);
+    blurredSurf->getCanvas()->clear(SkColors::kTransparent);
+    blurredSurf->getCanvas()->drawImage(piece, 0.0f, 0.0f, SkSamplingOptions(), &blur);
+    sk_sp<SkImage> blurred = blurredSurf->makeImageSnapshot();
+    // Rim alpha = blurredAlpha - crispAlpha (>=0): only the outer blurred edge.
+    std::vector<uint8_t> buf((size_t)S * S * 4);
+    std::vector<uint8_t> tmp((size_t)S * S * 4);
+    std::vector<uint8_t> crispA((size_t)S * S);
+    piece->readPixels(info, tmp.data(), info.minRowBytes(), 0, 0);
+    for (size_t i = 0; i < (size_t)S * S; i++)
+      crispA[i] = tmp[i * 4 + 3];
+    blurred->readPixels(info, tmp.data(), info.minRowBytes(), 0, 0);
+    const int er = (int)(color[0] * 255.f), eg = (int)(color[1] * 255.f), eb = (int)(color[2] * 255.f);
+    for (size_t i = 0; i < (size_t)S * S; i++) {
+      int a = (int)tmp[i * 4 + 3] - (int)crispA[i];
+      if (a < 0) a = 0;
+      buf[i * 4 + 0] = (uint8_t)((er * a) / 255);   // premultiplied element colour
+      buf[i * 4 + 1] = (uint8_t)((eg * a) / 255);
+      buf[i * 4 + 2] = (uint8_t)((eb * a) / 255);
+      buf[i * 4 + 3] = (uint8_t)a;
+    }
+    glow[idx] = [&]() -> sk_sp<SkImage> {
+      sk_sp<SkSurface> gp = SkSurfaces::Raster(info);
+      if (!gp)
+        return nullptr;
+      gp->writePixels(SkPixmap(info, buf.data(), info.minRowBytes()), 0, 0);
+      return gp->makeImageSnapshot();
+    }();
   }
 };
 
@@ -326,7 +334,8 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
     // sprite is fine). Drawn behind the crisp piece.
     if (sk_sp<SkImage> g = _pieces->glowAt(ti)) {
       uint64_t t = nowUs();
-      const float o = 1.6f;   // glow box reach past the piece's unit box (outward halo)
+      const float o = 1.0f;   // draw the outline glow at the piece's box; its outward
+                                      // blur is baked in, so it hugs the contour
       _canvas->drawImageRect(g, SkRect::MakeWH((float)g->width(), (float)g->height()),
                              SkRect::MakeXYWH(-o, -o, 2.0f * o, 2.0f * o),
                              SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
