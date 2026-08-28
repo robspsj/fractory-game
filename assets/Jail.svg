@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        opacity: 0;
+      }
+
+      .cls-2 {
+        fill: #abc0c9;
+      }
+
+      .cls-3 {
+        fill: #7b97a6;
+      }
+
+      .cls-4 {
+        fill: #5d7c8c;
+      }
+
+      .cls-5 {
+        fill: #bdccd4;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Jail">
+      <rect class="cls-1" width="64" height="64"/>
+      <g>
+        <g>
+          <rect class="cls-4" x="6.5" y="50.5" width="51" height="9" rx="2" ry="2"/>
+          <rect class="cls-2" x="4.5" y="4.5" width="55" height="11" rx="3" ry="3" transform="translate(64 20) rotate(180)"/>
+          <rect class="cls-2" x="4.5" y="46.5" width="55" height="9" rx="2" ry="2"/>
+          <rect class="cls-3" x="8.5" y="15.5" width="7" height="31"/>
+          <rect class="cls-3" x="48.5" y="15.5" width="7" height="31"/>
+          <rect class="cls-3" x="35.17" y="15.5" width="7" height="31"/>
+          <rect class="cls-3" x="21.83" y="15.5" width="7" height="31"/>
+          <path class="cls-4" d="M8.5,15.5v13.69c2.13,1.33,4.48,2.48,7,3.42V15.5h-7Z"/>
+          <path class="cls-4" d="M48.5,15.5v17.11c2.52-.94,4.87-2.09,7-3.42V15.5h-7Z"/>
+          <path class="cls-4" d="M35.17,15.5v19.89c2.41-.15,4.75-.47,7-.95V15.5h-7Z"/>
+          <path class="cls-4" d="M21.83,15.5v18.94c2.25,.48,4.59,.8,7,.95V15.5h-7Z"/>
+        </g>
+        <polygon class="cls-5" points="41.14 15.5 18.14 15.5 20.15 4.5 43.15 4.5 41.14 15.5"/>
+        <polygon class="cls-5" points="33.85 55.5 10.85 55.5 12.49 46.5 35.49 46.5 33.85 55.5"/>
+      </g>
+    </g>
+  </g>
+</svg>

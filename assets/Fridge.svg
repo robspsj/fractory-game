@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #e6f7ff;
+      }
+
+      .cls-3 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-4 {
+        fill: #96dbff;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Fridge">
+      <rect class="cls-3" width="64" height="64"/>
+      <g>
+        <rect class="cls-4" x="16.34" y="53.68" width="31.32" height="4.32" rx="1.08" ry="1.08"/>
+        <rect class="cls-1" x="15.26" y="4" width="33.48" height="51.84" rx="2.72" ry="2.72"/>
+        <rect class="cls-2" x="15.26" y="24.17" width="33.48" height="2.85"/>
+        <g>
+          <path class="cls-4" d="M28.04,30.1h-8.03c-.83,0-1.5,.67-1.5,1.5s.67,1.5,1.5,1.5h8.03c.83,0,1.5-.67,1.5-1.5s-.67-1.5-1.5-1.5Z"/>
+          <path class="cls-4" d="M28.04,18.1h-8.03c-.83,0-1.5,.67-1.5,1.5s.67,1.5,1.5,1.5h8.03c.83,0,1.5-.67,1.5-1.5s-.67-1.5-1.5-1.5Z"/>
+        </g>
+        <path class="cls-2" d="M46.51,50.44H17.49c-.9,0-1.7-.42-2.23-1.05v3.52c0,1.62,1.31,2.93,2.93,2.93h27.62c1.62,0,2.93-1.31,2.93-2.93v-3.52c-.54,.64-1.33,1.05-2.23,1.05Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

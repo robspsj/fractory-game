@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #324652;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6, .cls-7 {
+        stroke-width: 0px;
+      }
+
+      .cls-2 {
+        fill: #7b97a6;
+      }
+
+      .cls-8 {
+        opacity: 0;
+      }
+
+      .cls-3 {
+        fill: #d3dee3;
+      }
+
+      .cls-4 {
+        fill: #fdaf18;
+      }
+
+      .cls-5 {
+        fill: #5d7c8c;
+      }
+
+      .cls-6 {
+        fill: #476475;
+      }
+
+      .cls-7 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <g id="Exports_2" data-name="Exports 2">
+    <g>
+      <g class="cls-8">
+        <rect class="cls-7" width="64" height="64"/>
+      </g>
+      <g>
+        <rect class="cls-1" x="8.85" y="16.78" width="47.52" height="33.38" rx="4.72" ry="4.72" transform="translate(-10.33 15.03) rotate(-22.5)"/>
+        <rect class="cls-6" x="7.63" y="13.84" width="47.52" height="33.38" rx="4.72" ry="4.72" transform="translate(-9.29 14.34) rotate(-22.5)"/>
+        <rect class="cls-4" x="12.74" y="29.59" width="8.29" height="6.81" rx="1.08" ry="1.08" transform="translate(-11.34 8.97) rotate(-22.5)"/>
+        <path class="cls-5" d="M48.76,10.38c-1-2.41-3.76-3.55-6.17-2.56L7.42,22.39c-1.44.59-2.42,1.82-2.77,3.22l50.13-.71-6.01-14.52Z"/>
+        <rect class="cls-3" x="32.51" y="13.43" width="13.7" height="4.11" rx="1.08" ry="1.08" transform="translate(-2.93 16.24) rotate(-22.5)"/>
+        <g>
+          <rect class="cls-2" x="16.26" y="40.35" width="8.29" height="2.28" rx=".77" ry=".77" transform="translate(-14.32 10.96) rotate(-22.5)"/>
+          <rect class="cls-2" x="17.87" y="43.72" width="13.7" height="2.28" rx=".77" ry=".77" transform="translate(-15.28 12.88) rotate(-22.5)"/>
+          <path class="cls-2" d="M25.86,36.69h6.76c.42,0,.77.34.77.77v.75c0,.42-.34.77-.77.77h-6.76c-.42,0-.77-.34-.77-.77v-.75c0-.42.34-.77.77-.77Z" transform="translate(-12.25 14.07) rotate(-22.5)"/>
+          <rect class="cls-2" x="33.93" y="33.03" width="8.29" height="2.28" rx=".77" ry=".77" transform="translate(-10.18 17.17) rotate(-22.5)"/>
+          <path class="cls-2" d="M43.53,29.37h6.76c.42,0,.77.34.77.77v.75c0,.42-.34.77-.77.77h-6.76c-.42,0-.77-.34-.77-.77v-.75c0-.42.34-.77.77-.77Z" transform="translate(-8.1 20.28) rotate(-22.5)"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

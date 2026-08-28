@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #8cc936;
+      }
+
+      .cls-3 {
+        fill: #d3dee3;
+      }
+
+      .cls-4 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Tennis_Court" data-name="Tennis Court">
+      <rect class="cls-4" width="64" height="64"/>
+      <g>
+        <rect class="cls-2" x="4.5" y="14.5" width="55" height="35" rx="2" ry="2" transform="translate(0 64) rotate(-90)"/>
+        <path class="cls-1" d="M49.5,31h-4V4.5h-2V14H20.5V4.5h-2V31h-4v2h4v26.5h2v-9.5h23v9.5h2v-26.5h4v-2Zm-6,0h-10.5v-15h10.5v15Zm-23-15h10.5v15h-10.5v-15Zm0,17h10.5v15h-10.5v-15Zm23,15h-10.5v-15h10.5v15Z"/>
+        <rect class="cls-3" x="12.5" y="30" width="39" height="4" rx="1" ry="1"/>
+      </g>
+    </g>
+  </g>
+</svg>

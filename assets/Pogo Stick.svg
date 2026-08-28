@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #abc0c9;
+      }
+
+      .cls-3 {
+        opacity: 0;
+      }
+
+      .cls-4 {
+        fill: #476475;
+      }
+
+      .cls-5 {
+        fill: #c6263d;
+      }
+
+      .cls-6 {
+        fill: #324652;
+      }
+
+      .cls-7 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Pogo_Stick" data-name="Pogo Stick">
+      <g class="cls-3">
+        <rect class="cls-1" width="64" height="64"/>
+      </g>
+      <g>
+        <rect class="cls-7" x="26.84" y="5.65" width="10.31" height="4.58"/>
+        <rect class="cls-7" x="17.68" y="21.69" width="28.65" height="5.73" transform="translate(56.55 -7.45) rotate(90)"/>
+        <rect class="cls-2" x="30.28" y="45.75" width="3.44" height="6.88"/>
+        <g>
+          <rect class="cls-6" x="14.24" y="4.5" width="12.6" height="6.88" rx="1.15" ry="1.15"/>
+          <rect class="cls-6" x="37.16" y="4.5" width="12.6" height="6.88" rx="1.15" ry="1.15"/>
+          <path class="cls-6" d="M33.89,52.62h-3.79c-.56,0-1.04,.4-1.13,.96l-.76,4.58c-.12,.7,.42,1.33,1.13,1.33h5.32c.71,0,1.25-.64,1.13-1.33l-.76-4.58c-.09-.55-.57-.96-1.13-.96Z"/>
+        </g>
+        <path class="cls-6" d="M42.89,38.88H21.11c-.63,0-1.15,.51-1.15,1.15v2.57c0,.51,.34,.96,.83,1.1l6.42,1.83c.53,.07,1.05,.15,1.57,.22h6.42c.53-.07,1.05-.15,1.57-.22l6.42-1.83c.49-.14,.83-.59,.83-1.1v-2.57c0-.63-.51-1.15-1.15-1.15Z"/>
+        <path class="cls-4" d="M42.89,38.88H21.11c-.63,0-1.15,.51-1.15,1.15v1.15h24.06v-1.15c0-.63-.51-1.15-1.15-1.15Z"/>
+        <path class="cls-4" d="M25.7,4.5H15.39c-.63,0-1.15,.51-1.15,1.15v1.15h12.6v-1.15c0-.63-.51-1.15-1.15-1.15Z"/>
+        <path class="cls-4" d="M48.61,4.5h-10.31c-.63,0-1.15,.51-1.15,1.15v1.15h12.6v-1.15c0-.63-.51-1.15-1.15-1.15Z"/>
+        <rect class="cls-5" x="26.84" y="7.94" width="10.31" height="2.29"/>
+        <path class="cls-5" d="M34.86,10.23h-5.73v6.51c.78,.94,1.78,1.51,2.86,1.51s2.08-.57,2.86-1.51v-6.51Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

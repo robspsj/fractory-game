@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #eba969;
+      }
+
+      .cls-2 {
+        fill: #fff;
+        opacity: 0;
+      }
+
+      .cls-3 {
+        fill: #5d7c8c;
+      }
+
+      .cls-4 {
+        fill: #476475;
+      }
+
+      .cls-5 {
+        fill: #324652;
+      }
+
+      .cls-6 {
+        fill: #1c9d4d;
+      }
+
+      .cls-7 {
+        fill: #65d666;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Skateboard">
+      <rect class="cls-2" width="64" height="64"/>
+      <g>
+        <g>
+          <rect class="cls-6" x="49.63" y="23.02" width="8.26" height="6.34" transform="translate(110.29 6.7) rotate(135)"/>
+          <ellipse class="cls-7" cx="55.94" cy="28.37" rx="4.13" ry="2.87" transform="translate(-3.68 47.87) rotate(-45)"/>
+          <ellipse class="cls-5" cx="55.94" cy="28.37" rx="1.87" ry="1.3" transform="translate(-3.68 47.87) rotate(-45)"/>
+        </g>
+        <g>
+          <rect class="cls-6" x="22.06" y="50.59" width="8.26" height="6.34" transform="translate(82.72 73.26) rotate(135)"/>
+          <ellipse class="cls-7" cx="28.37" cy="55.94" rx="4.13" ry="2.87" transform="translate(-31.25 36.45) rotate(-45)"/>
+          <ellipse class="cls-5" cx="28.37" cy="55.94" rx="1.87" ry="1.3" transform="translate(-31.25 36.45) rotate(-45)"/>
+        </g>
+        <path class="cls-1" d="M55.81,23.03c-7.67,8.46-24.33,25.12-32.79,32.79-3.77,3.42-9.57,3.29-13.17-.31-.26-.26-1.24-1.24-1.5-1.5-3.36-3.36-3.21-8.84,.32-12.03,8.64-7.82,25.47-24.65,33.3-33.3,3.19-3.52,8.67-3.68,12.03-.32l1.5,1.5c3.6,3.6,3.73,9.39,.31,13.17Z"/>
+        <path class="cls-4" d="M54.38,21.59c-7.67,8.46-24.33,25.12-32.79,32.79-3.77,3.42-9.57,3.29-13.17-.31-.26-.26-1.24-1.24-1.5-1.5-3.36-3.36-3.21-8.84,.32-12.03C15.89,32.72,32.72,15.89,40.54,7.24c3.19-3.52,8.67-3.68,12.03-.32l1.5,1.5c3.6,3.6,3.73,9.39,.31,13.17Z"/>
+        <g>
+          <circle class="cls-3" cx="44.87" cy="20.16" r="1.2"/>
+          <circle class="cls-3" cx="47.73" cy="17.3" r="1.2"/>
+          <circle class="cls-3" cx="42" cy="17.3" r="1.2"/>
+          <circle class="cls-3" cx="44.87" cy="14.43" r="1.2"/>
+        </g>
+        <g>
+          <circle class="cls-3" cx="17.3" cy="47.73" r="1.2"/>
+          <circle class="cls-3" cx="20.16" cy="44.87" r="1.2"/>
+          <circle class="cls-3" cx="14.43" cy="44.87" r="1.2"/>
+          <circle class="cls-3" cx="17.3" cy="42" r="1.2"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

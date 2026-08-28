@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #cef;
+      }
+
+      .cls-3 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="Rough">
+    <g>
+      <rect class="cls-3" width="64" height="64"/>
+      <g>
+        <path class="cls-2" d="M15.27,33.51l1.72,10.7c.18,1.09,1.2,1.83,2.29,1.66l38.54-6.18-42.55-6.18Z"/>
+        <path class="cls-1" d="M58.73,36.7L29.14,18.58c-1.15-.71-2.62-.62-3.68,.22L5.12,34.82c-1.18,.93-.56,2.82,.94,2.88l51.77,1.99c1.66,.06,2.32-2.12,.9-2.99Z"/>
+        <path class="cls-2" d="M42.91,32.89l-23.91-9.01-4.35,3.43,27.99,6.45c.55,.13,.79-.67,.26-.87Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

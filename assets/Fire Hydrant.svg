@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #a72335;
+      }
+
+      .cls-2 {
+        fill: #7b97a6;
+      }
+
+      .cls-3 {
+        fill: #bdccd4;
+      }
+
+      .cls-4 {
+        fill: #c6263d;
+      }
+
+      .cls-5 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-6 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Fire_Hydrant" data-name="Fire Hydrant">
+      <rect class="cls-5" width="64" height="64"/>
+      <g>
+        <rect class="cls-1" x="28.49" y="4.5" width="7.03" height="26.69" rx="1.51" ry="1.51"/>
+        <rect class="cls-4" x="15.63" y="30.96" width="32.73" height="10.05" rx="1.51" ry="1.51"/>
+        <path class="cls-6" d="M42.38,29.45v-11.91c0-5.73-4.65-10.38-10.38-10.38h0c-5.73,0-10.38,4.65-10.38,10.38v11.91c-.81,.03-1.45,.69-1.45,1.51v10.05c0,.81,.65,1.47,1.45,1.51v11.49h20.76v-11.49c.81-.03,1.45-.69,1.45-1.51v-10.05c0-.81-.65-1.47-1.45-1.51Z"/>
+        <rect class="cls-4" x="18.66" y="17.35" width="26.69" height="7.03" rx="1.51" ry="1.51"/>
+        <rect class="cls-1" x="18.66" y="49.45" width="26.69" height="10.05" rx="1.51" ry="1.51"/>
+        <circle class="cls-3" cx="32" cy="35.98" r="6.54"/>
+        <circle class="cls-2" cx="32" cy="35.98" r="2.4"/>
+        <path class="cls-3" d="M18.66,56v1.99c0,.83,.68,1.51,1.51,1.51h23.66c.83,0,1.51-.68,1.51-1.51v-1.99H18.66Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

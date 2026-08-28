@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #5d7c8c;
+      }
+
+      .cls-3 {
+        fill: #bdccd4;
+      }
+
+      .cls-4 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Whiteboard">
+      <rect class="cls-4" width="64" height="64"/>
+      <g>
+        <g>
+          <rect class="cls-1" x="6" y="13.5" width="52" height="37" rx=".5" ry=".5"/>
+          <path class="cls-3" d="M56.5,15V49H7.5V15H56.5m1-3H6.5c-1.1,0-2,.9-2,2V50c0,1.1,.9,2,2,2H57.5c1.1,0,2-.9,2-2V14c0-1.1-.9-2-2-2h0Z"/>
+        </g>
+        <path class="cls-2" d="M52.5,12h5c1.1,0,2,.9,2,2v5h-3c-2.21,0-4-1.79-4-4v-3h0Z"/>
+        <path class="cls-2" d="M52.5,45h5c1.1,0,2,.9,2,2v5h-3c-2.21,0-4-1.79-4-4v-3h0Z" transform="translate(104.5 -7.5) rotate(90)"/>
+        <path class="cls-2" d="M4.5,45h5c1.1,0,2,.9,2,2v5h-3c-2.21,0-4-1.79-4-4v-3h0Z" transform="translate(16 97) rotate(180)"/>
+        <path class="cls-2" d="M4.5,12h5c1.1,0,2,.9,2,2v5h-3c-2.21,0-4-1.79-4-4v-3h0Z" transform="translate(-7.5 23.5) rotate(-90)"/>
+      </g>
+    </g>
+  </g>
+</svg>

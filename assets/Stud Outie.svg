@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #ebf0f2;
+      }
+
+      .cls-2 {
+        fill: #abc0c9;
+      }
+
+      .cls-3 {
+        fill: #d3dee3;
+      }
+
+      .cls-4 {
+        opacity: 0;
+      }
+
+      .cls-5 {
+        fill: #7b97a6;
+      }
+
+      .cls-6 {
+        fill: #5d7c8c;
+      }
+
+      .cls-7 {
+        fill: #91aab5;
+      }
+
+      .cls-8 {
+        fill: #1a1a1a;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Stud_Outie" data-name="Stud Outie">
+      <g class="cls-4">
+        <rect class="cls-8" width="64" height="64"/>
+      </g>
+      <g>
+        <polygon class="cls-5" points="41.67 59.15 58.51 45.72 59.5 8.74 41.97 17.81 41.67 59.15"/>
+        <polygon class="cls-3" points="41.97 17.81 59.5 8.74 25.19 4.85 4.5 12.8 41.97 17.81"/>
+        <polygon class="cls-2" points="4.5 12.8 5.84 51.68 41.67 59.15 41.97 17.81 4.5 12.8"/>
+        <g>
+          <polygon class="cls-3" points="41.08 5.39 50.38 9.41 27.68 6.77 30.33 4.1 41.08 5.39"/>
+          <polygon class="cls-1" points="24.35 6.63 14.52 12.06 38.56 15.18 35.39 8.02 24.35 6.63"/>
+          <polygon class="cls-3" points="41.08 5.39 35.39 8.02 38.56 15.18 50.38 9.41 41.08 5.39"/>
+          <polygon class="cls-3" points="30.33 4.1 27.68 6.77 14.52 12.06 24.35 6.63 30.33 4.1"/>
+        </g>
+        <g>
+          <polygon class="cls-5" points="57.44 25.44 57.2 37.12 56.01 41.51 56.6 16.95 57.44 25.44"/>
+          <polygon class="cls-2" points="52.2 28.68 45.27 23.38 44.98 49.79 52.03 40.76 52.2 28.68"/>
+          <polygon class="cls-3" points="57.44 25.44 56.6 16.95 45.27 23.38 52.2 28.68 57.44 25.44"/>
+          <polygon class="cls-6" points="52.03 40.76 44.98 49.79 56.01 41.51 57.2 37.12 52.03 40.76"/>
+        </g>
+        <g>
+          <polygon class="cls-3" points="25.58 31.56 35.07 24.28 10.84 20.71 14.37 29.76 25.58 31.56"/>
+          <polygon class="cls-5" points="14.62 41.84 11.55 46.33 35.08 50.94 25.68 43.86 14.62 41.84"/>
+          <polygon class="cls-5" points="25.58 31.56 25.68 43.86 35.08 50.94 35.07 24.28 25.58 31.56"/>
+          <polygon class="cls-7" points="14.37 29.76 10.84 20.71 11.55 46.33 14.62 41.84 14.37 29.76"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

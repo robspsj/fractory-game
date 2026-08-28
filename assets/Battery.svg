@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        opacity: 0;
+      }
+
+      .cls-2 {
+        fill: #d3dee3;
+      }
+
+      .cls-3 {
+        fill: #476475;
+      }
+
+      .cls-4 {
+        fill: #91aab5;
+      }
+
+      .cls-5 {
+        fill: #f5b47f;
+      }
+
+      .cls-6 {
+        fill: #324652;
+      }
+
+      .cls-7 {
+        fill: #e6875c;
+      }
+    </style>
+  </defs>
+  <g id="Layer_3" data-name="Layer 3">
+    <g id="Battery">
+      <rect class="cls-1" width="64" height="64"/>
+      <g>
+        <path class="cls-6" d="M5.84,35.54c-3.12,3.12-.59,10.72,5.66,16.97s13.85,8.78,16.97,5.66l22.63-22.63L28.46,12.91,5.84,35.54Z"/>
+        <path class="cls-3" d="M32,16.44L5.27,43.18c1.07,2.99,3.21,6.32,6.23,9.33,.12,.12,.24,.23,.36,.35l28.28-28.28-8.13-8.13Z"/>
+        <path class="cls-7" d="M26.34,15.03c-3.12,3.12-.59,10.72,5.66,16.97s13.85,8.78,16.97,5.66l9.19-9.19L35.54,5.84l-9.19,9.19Z"/>
+        <path class="cls-5" d="M39.07,9.37l-13.3,13.3c1.07,2.99,3.21,6.32,6.23,9.33,.12,.12,.24,.23,.36,.35l14.84-14.84-8.13-8.13Z"/>
+        <g>
+          <ellipse class="cls-5" cx="46.85" cy="17.15" rx="8" ry="16" transform="translate(1.59 38.15) rotate(-45)"/>
+          <ellipse class="cls-2" cx="46.85" cy="17.15" rx="5" ry="12" transform="translate(1.59 38.15) rotate(-45)"/>
+          <path class="cls-4" d="M42.25,12.56c-1.06,1.06,.14,3.97,2.68,6.51s5.45,3.74,6.51,2.68l2.83-2.83-9.19-9.19-2.83,2.83Z"/>
+          <ellipse class="cls-2" cx="49.68" cy="14.32" rx="2.71" ry="6.5" transform="translate(4.42 39.32) rotate(-45)"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

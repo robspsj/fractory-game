@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f0ba84;
+      }
+
+      .cls-2 {
+        fill: #5414b3;
+      }
+
+      .cls-3 {
+        fill: #f67714;
+      }
+
+      .cls-4 {
+        fill: #fec92b;
+      }
+
+      .cls-5 {
+        fill: #1778ff;
+      }
+
+      .cls-6 {
+        fill: #8cc936;
+      }
+
+      .cls-7 {
+        fill: #37b9ff;
+      }
+
+      .cls-8 {
+        fill: #0049c7;
+      }
+
+      .cls-9 {
+        fill: #a72335;
+      }
+
+      .cls-10 {
+        fill: #fc9504;
+      }
+
+      .cls-11 {
+        fill: #fdaf18;
+      }
+
+      .cls-12 {
+        fill: #4ea800;
+      }
+
+      .cls-13 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-14 {
+        fill: #a0f;
+      }
+
+      .cls-15 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Xylophone">
+      <rect class="cls-13" width="64" height="64"/>
+      <g>
+        <rect class="cls-1" x="28.13" y="-7.1" width="7.73" height="55" rx="1" ry="1" transform="translate(11.6 52.4) rotate(-90)"/>
+        <g>
+          <rect class="cls-14" x="49.19" y="14.81" width="6.87" height="18.91" rx="2" ry="2" transform="translate(105.25 48.53) rotate(-180)"/>
+          <rect class="cls-5" x="42.31" y="14.81" width="6.87" height="21.48" rx="2" ry="2" transform="translate(91.5 51.11) rotate(-180)"/>
+          <rect class="cls-7" x="35.44" y="14.81" width="6.87" height="24.06" rx="2" ry="2" transform="translate(77.75 53.69) rotate(-180)"/>
+          <rect class="cls-6" x="28.56" y="14.81" width="6.87" height="26.64" rx="2" ry="2" transform="translate(64 56.27) rotate(-180)"/>
+          <rect class="cls-4" x="21.69" y="14.81" width="6.87" height="29.22" rx="2" ry="2" transform="translate(50.25 58.84) rotate(-180)"/>
+          <rect class="cls-10" x="14.81" y="14.81" width="6.87" height="31.8" rx="2" ry="2" transform="translate(36.5 61.42) rotate(-180)"/>
+          <rect class="cls-15" x="7.94" y="14.81" width="6.87" height="34.37" rx="2" ry="2" transform="translate(22.75 64) rotate(-180)"/>
+        </g>
+        <circle class="cls-2" cx="52.63" cy="19.97" r="1.72"/>
+        <circle class="cls-8" cx="45.75" cy="19.97" r="1.72"/>
+        <circle class="cls-5" cx="38.88" cy="19.97" r="1.72"/>
+        <circle class="cls-12" cx="32" cy="19.97" r="1.72"/>
+        <circle class="cls-11" cx="25.13" cy="19.97" r="1.72"/>
+        <circle class="cls-3" cx="18.25" cy="19.97" r="1.72"/>
+        <circle class="cls-9" cx="11.38" cy="19.97" r="1.72"/>
+      </g>
+    </g>
+  </g>
+</svg>

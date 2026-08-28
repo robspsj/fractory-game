@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #de925a;
+      }
+
+      .cls-2 {
+        fill: #ffbdc6;
+      }
+
+      .cls-3 {
+        fill: #006837;
+      }
+
+      .cls-4 {
+        fill: #fee854;
+      }
+
+      .cls-5 {
+        fill: #bb5938;
+      }
+
+      .cls-6 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Chalkboard">
+      <rect class="cls-6" width="64" height="64"/>
+      <g>
+        <g>
+          <rect class="cls-3" x="6" y="13.5" width="52" height="37"/>
+          <path class="cls-1" d="M56.5,15V47H7.5V15H56.5m2-3H5.5c-.55,0-1,.45-1,1V51c0,.55,.45,1,1,1H58.5c.55,0,1-.45,1-1V13c0-.55-.45-1-1-1h0Z"/>
+        </g>
+        <rect class="cls-5" x="7.5" y="47" width="49" height="2.5"/>
+        <rect class="cls-4" x="13" y="45.5" width="10" height="4" rx="1" ry="1"/>
+        <rect class="cls-2" x="26" y="45.5" width="10" height="4" rx="1" ry="1"/>
+      </g>
+    </g>
+  </g>
+</svg>

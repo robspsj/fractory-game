@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f0ba84;
+      }
+
+      .cls-2 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        fill: #008751;
+        opacity: .5;
+      }
+
+      .cls-4 {
+        fill: #4ea800;
+      }
+
+      .cls-5 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Baseball_Pitch" data-name="Baseball Pitch">
+      <rect class="cls-5" width="64" height="64"/>
+      <g>
+        <rect class="cls-4" x="10.41" y="10.41" width="43.17" height="43.17" rx="7" ry="7" transform="translate(-13.26 32) rotate(-45)"/>
+        <path class="cls-3" d="M6.42,27.05c-1.37,1.37-2.05,3.16-2.05,4.95s.68,3.58,2.05,4.95l5.84,5.84V21.21l-5.84,5.84Z"/>
+        <path class="cls-3" d="M27.05,6.42l-6.89,6.89V50.69l6.89,6.89c.31,.31,.65,.59,1,.83V5.59c-.35,.24-.69,.51-1,.83Z"/>
+        <path class="cls-3" d="M36.95,6.42c-.31-.31-.65-.59-1-.83V58.41c.35-.24,.69-.51,1-.83l6.89-6.89V13.31l-6.89-6.89Z"/>
+        <path class="cls-3" d="M51.73,21.21v21.59l5.84-5.84c1.37-1.37,2.05-3.16,2.05-4.95s-.68-3.58-2.05-4.95l-5.84-5.84Z"/>
+        <g>
+          <path class="cls-1" d="M55.75,30.84l-.37-.37c-.59-.59-1.56-.59-2.15,0l-21.24,21.24,2.52,2.52,21.24-21.24c.59-.59,.59-1.56,0-2.15Z"/>
+          <path class="cls-1" d="M8.61,30.47l-.37,.37c-.59,.59-.59,1.56,0,2.15l21.24,21.24,2.52-2.52L10.76,30.47c-.59-.59-1.56-.59-2.15,0Z"/>
+        </g>
+        <path class="cls-1" d="M32,28.29l11.71,11.71,7.32-7.32-5.67-5.67c-7.38-7.38-19.33-7.38-26.71,0l-5.67,5.67,7.32,7.32,11.71-11.71Z"/>
+        <circle class="cls-1" cx="32" cy="52.45" r="4.19"/>
+        <circle class="cls-2" cx="32" cy="40" r="1.85"/>
+      </g>
+    </g>
+  </g>
+</svg>

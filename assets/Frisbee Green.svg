@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #008751;
+      }
+
+      .cls-2 {
+        fill: #fff;
+        opacity: 0;
+      }
+
+      .cls-3 {
+        fill: #39b54a;
+      }
+
+      .cls-4 {
+        fill: #65d666;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Frisbee_Green" data-name="Frisbee Green">
+      <rect class="cls-2" width="64" height="64"/>
+      <g>
+        <ellipse class="cls-3" cx="32" cy="32" rx="22.63" ry="31.63" transform="translate(-13.25 32) rotate(-45)"/>
+        <path class="cls-4" d="M6.39,23.58c12.35,12.35,28.47,16.25,36.01,8.72,4.38-4.38,4.89-11.67,2.13-19.42C32.6,3.23,17.67,1.6,9.64,9.64c-3.14,3.14-4.8,7.34-5.09,12,.59,.66,1.2,1.31,1.84,1.94Z"/>
+        <path class="cls-1" d="M18.54,45.46C6.79,33.71,3.64,17.58,10.98,8.44c-.47,.37-.91,.77-1.34,1.2C.8,18.47,3.65,35.65,16,48c12.35,12.35,29.53,15.2,38.36,6.36,.43-.43,.83-.88,1.2-1.34-9.15,7.34-25.27,4.19-37.02-7.56Z"/>
+        <ellipse class="cls-1" cx="34.6" cy="29.4" rx="11.34" ry="16.74" transform="translate(-10.66 33.08) rotate(-45)"/>
+      </g>
+    </g>
+  </g>
+</svg>

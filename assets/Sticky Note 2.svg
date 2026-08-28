@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        fill: #fef99d;
+      }
+
+      .cls-4 {
+        opacity: 0;
+      }
+
+      .cls-2 {
+        opacity: .5;
+      }
+
+      .cls-5 {
+        fill: #fed83f;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Sticky_Note_2" data-name="Sticky Note 2">
+      <g class="cls-4">
+        <rect class="cls-1" width="64" height="64"/>
+      </g>
+      <g>
+        <rect class="cls-5" x="9.15" y="12.72" width="45.69" height="45.69" transform="translate(-1.7 1.61) rotate(-2.81)"/>
+        <g>
+          <polygon class="cls-2" points="35.67 4.5 26.15 4.5 26.15 12.98 35.67 12.51 35.67 4.5"/>
+          <polygon class="cls-3" points="35.67 20.38 35.67 12.51 26.15 12.98 26.15 20.38 35.67 20.38"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

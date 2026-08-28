@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #abc0c9;
+      }
+
+      .cls-2 {
+        fill: #5d7c8c;
+      }
+
+      .cls-3 {
+        fill: #ffa38c;
+      }
+
+      .cls-4 {
+        fill: #476475;
+      }
+
+      .cls-5 {
+        fill: #324652;
+      }
+
+      .cls-6 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-7 {
+        fill: #f5535c;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Traffic_Light_Red" data-name="Traffic Light Red">
+      <rect class="cls-6" width="64" height="64"/>
+      <g>
+        <g>
+          <rect class="cls-5" x="21" y="5.5" width="22" height="53" rx="3" ry="3"/>
+          <path class="cls-1" d="M40,6.5c1.1,0,2,.9,2,2V55.5c0,1.1-.9,2-2,2H24c-1.1,0-2-.9-2-2V8.5c0-1.1,.9-2,2-2h16m0-2H24c-2.21,0-4,1.79-4,4V55.5c0,2.21,1.79,4,4,4h16c2.21,0,4-1.79,4-4V8.5c0-2.21-1.79-4-4-4h0Z"/>
+        </g>
+        <circle class="cls-4" cx="32" cy="31.5" r="6.36"/>
+        <ellipse class="cls-2" cx="30.39" cy="29.89" rx="3.03" ry="2.27" transform="translate(-12.24 30.25) rotate(-45)"/>
+        <circle class="cls-7" cx="32" cy="15.5" r="6.36"/>
+        <ellipse class="cls-3" cx="30.39" cy="13.89" rx="3.03" ry="2.27" transform="translate(-.92 25.56) rotate(-45)"/>
+        <circle class="cls-4" cx="32" cy="47.5" r="6.36"/>
+        <ellipse class="cls-2" cx="30.39" cy="45.89" rx="3.03" ry="2.27" transform="translate(-23.55 34.93) rotate(-45)"/>
+      </g>
+    </g>
+  </g>
+</svg>

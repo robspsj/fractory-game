@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #39b54a;
+      }
+
+      .cls-3 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-4 {
+        fill: #f5535c;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Football_Pitch" data-name="Football Pitch">
+      <rect class="cls-3" width="64" height="64"/>
+      <g>
+        <rect class="cls-2" x="4.5" y="14.5" width="55" height="35" rx="2" ry="2"/>
+        <rect class="cls-1" x="31" y="14.5" width="2" height="35"/>
+        <rect class="cls-1" x="41" y="14.5" width="2" height="35"/>
+        <rect class="cls-1" x="21" y="14.5" width="2" height="35"/>
+        <path class="cls-4" d="M6.5,49.5h5V14.5H6.5c-1.1,0-2,.9-2,2v31c0,1.1,.9,2,2,2Z"/>
+        <path class="cls-4" d="M52.5,49.5h5c1.1,0,2-.9,2-2V16.5c0-1.1-.9-2-2-2h-5V49.5Z"/>
+        <rect class="cls-1" x="51" y="14.5" width="2" height="35"/>
+        <rect class="cls-1" x="11" y="14.5" width="2" height="35"/>
+      </g>
+    </g>
+  </g>
+</svg>

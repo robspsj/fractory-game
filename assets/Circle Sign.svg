@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-3 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Circle_Sign" data-name="Circle Sign">
+      <rect class="cls-2" width="64" height="64"/>
+      <g>
+        <circle class="cls-1" cx="32" cy="32" r="24"/>
+        <path class="cls-3" d="M32,11.5c11.3,0,20.5,9.2,20.5,20.5s-9.2,20.5-20.5,20.5-20.5-9.2-20.5-20.5S20.7,11.5,32,11.5m0-7c-15.19,0-27.5,12.31-27.5,27.5s12.31,27.5,27.5,27.5,27.5-12.31,27.5-27.5S47.19,4.5,32,4.5h0Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

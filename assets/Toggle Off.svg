@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        opacity: 0;
+      }
+
+      .cls-3 {
+        fill: #abc0c9;
+      }
+
+      .cls-4 {
+        fill: #d3dee3;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Toggle_Off" data-name="Toggle Off">
+      <rect class="cls-2" width="64" height="64"/>
+      <g>
+        <rect class="cls-4" x="4.5" y="18" width="55" height="28" rx="14" ry="14"/>
+        <path class="cls-3" d="M18.64,42h26.86c5.52,0,10-4.48,10-10s-4.48-10-10-10H18.64c-5.52,0-10,4.48-10,10s4.48,10,10,10Z"/>
+        <circle class="cls-1" cx="18.64" cy="32" r="10"/>
+      </g>
+    </g>
+  </g>
+</svg>

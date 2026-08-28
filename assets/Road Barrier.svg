@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fec92b;
+      }
+
+      .cls-2 {
+        fill: #f15a24;
+      }
+
+      .cls-3 {
+        fill: #7b97a6;
+      }
+
+      .cls-4 {
+        fill: #476475;
+      }
+
+      .cls-5 {
+        fill: #fc9504;
+      }
+
+      .cls-6 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Road_Barrier" data-name="Road Barrier">
+      <rect class="cls-6" width="64" height="64"/>
+      <g>
+        <g>
+          <rect class="cls-3" x="46.5" y="21.5" width="8" height="38" rx="3" ry="3"/>
+          <rect class="cls-3" x="9.5" y="21.5" width="8" height="38" rx="3" ry="3"/>
+        </g>
+        <rect class="cls-1" x="4.5" y="18.5" width="55" height="11.5" rx="2" ry="2"/>
+        <rect class="cls-2" x="46.5" y="14.5" width="8" height="4"/>
+        <circle class="cls-5" cx="50.5" cy="10.5" r="6"/>
+        <ellipse class="cls-1" cx="49.44" cy="9.44" rx="3" ry="2.5" transform="translate(7.81 37.72) rotate(-45)"/>
+        <rect class="cls-2" x="9.5" y="14.5" width="8" height="4"/>
+        <circle class="cls-5" cx="13.5" cy="10.5" r="6"/>
+        <ellipse class="cls-1" cx="12.44" cy="9.44" rx="3" ry="2.5" transform="translate(-3.03 11.56) rotate(-45)"/>
+        <g>
+          <polygon class="cls-4" points="16 30 7 30 11 18.5 20 18.5 16 30"/>
+          <polygon class="cls-4" points="33 30 24 30 28 18.5 37 18.5 33 30"/>
+          <polygon class="cls-4" points="50 30 41 30 45 18.5 54 18.5 50 30"/>
+        </g>
+        <rect class="cls-1" x="4.5" y="34.5" width="55" height="11.5" rx="2" ry="2"/>
+        <g>
+          <polygon class="cls-4" points="19 46 10 46 14 34.5 23 34.5 19 46"/>
+          <polygon class="cls-4" points="36 46 27 46 31 34.5 40 34.5 36 46"/>
+          <polygon class="cls-4" points="53 46 44 46 48 34.5 57 34.5 53 46"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f5b47f;
+      }
+
+      .cls-2 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-3 {
+        fill: #e6875c;
+      }
+
+      .cls-4 {
+        fill: #ed9d6d;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Bandaid">
+      <rect class="cls-2" width="64" height="64"/>
+      <g>
+        <path class="cls-1" d="M55.26,8.74c-5.65-5.65-14.82-5.65-20.47,0L8.74,34.79c-5.65,5.65-5.65,14.82,0,20.47,5.65,5.65,14.82,5.65,20.47,0l26.05-26.05c5.65-5.65,5.65-14.82,0-20.47Z"/>
+        <rect class="cls-3" x="21.47" y="21.47" width="21.05" height="21.05" rx="2.63" ry="2.63" transform="translate(-13.25 32) rotate(-45)"/>
+        <circle class="cls-4" cx="44.56" cy="19.44" r="1.97"/>
+        <circle class="cls-4" cx="50.14" cy="25.02" r="1.97"/>
+        <circle class="cls-4" cx="38.98" cy="13.86" r="1.97"/>
+        <circle class="cls-4" cx="46.42" cy="12" r="1.97"/>
+        <circle class="cls-4" cx="52" cy="17.58" r="1.97"/>
+        <circle class="cls-4" cx="19.44" cy="44.56" r="1.97"/>
+        <circle class="cls-4" cx="13.86" cy="38.98" r="1.97"/>
+        <circle class="cls-4" cx="25.02" cy="50.14" r="1.97"/>
+        <circle class="cls-4" cx="17.58" cy="52" r="1.97"/>
+        <circle class="cls-4" cx="12" cy="46.42" r="1.97"/>
+      </g>
+    </g>
+  </g>
+</svg>

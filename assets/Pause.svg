@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #80bad9;
+      }
+
+      .cls-3 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Pause">
+      <rect class="cls-3" width="64" height="64"/>
+      <g>
+        <g id="Colour">
+          <g>
+            <rect class="cls-2" x="11" y="12.73" width="15" height="44.79" rx="3" ry="3"/>
+            <rect class="cls-1" x="11" y="6.47" width="15" height="44.79" rx="3" ry="3"/>
+          </g>
+        </g>
+        <g id="Colour-2" data-name="Colour">
+          <g>
+            <rect class="cls-2" x="38" y="12.73" width="15" height="44.79" rx="3" ry="3"/>
+            <rect class="cls-1" x="38" y="6.47" width="15" height="44.79" rx="3" ry="3"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

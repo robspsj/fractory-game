@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #b3eb97;
+      }
+
+      .cls-3 {
+        fill: #abc0c9;
+      }
+
+      .cls-4 {
+        fill: #d3dee3;
+      }
+
+      .cls-5 {
+        opacity: 0;
+      }
+
+      .cls-6 {
+        fill: #65d666;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Download">
+      <g class="cls-5">
+        <rect class="cls-1" width="64" height="64"/>
+      </g>
+      <g>
+        <rect class="cls-3" x="11" y="45.5" width="42" height="10" rx="2" ry="2"/>
+        <path class="cls-6" d="M45.85,21.25h-5.34V10.5c0-1.1-.9-2-2-2h-13c-1.1,0-2,.9-2,2v10.75h-5.34c-1.51,0-2.27,1.83-1.2,2.9l13.85,13.85c.66,.66,1.74,.66,2.4,0l13.85-13.85c1.07-1.07,.31-2.9-1.2-2.9Z"/>
+        <path class="cls-2" d="M29.01,14.01c-.97,.97-2.21,1.29-2.94,.56s-1.03-2.6-.06-3.56,2.84-.66,3.56,.06,.4,1.97-.56,2.94Z"/>
+        <path class="cls-4" d="M12.5,47.5H51.5c.6,0,1.13,.27,1.5,.69v-.69c0-1.1-.9-2-2-2H13c-1.1,0-2,.9-2,2v.69c.37-.42,.9-.69,1.5-.69Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

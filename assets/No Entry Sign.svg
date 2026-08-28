@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #d3dee3;
+      }
+
+      .cls-3 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-4 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="No_Entry_Sign" data-name="No Entry Sign">
+      <rect class="cls-3" width="64" height="64"/>
+      <g>
+        <g>
+          <circle class="cls-4" cx="32" cy="32" r="24"/>
+          <path class="cls-2" d="M32,9c12.68,0,23,10.32,23,23s-10.32,23-23,23-23-10.32-23-23S19.32,9,32,9m0-4.5c-15.19,0-27.5,12.31-27.5,27.5s12.31,27.5,27.5,27.5,27.5-12.31,27.5-27.5S47.19,4.5,32,4.5h0Z"/>
+        </g>
+        <rect class="cls-1" x="14.5" y="27" width="35" height="10" rx="1" ry="1"/>
+        <path class="cls-1" d="M59.22,28.08c-1.9-13.33-13.36-23.58-27.22-23.58S6.69,14.75,4.78,28.08c1.13,1.94,2.56,3.74,4.27,5.35-.03-.47-.05-.95-.05-1.43,0-12.68,10.32-23,23-23s23,10.32,23,23c0,.48-.02,.96-.05,1.43,1.7-1.62,3.14-3.42,4.27-5.35Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

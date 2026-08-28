@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        fill: #fec92b;
+      }
+
+      .cls-2 {
+        opacity: 0;
+      }
+
+      .cls-4 {
+        fill: #39b54a;
+      }
+
+      .cls-5 {
+        fill: #96dbff;
+      }
+
+      .cls-6 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Power_Meter_Medium" data-name="Power Meter Medium">
+      <rect class="cls-2" width="64" height="64"/>
+      <g>
+        <g>
+          <path class="cls-4" d="M15.4,21.76l16.6,22.03H6.59c-1.2,0-2.18-1.02-2.09-2.22,.64-8.09,4.78-15.19,10.9-19.81Z"/>
+          <path class="cls-6" d="M57.41,43.79h-25.41l16.6-22.03c6.12,4.62,10.25,11.72,10.9,19.81,.1,1.2-.88,2.22-2.09,2.22Z"/>
+          <path class="cls-3" d="M32,16.21c6.23,0,11.98,2.07,16.6,5.55l-16.6,22.03L15.4,21.76c4.62-3.49,10.37-5.55,16.6-5.55Z"/>
+        </g>
+        <g>
+          <path class="cls-1" d="M27.98,43.74c0,2.22,1.8,4.02,4.02,4.02s4.02-1.8,4.02-4.02-.67-22.47-4.02-22.47-4.02,20.25-4.02,22.47Z"/>
+          <circle class="cls-5" cx="32" cy="43.74" r="1.85"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

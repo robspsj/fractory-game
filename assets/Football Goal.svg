@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fec92b;
+      }
+
+      .cls-2 {
+        fill: #1778ff;
+      }
+
+      .cls-3 {
+        fill: #fc9504;
+      }
+
+      .cls-4 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Football_Goal" data-name="Football Goal">
+      <rect class="cls-4" width="64" height="64"/>
+      <g>
+        <path class="cls-3" d="M32,50.54c-1.1,0-2-.9-2-2v-11.46c0-1.1,.9-2,2-2s2,.9,2,2v11.46c0,1.1-.9,2-2,2Z"/>
+        <path class="cls-1" d="M46.79,38.08H17.21c-1.1,0-2-.9-2-2V6.5c0-1.1,.9-2,2-2s2,.9,2,2v27.58h25.58V6.5c0-1.1,.9-2,2-2s2,.9,2,2v29.58c0,1.1-.9,2-2,2Z"/>
+        <rect class="cls-2" x="27.5" y="43.04" width="9.01" height="16.46" rx="2" ry="2"/>
+      </g>
+    </g>
+  </g>
+</svg>

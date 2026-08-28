@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #ebf0f2;
+      }
+
+      .cls-3 {
+        fill: #476475;
+      }
+
+      .cls-4 {
+        fill: #bdccd4;
+      }
+
+      .cls-5 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Toilet_Paper" data-name="Toilet Paper">
+      <rect class="cls-5" width="64" height="64"/>
+      <g>
+        <g>
+          <path class="cls-4" d="M9.51,14.39v30.58h.02c-.01,.15-.02,.3-.02,.45,0,5.71,10.07,10.34,22.49,10.34V14.39H9.51Z"/>
+          <path class="cls-1" d="M54.49,45.43c0-.15-.01-.3-.02-.45h.02V14.39h-22.49V55.77c12.42,0,22.49-4.63,22.49-10.34Z"/>
+        </g>
+        <ellipse class="cls-1" cx="32" cy="14.84" rx="22.49" ry="10.34"/>
+        <ellipse class="cls-3" cx="32" cy="14.84" rx="8.1" ry="3.72"/>
+        <path class="cls-1" d="M19.3,29.26c-.5,.33-.79,.9-.79,1.5v27.85c0,.7,.77,1.13,1.36,.76,5.93-3.6,12.13-3.6,12.13-3.6V25.3s-6.61,0-12.7,3.96Z"/>
+        <g>
+          <path class="cls-2" d="M44.59,26.99c-.5,0-.9,.4-.9,.9v3.6c0,.5,.4,.9,.9,.9s.9-.4,.9-.9v-3.6c0-.5-.4-.9-.9-.9Z"/>
+          <path class="cls-2" d="M44.59,35.98c-.5,0-.9,.4-.9,.9v3.6c0,.5,.4,.9,.9,.9s.9-.4,.9-.9v-3.6c0-.5-.4-.9-.9-.9Z"/>
+          <path class="cls-2" d="M44.59,44.98c-.5,0-.9,.4-.9,.9v3.6c0,.5,.4,.9,.9,.9s.9-.4,.9-.9v-3.6c0-.5-.4-.9-.9-.9Z"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

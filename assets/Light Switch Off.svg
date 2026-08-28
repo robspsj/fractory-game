@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #ffdfb5;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        opacity: 0;
+      }
+
+      .cls-4 {
+        fill: #ff7a6e;
+      }
+
+      .cls-5 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Light_Switch_Off" data-name="Light Switch Off">
+      <rect class="cls-3" width="64" height="64"/>
+      <g>
+        <rect class="cls-1" x="10.25" y="4.5" width="43.5" height="55" rx="5" ry="5"/>
+        <rect class="cls-2" x="16.25" y="4.5" width="37.5" height="55" rx="5" ry="5"/>
+        <rect class="cls-5" x="28.06" y="17.17" width="13.87" height="29.67"/>
+        <polygon class="cls-4" points="41.94 32 28.06 32 32.74 45.19 46.61 45.19 41.94 32"/>
+        <polygon class="cls-5" points="32.74 45.19 28.06 46.83 41.94 46.83 46.61 45.19 32.74 45.19"/>
+        <polygon class="cls-5" points="28.06 32 32.74 45.19 28.06 46.83 28.06 32"/>
+      </g>
+    </g>
+  </g>
+</svg>

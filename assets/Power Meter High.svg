@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fec92b;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5 {
+        stroke-width: 0px;
+      }
+
+      .cls-6 {
+        opacity: 0;
+      }
+
+      .cls-2 {
+        fill: #e62e49;
+      }
+
+      .cls-3 {
+        fill: #39b54a;
+      }
+
+      .cls-4 {
+        fill: #fff;
+      }
+
+      .cls-5 {
+        fill: #96dbff;
+      }
+    </style>
+  </defs>
+  <g id="Exports_2" data-name="Exports 2">
+    <g>
+      <g class="cls-6">
+        <rect class="cls-4" width="64" height="64"/>
+      </g>
+      <g>
+        <g>
+          <path class="cls-3" d="M15.4,21.76l16.6,22.03H6.59c-1.2,0-2.18-1.02-2.09-2.22.64-8.09,4.78-15.19,10.9-19.81Z"/>
+          <path class="cls-2" d="M57.41,43.79h-25.41s16.6-22.03,16.6-22.03c6.12,4.62,10.25,11.72,10.9,19.81.1,1.2-.88,2.22-2.09,2.22Z"/>
+          <path class="cls-1" d="M32,16.21c6.23,0,11.98,2.07,16.6,5.55l-16.6,22.03L15.4,21.76c4.62-3.49,10.37-5.55,16.6-5.55Z"/>
+        </g>
+        <g>
+          <path class="cls-4" d="M30.45,40.07c-2.04.88-2.98,3.25-2.1,5.29.88,2.04,3.25,2.98,5.29,2.1s20.36-9.53,19.03-12.61c-1.33-3.08-20.18,4.34-22.22,5.22Z"/>
+          <circle class="cls-5" cx="32.05" cy="43.77" r="1.85"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

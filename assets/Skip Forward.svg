@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: #fff;
+      }
+
+      .cls-3, .cls-4 {
+        fill: #80bad9;
+      }
+
+      .cls-2, .cls-4 {
+        fill-rule: evenodd;
+      }
+
+      .cls-5 {
+        fill: rgba(26, 26, 26, 0);
+      }
+    </style>
+  </defs>
+  <g id="Colour">
+    <g>
+      <rect class="cls-5" width="64" height="64"/>
+      <g>
+        <rect class="cls-3" x="43.62" y="12.73" width="9.11" height="44.79" rx="3" ry="3" transform="translate(96.35 70.26) rotate(-180)"/>
+        <path class="cls-4" d="M14.43,6.47c-1.73-.01-3.15,1.38-3.16,3.12V54.39c0,.62,.18,1.22,.53,1.74,.96,1.44,2.91,1.83,4.35,.87l28.92-19.24c.88-.58,1.4-1.57,1.4-2.62h0v-6.28h0c0-1.05-.52-2.04-1.4-2.62L16.15,7c-.51-.34-1.11-.52-1.72-.53Z"/>
+        <path class="cls-2" d="M14.43,6.47c-1.73-.01-3.15,1.38-3.16,3.12V48.12c0,.62,.18,1.23,.53,1.75,.96,1.44,2.91,1.83,4.35,.87l28.92-19.27c.35-.23,.65-.53,.88-.88,.96-1.44,.57-3.39-.88-4.35L16.15,7c-.51-.34-1.11-.52-1.72-.53Z"/>
+        <rect class="cls-1" x="43.62" y="6.47" width="9.11" height="44.79" rx="3" ry="3" transform="translate(96.35 57.74) rotate(-180)"/>
+      </g>
+    </g>
+  </g>
+</svg>

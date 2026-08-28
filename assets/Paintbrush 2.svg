@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #ffdfb5;
+      }
+
+      .cls-2 {
+        fill: #eba969;
+      }
+
+      .cls-3 {
+        fill: #ff7a6e;
+      }
+
+      .cls-4 {
+        fill: #d1774b;
+      }
+
+      .cls-5 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+
+      .cls-6 {
+        fill: #e62e49;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Paintbrush_2" data-name="Paintbrush 2">
+      <rect class="cls-5" width="64" height="64"/>
+      <g>
+        <path class="cls-2" d="M31.93,25.97C5.6,52.3,3.24,57.39,4.93,59.08s6.78-.67,33.11-27l-6.11-6.11Z"/>
+        <rect class="cls-4" x="33.72" y="21.65" width="8.64" height="8.64" transform="translate(29.51 -19.29) rotate(45)"/>
+        <path class="cls-1" d="M58.5,4.51c-4.44,.54-20.54,3.34-20.46,15.36l3.05,3.05,3.05,3.05c12.02,.07,14.81-16.03,15.36-20.46,.07-.58-.42-1.07-1-1Z"/>
+        <path class="cls-6" d="M48.51,16.1c2.71,0,5.05,1.6,6.13,3.91,3.42-5.04,4.54-11.85,4.87-14.5,.07-.58-.42-1.08-1-1.01-3.03,.37-11.5,1.79-16.54,6.49,.74,2.93,3.39,5.1,6.55,5.1Z"/>
+        <ellipse class="cls-3" cx="52.68" cy="8.47" rx="3.68" ry="1.47" transform="translate(-.14 16.04) rotate(-17.29)"/>
+      </g>
+    </g>
+  </g>
+</svg>

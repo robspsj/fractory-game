@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fec92b;
+      }
+
+      .cls-2 {
+        fill: #fff;
+        opacity: 0;
+      }
+
+      .cls-3 {
+        fill: #476475;
+      }
+
+      .cls-4 {
+        fill: #324652;
+      }
+    </style>
+  </defs>
+  <g id="Layer_3" data-name="Layer 3">
+    <g id="Phone_Battery_Medium" data-name="Phone Battery Medium">
+      <rect class="cls-2" width="64" height="64"/>
+      <g>
+        <path class="cls-4" d="M9.5,50.62c-3.31,0-6-2.69-6-6V19.38c0-3.31,2.69-6,6-6H50.23c3.31,0,6,2.69,6,6v4.41h.27c2.21,0,4,1.79,4,4v8.42c0,2.21-1.79,4-4,4h-.27v4.41c0,3.31-2.69,6-6,6H9.5Z"/>
+        <g>
+          <rect class="cls-1" x="24.08" y="18.38" width="11.58" height="27.24" rx="1" ry="1"/>
+          <rect class="cls-1" x="8.5" y="18.38" width="11.58" height="27.24" rx="1" ry="1"/>
+          <rect class="cls-3" x="39.65" y="18.38" width="11.58" height="27.24" rx="1" ry="1"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

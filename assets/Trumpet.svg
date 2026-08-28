@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f67714;
+      }
+
+      .cls-2 {
+        fill: #fec92b;
+      }
+
+      .cls-3 {
+        fill: #7b97a6;
+      }
+
+      .cls-4 {
+        fill: #bdccd4;
+      }
+
+      .cls-5 {
+        fill: #fdaf18;
+      }
+
+      .cls-6 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Trumpet">
+      <rect class="cls-6" width="64" height="64"/>
+      <g>
+        <rect class="cls-3" x="33.91" y="27.21" width="2.38" height="2.07" transform="translate(39.94 73.04) rotate(-135)"/>
+        <rect class="cls-3" x="28.83" y="22.13" width="2.38" height="2.07" transform="translate(34.86 60.78) rotate(-135)"/>
+        <g>
+          <rect class="cls-4" x="35.39" y="24.29" width="3.03" height="4.31" rx="1" ry="1" transform="translate(-7.89 33.84) rotate(-45)"/>
+          <rect class="cls-4" x="30.31" y="19.21" width="3.03" height="4.31" rx="1" ry="1" transform="translate(-5.79 28.76) rotate(-45)"/>
+          <rect class="cls-4" x="25.23" y="14.13" width="3.03" height="4.31" rx="1" ry="1" transform="translate(-3.68 23.68) rotate(-45)"/>
+        </g>
+        <rect class="cls-3" x="23.75" y="17.06" width="2.38" height="2.07" transform="translate(29.78 48.52) rotate(-135)"/>
+        <rect class="cls-5" x="10.03" y="29.37" width="23.27" height="4.31" rx=".96" ry=".96" transform="translate(-15.94 24.55) rotate(-45)"/>
+        <rect class="cls-5" x="4.95" y="24.29" width="23.27" height="4.31" rx=".96" ry=".96" transform="translate(-13.84 19.47) rotate(-45)"/>
+        <rect class="cls-5" x="15.11" y="34.45" width="23.27" height="4.31" rx=".96" ry=".96" transform="translate(-18.05 29.63) rotate(-45)"/>
+        <path class="cls-2" d="M45.14,37.3c6.63,.41,10.18-.77,10.18-.77l-7.41,11.37-11.37,7.41s1.18-3.55,.77-10.18c-.41-6.63-9.75-14.58-9.75-14.58l1.5-1.5h0s1.5-1.5,1.5-1.5c0,0,7.94,9.34,14.58,9.75Z"/>
+        <path class="cls-2" d="M9.11,18.96c3.56-3.56,9.35-3.56,12.91,0l12.21,12.21c3.56,3.56,3.56,9.35,0,12.91s-9.35,3.56-12.91,0l-12.21-12.21c-3.56-3.56-3.56-9.35,0-12.91Zm9.86,3.05c-1.88-1.88-4.94-1.88-6.82,0s-1.88,4.94,0,6.82l12.21,12.21c1.88,1.88,4.94,1.88,6.82,0s1.88-4.94,0-6.82l-12.21-12.21Z"/>
+        <polygon class="cls-2" points="7.43 9.11 22.08 25.12 25.13 22.08 9.12 7.42 7.43 9.11"/>
+        <ellipse class="cls-5" cx="47.91" cy="47.9" rx="15.47" ry="5.45" transform="translate(-19.84 47.9) rotate(-45)"/>
+        <ellipse class="cls-1" cx="47.23" cy="47.22" rx="8.45" ry="2.98" transform="translate(-19.56 47.23) rotate(-45)"/>
+        <path class="cls-4" d="M9.66,4.83c3.23,3.49,2.65,4.97,1.39,6.22s-2.73,1.84-6.22-1.39c-.42-.39-.44-1.04-.03-1.45l3.42-3.42c.4-.4,1.06-.38,1.45,.03Z"/>
+        <rect class="cls-4" x="30.31" y="19.21" width="3.03" height="4.31" rx="1" ry="1" transform="translate(-5.79 28.76) rotate(-45)"/>
+      </g>
+    </g>
+  </g>
+</svg>

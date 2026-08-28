@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #eba969;
+      }
+
+      .cls-3 {
+        fill: #d1774b;
+      }
+
+      .cls-4 {
+        fill: #1a1a1a;
+        opacity: 0;
+      }
+    </style>
+  </defs>
+  <g id="No_outline" data-name="No outline">
+    <g id="Easel">
+      <rect class="cls-4" width="64" height="64"/>
+      <g>
+        <rect class="cls-2" x="16.5" y="16.5" width="31" height="7" rx="2" ry="2" transform="translate(52 -12) rotate(90)"/>
+        <g>
+          <path class="cls-3" d="M27.33,39.35c.3-1.06-.32-2.17-1.39-2.46l-2.89-.81c-1.06-.3-2.17,.32-2.46,1.39l-5.44,19.5c-.36,1.27,.6,2.54,1.93,2.54h3.11c.9,0,1.69-.6,1.93-1.46l5.22-18.69Z"/>
+          <path class="cls-3" d="M43.41,37.46c-.3-1.06-1.4-1.69-2.46-1.39l-2.89,.81c-1.06,.3-1.69,1.4-1.39,2.46l5.22,18.69c.24,.86,1.03,1.46,1.93,1.46h3.11c1.32,0,2.28-1.26,1.93-2.54l-5.44-19.5Z"/>
+        </g>
+        <rect class="cls-2" x="9" y="40.5" width="46" height="7" rx="2" ry="2"/>
+        <path class="cls-1" d="M14,11.5H50c1.1,0,2,.9,2,2v27H12V13.5c0-1.1,.9-2,2-2Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        fill: #abc0c9;
+      }
+
+      .cls-3 {
+        fill: #d3dee3;
+      }
+
+      .cls-4 {
+        opacity: 0;
+      }
+
+      .cls-5 {
+        fill: #f2a6ff;
+      }
+
+      .cls-6 {
+        fill: #d769ff;
+      }
+    </style>
+  </defs>
+  <g id="Finals">
+    <g id="Upload">
+      <g class="cls-4">
+        <rect class="cls-1" width="64" height="64"/>
+      </g>
+      <g>
+        <rect class="cls-2" x="11" y="45.5" width="42" height="10" rx="2" ry="2" transform="translate(64 101) rotate(180)"/>
+        <path class="cls-6" d="M47.05,22.84l-13.85-13.85c-.66-.66-1.74-.66-2.4,0l-13.85,13.85c-1.07,1.07-.31,2.9,1.2,2.9h5.34v10.75c0,1.1,.9,2,2,2h13c1.1,0,2-.9,2-2v-10.75h5.34c1.51,0,2.27-1.83,1.2-2.9Z"/>
+        <path class="cls-5" d="M25.55,16.35c1.85-1.85,3.6-3.1,4.46-2.24s.05,3.05-1.8,4.9-4.04,2.65-4.9,1.8,.39-2.61,2.24-4.46Z"/>
+        <path class="cls-3" d="M12.5,47.5H51.5c.6,0,1.13,.27,1.5,.69v-.69c0-1.1-.9-2-2-2H13c-1.1,0-2,.9-2,2v.69c.37-.42,.9-.69,1.5-.69Z"/>
+      </g>
+    </g>
+  </g>
+</svg>
