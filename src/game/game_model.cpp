@@ -139,6 +139,7 @@ void GameModel::populateWithSubgrid(int cellIndex, int size) {
   cell.content.type = CellType::GRID;
   cell.content.data.grid.gridDimension = size;
   cell.content.data.grid.firstChild = (int)_nodes.size();
+  cell.content.data.grid.variation = size;
 
   for (int j = 0; j < size * size; j++) {
     Cell child;
@@ -441,6 +442,7 @@ void GameModel::tickItem(int idx) {
   if (std::rand() % 2 == 0) {
     if (cell.content.data.item.count < 5) {
       cell.content.data.item.count++;
+      emitEvent(CellEventType::GROW, idx, cell.content.data.item.id);
     } else {
       int target = findSpillTarget(idx);
       if (target != -1) {
@@ -454,6 +456,7 @@ void GameModel::tickItem(int idx) {
   } else {
     if (cell.content.data.item.count > 1) {
       cell.content.data.item.count--;
+      emitEvent(CellEventType::SHRINK, idx, cell.content.data.item.id);
     } else {
       int id = cell.content.data.item.id;
       cell.content.type = CellType::EMPTY;
@@ -577,6 +580,7 @@ void GameModel::setFullState(int *inData) {
         _nodes[idx].content.type = CellType::GRID;
         _nodes[idx].content.data.grid.firstChild = (int)_nodes.size();
         _nodes[idx].content.data.grid.gridDimension = 3;
+        _nodes[idx].content.data.grid.variation = 3;
         for (int j = 0; j < 9; j++) {
           Cell child;
           child.parentId = idx;

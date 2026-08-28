@@ -8,7 +8,7 @@ enum class CellType { EMPTY, ITEM, GRID, STATION, RESERVED };
 // Presentational event log for the particle/effect layer. The model never
 // stores particles; it only records "this cell changed in this way" so a
 // subscriber (Game -> ParticleSystem) can react. Kept out of Cell entirely.
-enum class CellEventType { REACTION, SPAWN, SPILL, DESTROY, STATION_OUTPUT };
+enum class CellEventType { REACTION, SPAWN, SPILL, DESTROY, STATION_OUTPUT, GROW, SHRINK };
 struct CellEvent {
   int nodeIndex;
   int itemId; // element involved (for per-item effect config)
@@ -23,6 +23,7 @@ struct ItemData {
 struct GridData {
   int firstChild;
   int gridDimension;
+  int variation;   // visual theme, derived from the grid's dimension at creation
 };
 
 struct StationData {

@@ -2,11 +2,13 @@
 #include "chess_assets.h"
 #include "config.hpp"
 #include "particle.hpp"
+#include "ui_assets.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 #include "include/core/SkCanvas.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkM44.h"
@@ -297,6 +299,41 @@ struct PieceLib {
   }
 };
 
+// Rounded-color-square tiles (from ui_assets.h) drawn per grid/cell background.
+// Same SVG pipeline as the pieces: parsed once into SkSVGDOMs and rendered per
+// cell — no raster cache. `bg[i]` = grid container, `cell[i]` = inner cell, where
+// i = GridData.variation (a per-size colour family).
+#if !defined(__EMSCRIPTEN__)
+struct UiLib {
+  static constexpr int kFamilies = 5;
+  std::array<sk_sp<SkSVGDOM>, kFamilies> bg;
+  std::array<sk_sp<SkSVGDOM>, kFamilies> cell;
+  explicit UiLib() {
+    for (int i = 0; i < kFamilies; i++) {
+      bg[i] = load(ui::bg[i]);
+      cell[i] = load(ui::cell[i]);
+    }
+  }
+  static sk_sp<SkSVGDOM> load(const ui::Svg &svg) {
+    SkMemoryStream stream(svg.data, svg.size, false);
+    return SkSVGDOM::MakeFromStream(stream);
+  }
+};
+
+// Render an SVG tile into the NDC rect `r` (viewBox maps to the rect). The canvas
+// is under the renderer's NDC matrix, so the tile lands exactly where a flat
+// quad would have.
+static void renderTile(SkCanvas *canvas, const sk_sp<SkSVGDOM> &dom, Rect r) {
+  if (!dom || !canvas) return;
+  if (r.outsideClip() || r.w < 0.002f || r.h < 0.002f) return;
+  dom->setContainerSize(SkSize::Make(r.w, r.h));
+  canvas->save();
+  canvas->translate((SkScalar)r.ox, (SkScalar)r.oy);
+  dom->render(canvas);
+  canvas->restore();
+}
+#endif
+
 void GameView::loadChessAssets() {
   delete _pieces;
   _pieces = new PieceLib();
@@ -309,9 +346,21 @@ void GameView::loadChessAssets() {
 }
 #endif
 
+#if !defined(__EMSCRIPTEN__)
+void GameView::loadUiAssets() {
+  delete _ui;
+  _ui = new UiLib();
+  int ok = 0;
+  for (int i = 0; i < UiLib::kFamilies; i++)
+    if (_ui->bg[i] && _ui->cell[i]) ok++;
+  fprintf(stderr, "loadUiAssets: %d/%d tile SVGs parsed\n", ok, (int)UiLib::kFamilies);
+}
+#endif
+
 GameView::~GameView() {
 #if !defined(__EMSCRIPTEN__)
   delete _pieces;
+  delete _ui;
 #endif
 }
 
@@ -464,9 +513,17 @@ void GameView::renderEmpty(Rect r, const float bgColor[3]) {
 }
 
 void GameView::renderItem(Rect r, int itemId, int count, float scale,
-                          const float bgColor[3]) {
-  const float *bgCol = bgColor ? bgColor : _grey;
-  addQuad(r, bgCol);
+                          const float bgColor[3], int variation) {
+#if !defined(__EMSCRIPTEN__)
+  if (_ui) {
+    int vi = std::clamp(variation - 1, 0, UiLib::kFamilies - 1);
+    if (_ui->cell[vi]) renderTile(_canvas, _ui->cell[vi], r);
+  } else
+#endif
+  {
+    const float *bgCol = bgColor ? bgColor : _grey;
+    addQuad(r, bgCol);
+  }
   const float *elemCol =
       (itemId >= 0 && itemId < GameModel::ELEMS) ? _elemColors[itemId] : _white;
   int icon = (itemId >= 0) ? itemId % GameModel::ELEMS : 0;
@@ -499,6 +556,12 @@ void GameView::renderGrid(int nodeIndex, Rect r, int depth, int excludeChild) {
     absDepth++;
   float grayValue = 0.45f - std::min(absDepth, 10) * 0.03f;
   const float gridBg[3] = {grayValue, grayValue, grayValue + 0.03f};
+#if !defined(__EMSCRIPTEN__)
+  if (_ui) {
+    int vi = std::clamp(cell.content.data.grid.variation - 1, 0, UiLib::kFamilies - 1);
+    if (_ui->bg[vi]) renderTile(_canvas, _ui->bg[vi], r);
+  } else
+#endif
   addQuad(r, (_showAnchor && depth == 0) ? _gridBg : gridBg);
 
   for (int row = 0; row < gridDim; row++) {
@@ -528,12 +591,19 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
   const bool isAnchor = _showAnchor && nodeIndex == _anchorIndex;
   switch (cell.content.type) {
   case CellType::EMPTY:
+#if !defined(__EMSCRIPTEN__)
+    if (_ui) {
+      int vi = std::clamp(variationOf(nodeIndex) - 1, 0, UiLib::kFamilies - 1);
+      if (_ui->cell[vi]) renderTile(_canvas, _ui->cell[vi], r);
+      else renderEmpty(r, isAnchor ? _gridBg : nullptr);
+    } else
+#endif
     renderEmpty(r, isAnchor ? _gridBg : nullptr);
     break;
   case CellType::ITEM:
   { float scale = r.w / (_zoom * _cellSize);
     renderItem(r, cell.content.data.item.id, cell.content.data.item.count,
-               scale, isAnchor ? _gridBg : nullptr);
+               scale, isAnchor ? _gridBg : nullptr, variationOf(nodeIndex));
     break;
   }
   case CellType::GRID:
@@ -757,46 +827,90 @@ Rect GameView::cellWorldCenter(int targetIdx) const {
   return r;
 }
 
-// World/scene-space centre of a cell, walked from the ROOT grid so it is valid
-// for any cell regardless of the current focus anchor. Returns the cell's
-// absolute position in scene units (anchorWidth square at origin), which the
-// particle layer re-projects each frame so smoke tracks the camera.
-bool GameView::sceneCenterOf(int nodeIndex, float &wx, float &wy,
-                             float &halfWorld) const {
+// Inverse of childCellLayout: given a child cell rect at (row,col) of a parent
+// grid with `parentDim` squares, recover the parent's content rect. This is the
+// exact inverse renderAnchor() uses when drawing the parent context behind the
+// anchor, so climbing "up" reproduces cell placement faithfully.
+static Rect upLayout(const Rect &child, int parentDim, float gapRatio,
+                     int row, int col) {
+  float k = (float)(parentDim + (parentDim - 1) * gapRatio);
+  float pitchX = child.w * (1 + gapRatio);
+  float pitchY = child.h * (1 + gapRatio);
+  return {child.ox - col * pitchX,
+          child.oy + child.h - child.h * k + row * pitchY,
+          child.w * k,
+          child.h * k};
+}
+
+// NDC screen-space centre of a cell under the CURRENT anchor, computed identically
+// to how cells are laid out. We climb UP from the anchor and UP from the node to
+// their common ancestor, then go back DOWN to the node applying the same layout
+// transforms — so the result always matches where the renderer draws that cell,
+// under any zoom / focus / pan (fixes anchor-change misplacement). Bounded: climbs
+// at most the tree depth, each hop validated.
+bool GameView::cellCenterNDC(int nodeIndex, float &nx, float &ny,
+                             float &halfNDC) const {
   if (nodeIndex < 0 || nodeIndex >= _model.totalNodes()) return false;
-  Rect r = {-_anchorWidth * 0.5f, -_anchorWidth * 0.5f, _anchorWidth, _anchorWidth};
-  int node = 0; // never descend from anything but the root
-  if (nodeIndex == 0) {
-    wx = r.cx(); wy = r.cy();
-    halfWorld = r.halfW();
+  // Anchor's on-screen content rect (what renderTo passes to renderAnchor).
+  Rect R = {-_anchorWidth * 0.5f * _zoom + _panX,
+            -_anchorWidth * 0.5f * _aspect * _zoom + _panY,
+            _anchorWidth * _zoom,
+            _anchorWidth * _aspect * _zoom};
+
+  auto depthOf = [&](int idx) {
+    int d = 0;
+    while (_model.node(idx).parentId >= 0) { idx = _model.node(idx).parentId; d++; }
+    return d;
+  };
+  // A hop: {parentIdx, row, col} describing where `child` sits in its parent grid.
+  auto hopInParent = [&](int child, int &parent, int &row, int &col) {
+    const int p = _model.node(child).parentId;
+    if (p < 0) return false;
+    const Cell &pc = _model.node(p);
+    if (pc.content.type != CellType::GRID) return false;
+    int dim = pc.content.data.grid.gridDimension;
+    int first = pc.content.data.grid.firstChild;
+    int off = child - first;
+    if (off < 0 || off >= dim * dim) return false;
+    parent = p; row = off / dim; col = off % dim;
     return true;
+  };
+
+  int a = _anchorIndex, b = nodeIndex;
+  int da = depthOf(a), db = depthOf(b);
+  struct Hop { int parent, row, col; };
+  Hop A[128], B[128]; int nA = 0, nB = 0; // fixed-size (allocation-free)
+  int p, r, c;
+  while (da > db) { if (!hopInParent(a, p, r, c)) return false; if (nA >= 128) return false; A[nA++] = {p, r, c}; a = p; da--; }
+  while (db > da) { if (!hopInParent(b, p, r, c)) return false; if (nB >= 128) return false; B[nB++] = {p, r, c}; b = p; db--; }
+  while (a != b) {
+    if (nA >= 128 || nB >= 128) return false;
+    if (!hopInParent(a, p, r, c)) return false; A[nA++] = {p, r, c}; a = p;
+    if (!hopInParent(b, p, r, c)) return false; B[nB++] = {p, r, c}; b = p;
   }
-  int guard = 0;
-  while (node != nodeIndex) {
-    if (++guard > 64) return false;   // pathological tree, bail
-    const Cell &c = _model.node(node);
-    if (c.content.type != CellType::GRID) return false; // cannot descend
-    int dim = c.content.data.grid.gridDimension;
-    int first = c.content.data.grid.firstChild;
-    // Find the direct child of `node` on the path toward nodeIndex.
-    int dc = nodeIndex;
-    int g2 = 0;
-    for (;;) {
-      if (++g2 > 64) return false;
-      const int p = _model.node(dc).parentId;
-      if (p < 0) return false;        // hit root without reaching `node` => unreachable
-      if (p == node) break;
-      dc = p;
-    }
-    int offset = dc - first;
-    if (offset < 0 || offset >= dim * dim) return false;
-    int row = offset / dim, col = offset % dim;
-    r = childCellLayout(node, r, row, col);
-    node = dc;
+  // a==b is the common ancestor. Climb UP from the anchor's rect via A.
+  Rect anc = R;
+  for (int i = 0; i < nA; i++) {
+    int pd = _model.node(A[i].parent).content.data.grid.gridDimension;
+    anc = upLayout(anc, pd, _gapRatio, A[i].row, A[i].col);
   }
-  wx = r.cx(); wy = r.cy();
-  halfWorld = r.halfW();
+  // Walk DOWN the reversed B path (node side) to the target cell rect.
+  Rect rc = anc;
+  for (int i = nB - 1; i >= 0; i--)
+    rc = childCellLayout(B[i].parent, rc, B[i].row, B[i].col);
+  nx = rc.cx(); ny = rc.cy();
+  halfNDC = rc.halfW();
   return true;
+}
+
+// The visual `variation` of the grid that contains this cell (for picking the
+// rounded-tile colour family).
+int GameView::variationOf(int nodeIndex) const {
+  if (nodeIndex < 0 || nodeIndex >= _model.totalNodes()) return 0;
+  const int p = _model.node(nodeIndex).parentId;
+  if (p >= 0 && _model.node(p).content.type == CellType::GRID)
+    return _model.node(p).content.data.grid.variation;
+  return 0;
 }
 
 void GameView::focusTransform(int targetIdx) {
@@ -826,7 +940,7 @@ void GameView::resetView() {
   _anchorSize =
       (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
   _anchorDepth = 0;
-  _zoom = 1.0f;
+  _zoom = _fitZoom;   // fit whole board to the shorter window side
   _panX = 0.0f;
   _panY = 0.0f;
 }
@@ -937,6 +1051,32 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   _targetW = winW;
   _targetH = winH;
   _aspect = (float)winW / (float)winH;
+  // Preserve the view when the window resizes: keep the central min-square
+  // (side = min(W,H)) mapped to the same world target, and keep that target at
+  // screen centre. We only compensate the zoom for the aspect-ratio change (and
+  // re-project pan so the world point under the centre stays there) — never jump
+  // back to board origin. Explicit reset (R) still re-fits + centres.
+  if (winW != _lastWinW || winH != _lastWinH) {
+    int ow = _lastWinW, oh = _lastWinH;
+    _lastWinW = winW;
+    _lastWinH = winH;
+    const float newMin = (float)std::min(winW, winH);
+    const float newFit = newMin / (float)winW;
+    if (ow == 0 || oh == 0) {
+      _zoom = newFit;           // first render: fit whole board, centred
+      _panX = 0.0f;
+      _panY = 0.0f;
+    } else {
+      const float oldMin = (float)std::min(ow, oh);
+      const float zr = (newMin / (float)winW) / (oldMin / (float)ow);
+      _zoom *= zr;
+      _panX *= zr;
+      _panY *= (newMin / (float)winH) / (oldMin / (float)oh);
+      if (_zoom < MIN_ZOOM) _zoom = MIN_ZOOM;
+      if (_zoom > MAX_ZOOM) _zoom = MAX_ZOOM;
+    }
+    _fitZoom = newFit;
+  }
   _lastVertexCount = 0;
 
   // NDC -> pixel transform: px = (nx+1)*w/2, py = (1-ny)*h/2
@@ -984,11 +1124,14 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   }
   _dragWasActive = _model.hasDrag();
 
-  // Draw the particle/smoke layer on top of the scene. Puffs live in WORLD space
-  // and are re-projected through the current camera each frame, so they track
-  // the board on pan/zoom and hold on their parent cell as items move.
+  // Draw the particle/smoke layer on top of the scene. Each source's cell node is
+  // resolved to its on-screen NDC position through the SAME anchor-tree walk the
+  // renderer uses, so smoke always sits exactly on its cell (any zoom/focus/pan).
   if (_particles)
-    _particles->draw(_canvas, _zoom, _panX, _panY, _aspect, winW, winH);
+    _particles->draw(_canvas, winW, winH,
+                     [this](int n, float &x, float &y, float &h) {
+                       return cellCenterNDC(n, x, y, h);
+                     });
 
   uint64_t t1 = nowMs();
   _lastGenMs = (float)(t1 - t0);

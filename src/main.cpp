@@ -102,7 +102,7 @@ static void drawHud(SkCanvas *canvas) {
     while (v >= 1024.0 && u < 3) { v /= 1024.0; u++; }
     snprintf(t[9], 72, "Mem: %.2f %s", v, units[u]);
   }
-  snprintf(t[10], 72, "Sources: %d  Drawn: %d", s_game->puffSources(), s_game->puffsDrawn());
+  snprintf(t[10], 72, "Sources: %d  Drawn: %d  A:%d", s_game->puffSources(), s_game->puffsDrawn(), s_game->particleAllocs());
   t[11][0] = '\0';
   for (int i = 0; i < 11; i++)
     drawText(canvas, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
@@ -198,6 +198,7 @@ int main() {
   s_game = std::make_unique<Game>(Config{});
 #if !defined(__EMSCRIPTEN__)
   s_game->view().loadChessAssets();
+  s_game->view().loadUiAssets();
 #endif
   s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();
@@ -296,6 +297,7 @@ int main(int argc, char *argv[]) {
     Game g(cfg);
 #if !defined(__EMSCRIPTEN__)
     g.view().loadChessAssets();
+    g.view().loadUiAssets();
 #endif
     std::vector<uint8_t> buf((size_t)headW * headH * 4);
     SkImageInfo info = SkImageInfo::Make(headW, headH, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
@@ -321,6 +323,7 @@ int main(int argc, char *argv[]) {
     Game g(cfg);
 #if !defined(__EMSCRIPTEN__)
     g.view().loadChessAssets();
+    g.view().loadUiAssets();
 #endif
     const int S = singleSize;
     std::vector<uint8_t> buf((size_t)S * S * 4);
@@ -347,6 +350,7 @@ int main(int argc, char *argv[]) {
     s_perfFreq = SDL_GetPerformanceFrequency();
 #if !defined(__EMSCRIPTEN__)
     s_game->view().loadChessAssets();
+  s_game->view().loadUiAssets();
 #endif
     std::vector<uint8_t> buf((size_t)benchW * benchH * 4);
     SkImageInfo info = SkImageInfo::Make(benchW, benchH, kRGBA_8888_SkColorType,
@@ -447,6 +451,7 @@ int main(int argc, char *argv[]) {
   s_game = std::make_unique<Game>(cfg);
 #if !defined(__EMSCRIPTEN__)
   s_game->view().loadChessAssets();
+  s_game->view().loadUiAssets();
 #endif
   s_perfFreq = SDL_GetPerformanceFrequency();
   s_lastFrameMs = SDL_GetTicks();

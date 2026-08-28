@@ -16,6 +16,7 @@
 #include "include/core/SkRect.h"
 class SkCanvas;
 struct PieceLib;
+struct UiLib;
 class ParticleSystem;
 
 // Per-frame render-stage timing, accumulated by GameView during renderTo so a
@@ -86,6 +87,7 @@ public:
     // on vector symbols.
 #if !defined(__EMSCRIPTEN__)
     void loadChessAssets();
+    void loadUiAssets();
 #endif
 
     bool isPanning() const { return _isPanning; }
@@ -99,12 +101,13 @@ public:
 
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;
-    // World/scene-space centre (and half-extent) of a cell, computed by walking
-    // from the ROOT grid (always valid for any cell, independent of the current
-    // focus anchor). Effects store these WORLD coords and re-project every frame,
-    // so smoke lives in world space and moves with the scene on pan/zoom. Returns
-    // false if the node is unreachable (caller skips). Bounded — no OOB/loops.
-    bool sceneCenterOf(int nodeIndex, float &wx, float &wy, float &halfWorld) const;
+    // NDC screen-space centre (and half-extent) of a cell under the CURRENT
+    // anchor, computed the SAME way cells are laid out: climb UP from the anchor
+    // and UP from the node until their common ancestor, applying the renderer's
+    // layout/inverse transforms on both paths. This keeps particles positioned
+    // exactly where their cell is drawn under any zoom/focus/pan. Returns false
+    // if the node is unreachable. Bounded (tree depth) — no OOB/loops.
+    bool cellCenterNDC(int nodeIndex, float &nx, float &ny, float &halfNDC) const;
 
     void focusCenterCell(int winW, int winH);
     void resetView();
@@ -117,6 +120,7 @@ private:
     bool isDescendant(int ancestor, int node) const;
     Rect childCellLayout(int nodeIndex, Rect r, int row, int col) const;
     Rect cellWorldCenter(int targetIdx) const;
+    int variationOf(int nodeIndex) const; // parent grid's visual `variation`
     void focusTransform(int targetIdx);
     void addQuad(Rect r, const float color[3], float alpha = 1.0f);
     // Draw a distinct vector symbol (heart/diamond/star/apple/triangle) with a
@@ -125,7 +129,7 @@ private:
                   float halfW, float halfH, int instance = 0);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
-    void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
+    void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr, int variation = 0);
     void renderGrid(int nodeIndex, Rect r, int depth, int excludeChild = -1);
     void renderCell(int nodeIndex, Rect r, int depth);
     void renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild = -1);
@@ -148,6 +152,8 @@ private:
     // re-rasterizes each piece at the icon's current on-screen pixel size, so
     // items stay crisp (vector-clean) at any zoom — never a fixed upscaled PNG.
     PieceLib* _pieces = nullptr;
+    // Rounded-color-square UI tiles (grid bg + inner cells), per-size families.
+    UiLib* _ui = nullptr;
 #endif
 
     GameModel& _model;
@@ -165,6 +171,10 @@ private:
     float _zoom = 1.0f;
     float _panX = 0.0f, _panY = 0.0f;
     float _aspect = 1.0f;
+    // Reference zoom that fits the whole board to the SHORTER window side
+    // (letterboxed, squares stay square); re-fit when the window resizes.
+    float _fitZoom = 1.0f;
+    int _lastWinW = 0, _lastWinH = 0;
     float _dragWX = 0.0f, _dragWY = 0.0f;
     bool _isPanning = false;
     ParticleSystem* _particles = nullptr;

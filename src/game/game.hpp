@@ -35,6 +35,7 @@ public:
   int anchorDepth() const;
   int puffSources() const;   // distinct burst sources alive in the pool
   int puffsDrawn() const;    // puffs actually drawn last frame (visible)
+  int particleAllocs() const; // heap allocations in the particle layer, last frame
   float lastGenMs() const;
   float lastDrawMs() const;
   std::size_t allocatedMemory() const;

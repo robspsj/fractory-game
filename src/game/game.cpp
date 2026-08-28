@@ -20,6 +20,7 @@ Game::Game(const Config &cfg)
 Game::~Game() = default;
 
 bool Game::step(int elapsedMs) {
+  _particles->beginFrame(); // start per-frame allocation accounting
   if (_tickAccumMs < 0)
     _tickAccumMs = 0;
   _tickAccumMs += elapsedMs;
@@ -93,12 +94,9 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
       if (idx >= 0) {
         int dropId = _model->dragItemId();
         _model->drop(idx);
-        float wx, wy, halfWorld;
-        if (_view->sceneCenterOf(idx, wx, wy, halfWorld)) {
-          float c[3];
-          _view->elementColor(dropId, c);
-          _particles->spawn(wx, wy, halfWorld, c, EffectKind::DROP, dropId);
-        }
+        float c[3];
+        _view->elementColor(dropId, c);
+        _particles->spawn(idx, c, EffectKind::DROP, dropId); // node -> NDC at render
         applyEffects();
       } else {
         _model->cancelDrag();
@@ -153,6 +151,7 @@ int Game::lastCellDrawCount() const { return _view->lastVertexCount(); }
 int Game::anchorDepth() const { return _view->anchorDepth(); }
 int Game::puffSources() const { return _particles ? _particles->sourceCount() : 0; }
 int Game::puffsDrawn() const { return _particles ? _particles->lastVisible() : 0; }
+int Game::particleAllocs() const { return _particles ? _particles->allocationsLast() : 0; }
 float Game::lastGenMs() const { return _view->lastGenMs(); }
 float Game::lastDrawMs() const { return _view->lastDrawMs(); }
 std::size_t Game::allocatedMemory() const {
@@ -167,7 +166,6 @@ void Game::applyEffects() {
   if (events.empty())
     return;
   float c[3];
-  float wx, wy, halfWorld;
   for (const CellEvent &e : events) {
     EffectKind kind;
     switch (e.type) {
@@ -176,11 +174,11 @@ void Game::applyEffects() {
       case CellEventType::SPILL:         kind = EffectKind::SPILL;             break;
       case CellEventType::DESTROY:       kind = EffectKind::DESTROY;           break;
       case CellEventType::STATION_OUTPUT:kind = EffectKind::STATION_OUTPUT;    break;
+      case CellEventType::GROW:          kind = EffectKind::GROW;             break;
+      case CellEventType::SHRINK:        kind = EffectKind::SHRINK;           break;
       default: continue;
     }
-    if (!_view->sceneCenterOf(e.nodeIndex, wx, wy, halfWorld))
-      continue; // unreachable cell -> skip rather than mis-place
     _view->elementColor(e.itemId, c);
-    _particles->spawn(wx, wy, halfWorld, c, kind, e.itemId);
+    _particles->spawn(e.nodeIndex, c, kind, e.itemId); // node -> NDC at render
   }
 }
