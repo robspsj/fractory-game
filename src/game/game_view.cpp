@@ -2,7 +2,6 @@
 #include "chess_assets.h"
 #include "config.hpp"
 #include "particle.hpp"
-#include "ui_assets.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -299,10 +298,10 @@ struct PieceLib {
   }
 };
 
-// Rounded-color-square tiles (from ui_assets.h) drawn per grid/cell background.
-// Same SVG pipeline as the pieces: parsed once into SkSVGDOMs and rendered per
-// cell — no raster cache. `bg[i]` = grid container, `cell[i]` = inner cell, where
-// i = GridData.variation (a per-size colour family).
+// Rounded-color-square tiles (assets/ui/*.svg) drawn per grid/cell background.
+// Each tile is an independent .svg loaded at runtime via SkSVGDOM and rendered
+// per cell — no raster cache, no generated header. `bg[i]` = grid container,
+// `cell[i]` = inner cell, where i = GridData.variation (a per-size colour family).
 #if !defined(__EMSCRIPTEN__)
 struct UiLib {
   static constexpr int kFamilies = 5;
@@ -310,12 +309,27 @@ struct UiLib {
   std::array<sk_sp<SkSVGDOM>, kFamilies> cell;
   explicit UiLib() {
     for (int i = 0; i < kFamilies; i++) {
-      bg[i] = load(ui::bg[i]);
-      cell[i] = load(ui::cell[i]);
+      char p[64];
+      snprintf(p, sizeof(p), "assets/ui/bg_%d.svg", i);
+      bg[i] = load(p);
+      snprintf(p, sizeof(p), "assets/ui/cell_%d.svg", i);
+      cell[i] = load(p);
     }
   }
-  static sk_sp<SkSVGDOM> load(const ui::Svg &svg) {
-    SkMemoryStream stream(svg.data, svg.size, false);
+  // Parse an independent .svg file from disk into an SkSVGDOM. Returns nullptr
+  // (graceful flat-quad fallback) if the file is missing/unreadable.
+  static sk_sp<SkSVGDOM> load(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return nullptr;
+    fseek(f, 0, SEEK_END);
+    long n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (n <= 0) { fclose(f); return nullptr; }
+    std::vector<char> buf((size_t)n);
+    bool ok = fread(buf.data(), 1, (size_t)n, f) == (size_t)n;
+    fclose(f);
+    if (!ok) return nullptr;
+    SkMemoryStream stream(buf.data(), (size_t)n, false);
     return SkSVGDOM::MakeFromStream(stream);
   }
 };
