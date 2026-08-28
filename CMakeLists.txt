@@ -32,6 +32,7 @@ set(FRACTORY_SOURCES
     src/game/game.cpp
     src/game/game_view.cpp
     src/game/game_model.cpp
+    src/game/particle.cpp
     src/game/interact_config.cpp
 )
 

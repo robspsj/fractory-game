@@ -23,6 +23,7 @@ void GameModel::init(const Config &cfg) {
   _dragSrcIndex = -1;
   _dragAmount = 0;
   _dragItemId = -1;
+  _events.clear();
 
   initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
                      cfg.stationRecipesCsvPath);
@@ -211,6 +212,12 @@ void GameModel::cancelDrag() {
   _dragItemId = -1;
 }
 
+void GameModel::drainEvents(std::vector<CellEvent> &out) {
+  if (_events.empty()) return;
+  out.insert(out.end(), _events.begin(), _events.end());
+  _events.clear();
+}
+
 void GameModel::interact(int idx) {
   if (idx <= 0 || idx >= (int)_nodes.size()) return;
 
@@ -225,6 +232,7 @@ void GameModel::interact(int idx) {
       cell.content.type = CellType::ITEM;
       cell.content.data.item.id = rule->spawnItemId;
       cell.content.data.item.count = rule->spawnCount;
+      emitEvent(CellEventType::SPAWN, idx, rule->spawnItemId);
     }
     break;
   }
@@ -261,6 +269,7 @@ void GameModel::interact(int idx) {
         cell.content.type = CellType::ITEM;
         cell.content.data.item.id = rule->result;
         cell.content.data.item.count = rule->resultCount;
+        emitEvent(CellEventType::REACTION, idx, rule->result);
         return;  // Only one reaction per interact
       }
     }
@@ -439,13 +448,16 @@ void GameModel::tickItem(int idx) {
         _nodes[target].content.type = CellType::ITEM;
         _nodes[target].content.data.item.id = cell.content.data.item.id;
         _nodes[target].content.data.item.count = 3;
+        emitEvent(CellEventType::SPILL, idx, cell.content.data.item.id);
       }
     }
   } else {
     if (cell.content.data.item.count > 1) {
       cell.content.data.item.count--;
     } else {
+      int id = cell.content.data.item.id;
       cell.content.type = CellType::EMPTY;
+      emitEvent(CellEventType::DESTROY, idx, id);
     }
   }
 }
@@ -485,6 +497,7 @@ void GameModel::tickStation(int idx) {
             reserved.content.data.reserved.role == ReserveRole::OUTPUT) {
           reserved.content.data.reserved.itemId = recipe->output;
           reserved.content.data.reserved.itemCount = recipe->outputCount;
+          emitEvent(CellEventType::STATION_OUTPUT, idx, recipe->output);
           return;
         }
       }

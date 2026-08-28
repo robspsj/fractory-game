@@ -16,6 +16,7 @@
 #include "include/core/SkRect.h"
 class SkCanvas;
 struct PieceLib;
+class ParticleSystem;
 
 // Per-frame render-stage timing, accumulated by GameView during renderTo so a
 // benchmark can break the frame budget down by what Skia is doing. Reset per
@@ -48,6 +49,9 @@ public:
     ~GameView();
 
     void renderTo(SkCanvas* canvas, int winW, int winH);
+    // Owner (Game) hands the particle layer to the view for on-scene rendering.
+    // Non-owning: the Game owns the ParticleSystem's lifetime.
+    void setParticles(ParticleSystem* particles) { _particles = particles; }
     // Debug: render a single icon (piece + glow for `icon`) centered on the given
     // canvas, so alignment of the silhouette vs its glow can be measured directly.
     void debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac);
@@ -63,6 +67,12 @@ public:
     std::size_t allocatedBytes() const;
 
     void setDragWorldPos(float worldX, float worldY) { _dragWX = worldX; _dragWY = worldY; }
+    // Element tint RGB (0..1) for effects/particles (0..ELEMS-1, clamped).
+    void elementColor(int id, float out[3]) const {
+      int i = id % GameModel::ELEMS;
+      if (i < 0) i += GameModel::ELEMS;
+      out[0] = _elemColors[i][0]; out[1] = _elemColors[i][1]; out[2] = _elemColors[i][2];
+    }
     void setHoveredCell(int row, int col) { _hoverRow = row; _hoverCol = col; }
     void clearHoveredCell() { _hoverRow = -1; _hoverCol = -1; }
 
@@ -89,6 +99,12 @@ public:
 
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;
+    // World/scene-space centre (and half-extent) of a cell, computed by walking
+    // from the ROOT grid (always valid for any cell, independent of the current
+    // focus anchor). Effects store these WORLD coords and re-project every frame,
+    // so smoke lives in world space and moves with the scene on pan/zoom. Returns
+    // false if the node is unreachable (caller skips). Bounded — no OOB/loops.
+    bool sceneCenterOf(int nodeIndex, float &wx, float &wy, float &halfWorld) const;
 
     void focusCenterCell(int winW, int winH);
     void resetView();
@@ -106,7 +122,7 @@ private:
     // Draw a distinct vector symbol (heart/diamond/star/apple/triangle) with a
     // radial-gradient fill + soft glow, showcasing the rasterizer. cx/cy in NDC.
     void drawIcon(float cx, float cy, int icon, const float color[3],
-                  float halfW, float halfH);
+                  float halfW, float halfH, int instance = 0);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
     void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr);
@@ -151,6 +167,7 @@ private:
     float _aspect = 1.0f;
     float _dragWX = 0.0f, _dragWY = 0.0f;
     bool _isPanning = false;
+    ParticleSystem* _particles = nullptr;
     int _lastPanX = 0, _lastPanY = 0;
 
     static constexpr float _gridMin = -0.75f;

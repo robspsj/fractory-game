@@ -1,10 +1,12 @@
 #include "game_view.hpp"
 #include "chess_assets.h"
 #include "config.hpp"
+#include "particle.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include "include/core/SkCanvas.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkM44.h"
@@ -52,6 +54,35 @@ static uint64_t nowUs() {
   return std::chrono::duration_cast<std::chrono::microseconds>(
              std::chrono::steady_clock::now().time_since_epoch())
       .count();
+}
+
+// Smooth, low-magnitude animation clock. Returns seconds since the first call
+// (i.e. since app launch), measured in MICROseconds. Two advantages over the raw
+// wall-clock nowMs(): (1) the value stays small (a few hours => ~1e4) so the sine
+// argument keeps full double precision instead of landing near ~1e7 rad where
+// large-argument sin can flatten between frames; (2) microsecond resolution means
+// the wobble advances every frame instead of quantising to whole milliseconds
+// (which, at 60+ fps, made some frames repeat the same angle -> "no animation").
+static double animSeconds() {
+  static int64_t base = (int64_t)nowUs();
+  return (double)((int64_t)nowUs() - base) / 1e6;
+}
+
+// Deterministic per-instance rotation angle (degrees): pure function of the
+// icon's scene position, element id, per-copy instance index and animation time.
+// No per-item state is stored anywhere — same (x,y,id,instance,t) => same angle.
+// The index (0..count-1) distinguishes multiple copies of the same element in a
+// cell, so each copy rocks on its own even when positions are near-identical.
+// Hash is computed in int64 to avoid signed int overflow (UB).
+static float getRotationAngle(float x, float y, int id, int instance, double tSec) {
+  int64_t seed = (int64_t)(static_cast<int>(x)) * 73856093 ^
+                 (int64_t)(static_cast<int>(y)) * 19349663 ^
+                 (int64_t)id * 83492791 ^ (int64_t)instance * 2654435761;
+  seed = std::llabs(seed);
+  double amp = 6.0 + (double)(seed % 60) / 10.0;     // 6..11.9 deg swing
+  double freq = 0.3 + (double)(seed % 20) / 200.0;    // 0.3..0.4 Hz (tight, consistent)
+  double phase = (double)(seed % 6283) / 1000.0;     // 0..2pi rad, de-syncs neighbours
+  return (float)(amp * std::sin(2.0 * 3.141592653589793 * freq * tSec + phase));
 }
 
 GameView::GameView(GameModel &model, const Config &cfg)
@@ -303,7 +334,7 @@ void GameView::addQuad(Rect const r, const float color[3], float alpha) {
 // circle in screen space — a NDC-space gradient would become an ellipse
 // (x scaled by w/2, y by h/2), warping with window size. cx/cy/halfW/halfH in NDC.
 void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
-                        float halfW, float halfH) {
+                        float halfW, float halfH, int instance) {
   (void)color;  // colour is baked into the cached style per element
   if (!_canvas)
     return;
@@ -324,6 +355,11 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   _canvas->save();
   _canvas->resetMatrix();
   _canvas->translate((SkScalar)px, (SkScalar)py);
+  // Independently rotate each icon on the screen plane. Both the glow and the
+  // crisp piece share the same transform, so they spin together around the
+  // icon's centre. Pure function of scene pos + id + time => no logic state.
+  float angle = getRotationAngle(cx, cy, icon % GameModel::ELEMS, instance, animSeconds());
+  _canvas->rotate(angle);
   _canvas->scale((SkScalar)rPx, (SkScalar)rPx);
 #if !defined(__EMSCRIPTEN__)
   const int ti = icon % GameModel::ELEMS;
@@ -389,37 +425,35 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
   float itemDotH = 0.05f * scale * _aspect * _zoom;
   float spacingX = itemDotW * 2.5f;
   float spacingY = itemDotH * 2.5f;
-  auto dot = [&](float cx, float cy) {
-    drawIcon(cx, cy, icon, color, itemDotW, itemDotH);
+  auto dot = [&](float cx, float cy, int inst) {
+    drawIcon(cx, cy, icon, color, itemDotW, itemDotH, inst);
   };
+  // Pass a per-copy instance index so every dot wobbles on its own.
   switch (count) {
-  case 1:
-    dot(centerX, centerY);
-    break;
   case 2:
-    dot(centerX - spacingX * 0.5f, centerY);
-    dot(centerX + spacingX * 0.5f, centerY);
+    dot(centerX - spacingX * 0.5f, centerY, 0);
+    dot(centerX + spacingX * 0.5f, centerY, 1);
     break;
   case 3:
-    dot(centerX, centerY - spacingY * 0.5f);
-    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f);
-    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f);
+    dot(centerX, centerY - spacingY * 0.5f, 0);
+    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f, 1);
+    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f, 2);
     break;
   case 4:
-    dot(centerX - spacingX * 0.5f, centerY - spacingY * 0.5f);
-    dot(centerX + spacingX * 0.5f, centerY - spacingY * 0.5f);
-    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f);
-    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f);
+    dot(centerX - spacingX * 0.5f, centerY - spacingY * 0.5f, 0);
+    dot(centerX + spacingX * 0.5f, centerY - spacingY * 0.5f, 1);
+    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f, 2);
+    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f, 3);
     break;
   case 5:
-    dot(centerX, centerY);
-    dot(centerX - spacingX * 0.5f, centerY - spacingY * 0.5f);
-    dot(centerX + spacingX * 0.5f, centerY - spacingY * 0.5f);
-    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f);
-    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f);
+    dot(centerX, centerY, 0);
+    dot(centerX - spacingX * 0.5f, centerY - spacingY * 0.5f, 1);
+    dot(centerX + spacingX * 0.5f, centerY - spacingY * 0.5f, 2);
+    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f, 3);
+    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f, 4);
     break;
   default:
-    dot(centerX, centerY);
+    dot(centerX, centerY, 0);
     break;
   }
 }
@@ -723,6 +757,48 @@ Rect GameView::cellWorldCenter(int targetIdx) const {
   return r;
 }
 
+// World/scene-space centre of a cell, walked from the ROOT grid so it is valid
+// for any cell regardless of the current focus anchor. Returns the cell's
+// absolute position in scene units (anchorWidth square at origin), which the
+// particle layer re-projects each frame so smoke tracks the camera.
+bool GameView::sceneCenterOf(int nodeIndex, float &wx, float &wy,
+                             float &halfWorld) const {
+  if (nodeIndex < 0 || nodeIndex >= _model.totalNodes()) return false;
+  Rect r = {-_anchorWidth * 0.5f, -_anchorWidth * 0.5f, _anchorWidth, _anchorWidth};
+  int node = 0; // never descend from anything but the root
+  if (nodeIndex == 0) {
+    wx = r.cx(); wy = r.cy();
+    halfWorld = r.halfW();
+    return true;
+  }
+  int guard = 0;
+  while (node != nodeIndex) {
+    if (++guard > 64) return false;   // pathological tree, bail
+    const Cell &c = _model.node(node);
+    if (c.content.type != CellType::GRID) return false; // cannot descend
+    int dim = c.content.data.grid.gridDimension;
+    int first = c.content.data.grid.firstChild;
+    // Find the direct child of `node` on the path toward nodeIndex.
+    int dc = nodeIndex;
+    int g2 = 0;
+    for (;;) {
+      if (++g2 > 64) return false;
+      const int p = _model.node(dc).parentId;
+      if (p < 0) return false;        // hit root without reaching `node` => unreachable
+      if (p == node) break;
+      dc = p;
+    }
+    int offset = dc - first;
+    if (offset < 0 || offset >= dim * dim) return false;
+    int row = offset / dim, col = offset % dim;
+    r = childCellLayout(node, r, row, col);
+    node = dc;
+  }
+  wx = r.cx(); wy = r.cy();
+  halfWorld = r.halfW();
+  return true;
+}
+
 void GameView::focusTransform(int targetIdx) {
   Rect r = cellWorldCenter(targetIdx);
 
@@ -907,6 +983,12 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
     renderCellItems(sx, sy, dragAmount, elemCol, scale, dragIcon);
   }
   _dragWasActive = _model.hasDrag();
+
+  // Draw the particle/smoke layer on top of the scene. Puffs live in WORLD space
+  // and are re-projected through the current camera each frame, so they track
+  // the board on pan/zoom and hold on their parent cell as items move.
+  if (_particles)
+    _particles->draw(_canvas, _zoom, _panX, _panY, _aspect, winW, winH);
 
   uint64_t t1 = nowMs();
   _lastGenMs = (float)(t1 - t0);

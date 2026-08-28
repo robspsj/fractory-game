@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "particle.hpp"
 #include <algorithm>
 #include <chrono>
 #include "include/core/SkCanvas.h"
@@ -12,6 +13,8 @@ Game::Game(const Config &cfg)
       _ticksPerSecond(cfg.ticksPerSecond) {
   _model->init(cfg);
   _view = std::make_unique<GameView>(*_model, cfg);
+  _particles = std::make_unique<ParticleSystem>();
+  _view->setParticles(_particles.get());
 }
 
 Game::~Game() = default;
@@ -27,6 +30,9 @@ bool Game::step(int elapsedMs) {
     _model->tick();
     ticked = true;
   }
+  // Advance the particle/smoke layer, then spawn anything the ticks produced.
+  _particles->update((double)elapsedMs / 1000.0);
+  applyEffects();
   return ticked;
 }
 
@@ -78,14 +84,25 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
   if (button == 1) { // left
     if (mod & (modShiftFlag())) {
       int idx = _view->resolveLeafCell(wx, wy);
-      if (idx >= 0)
+      if (idx >= 0) {
         _model->interact(idx);
+        applyEffects();
+      }
     } else if (_model->hasDrag()) {
       int idx = _view->resolveLeafCell(wx, wy);
-      if (idx >= 0)
+      if (idx >= 0) {
+        int dropId = _model->dragItemId();
         _model->drop(idx);
-      else
+        float wx, wy, halfWorld;
+        if (_view->sceneCenterOf(idx, wx, wy, halfWorld)) {
+          float c[3];
+          _view->elementColor(dropId, c);
+          _particles->spawn(wx, wy, halfWorld, c, EffectKind::DROP, dropId);
+        }
+        applyEffects();
+      } else {
         _model->cancelDrag();
+      }
     } else {
       int idx = _view->resolveLeafCell(wx, wy);
       if (idx >= 0 && _model->node(idx).content.type == CellType::ITEM) {
@@ -134,8 +151,36 @@ void Game::renderTo(SkCanvas* canvas, int winW, int winH) {
 float Game::zoomFactor() const { return _view->zoomFactor(); }
 int Game::lastCellDrawCount() const { return _view->lastVertexCount(); }
 int Game::anchorDepth() const { return _view->anchorDepth(); }
+int Game::puffSources() const { return _particles ? _particles->sourceCount() : 0; }
+int Game::puffsDrawn() const { return _particles ? _particles->lastVisible() : 0; }
 float Game::lastGenMs() const { return _view->lastGenMs(); }
 float Game::lastDrawMs() const { return _view->lastDrawMs(); }
 std::size_t Game::allocatedMemory() const {
-  return _model->allocatedBytes() + _view->allocatedBytes();
+  return _model->allocatedBytes() + _view->allocatedBytes() +
+         (_particles ? _particles->allocatedBytes() : 0);
+}
+
+void Game::applyEffects() {
+  static std::vector<CellEvent> events;
+  events.clear();
+  _model->drainEvents(events);
+  if (events.empty())
+    return;
+  float c[3];
+  float wx, wy, halfWorld;
+  for (const CellEvent &e : events) {
+    EffectKind kind;
+    switch (e.type) {
+      case CellEventType::REACTION:      kind = EffectKind::INTERACT_REACTION; break;
+      case CellEventType::SPAWN:         kind = EffectKind::INTERACT_SPAWN;    break;
+      case CellEventType::SPILL:         kind = EffectKind::SPILL;             break;
+      case CellEventType::DESTROY:       kind = EffectKind::DESTROY;           break;
+      case CellEventType::STATION_OUTPUT:kind = EffectKind::STATION_OUTPUT;    break;
+      default: continue;
+    }
+    if (!_view->sceneCenterOf(e.nodeIndex, wx, wy, halfWorld))
+      continue; // unreachable cell -> skip rather than mis-place
+    _view->elementColor(e.itemId, c);
+    _particles->spawn(wx, wy, halfWorld, c, kind, e.itemId);
+  }
 }

@@ -5,6 +5,16 @@
 
 enum class CellType { EMPTY, ITEM, GRID, STATION, RESERVED };
 
+// Presentational event log for the particle/effect layer. The model never
+// stores particles; it only records "this cell changed in this way" so a
+// subscriber (Game -> ParticleSystem) can react. Kept out of Cell entirely.
+enum class CellEventType { REACTION, SPAWN, SPILL, DESTROY, STATION_OUTPUT };
+struct CellEvent {
+  int nodeIndex;
+  int itemId; // element involved (for per-item effect config)
+  CellEventType type;
+};
+
 struct ItemData {
   int id;
   int count;
@@ -114,6 +124,9 @@ public:
   void getFullState(int *outData) const;
   int getSubgridState(int subgridSeqIndex, int *outData, int &outSize) const;
   void getDragState(int &outId, int &outCount);
+  // Drain and clear the pending effect events (Reaction/Spill/Destroy/etc.)
+  // produced by the last tick()/interact(). Game feeds these to the particles.
+  void drainEvents(std::vector<CellEvent> &out);
   int totalNodes() const { return (int)_nodes.size(); }
   // Total heap owned by the model: the grid node vector (capacity, so reserved
   // but unfilled capacity is counted too). This is the dominant allocation and
@@ -126,8 +139,12 @@ private:
   bool tryPlaceRandomStation(int gridIndex);
   void populateWithSubgrid(int cellIndex, int size);
   int findSpillTarget(int idx);
+  void emitEvent(CellEventType t, int idx, int itemId) {
+    _events.push_back({idx, itemId, t});
+  }
 
   std::vector<Cell> _nodes;
+  std::vector<CellEvent> _events; // effect log drained by the Game presenter
   int _dragSrcIndex = -1;
   int _dragAmount = 0;
   int _dragItemId = -1;

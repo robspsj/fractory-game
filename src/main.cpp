@@ -84,7 +84,7 @@ static void drawHud(SkCanvas *canvas) {
   updateFps();
   canvas->resetMatrix();
   int disp = (int)(s_fps + 0.5f);
-  char t[11][72];
+  char t[12][72];
   snprintf(t[0],  72, "FPS: %d  %c", disp, s_vsyncOn ? 'V' : 'v');
   snprintf(t[1],  72, "Frame: %.2fms", (double)s_msFrame);
   snprintf(t[2],  72, "  Render: %.2fms", (double)s_msRender);
@@ -102,8 +102,9 @@ static void drawHud(SkCanvas *canvas) {
     while (v >= 1024.0 && u < 3) { v /= 1024.0; u++; }
     snprintf(t[9], 72, "Mem: %.2f %s", v, units[u]);
   }
-  t[10][0] = '\0';
-  for (int i = 0; i < 10; i++)
+  snprintf(t[10], 72, "Sources: %d  Drawn: %d", s_game->puffSources(), s_game->puffsDrawn());
+  t[11][0] = '\0';
+  for (int i = 0; i < 11; i++)
     drawText(canvas, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
 }
 

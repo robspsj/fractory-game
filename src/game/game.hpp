@@ -4,6 +4,7 @@
 #include "game_view.hpp"
 #include <memory>
 class SkCanvas;
+class ParticleSystem;
 
 // Platform-independent key codes (mapped from SDL2 / DOM in main).
 enum class Key {
@@ -32,6 +33,8 @@ public:
   float zoomFactor() const;
   int lastCellDrawCount() const;
   int anchorDepth() const;
+  int puffSources() const;   // distinct burst sources alive in the pool
+  int puffsDrawn() const;    // puffs actually drawn last frame (visible)
   float lastGenMs() const;
   float lastDrawMs() const;
   std::size_t allocatedMemory() const;
@@ -44,10 +47,14 @@ private:
 
   std::unique_ptr<GameModel> _model;
   std::unique_ptr<GameView> _view;
+  std::unique_ptr<ParticleSystem> _particles;
 
   int _ticksPerSecond;
   int _tickAccumMs = 0;
 
   MouseState _mouseState = MouseState::NONE;
   float _dragMX = 0.0f, _dragMY = 0.0f;
+
+  // Drain the model's cell-change events and spawn matching smoke bursts.
+  void applyEffects();
 };
