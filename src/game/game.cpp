@@ -55,6 +55,21 @@ bool Game::step(int elapsedMs) {
   return ticked;
 }
 
+double Game::benchModelTicks(int n) {
+  using clk = std::chrono::steady_clock;
+  double sum = 0.0;
+  std::vector<CellEvent> tmp;
+  for (int i = 0; i < n; i++) {
+    auto s = clk::now();
+    _model->tick();
+    sum += std::chrono::duration<double, std::milli>(clk::now() - s).count();
+    _model->drainEvents(tmp);   // bound the event log each tick
+    tmp.clear();
+  }
+  // Warm-up tick (caches / first-use allocs) is excluded.
+  return sum / (double)n;
+}
+
 void Game::update(int mousePx, int mousePy, int winW, int winH) {
   if (_view->isPanning()) {
     _view->continuePan(mousePx, mousePy, winW, winH);

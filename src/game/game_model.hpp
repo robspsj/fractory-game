@@ -158,6 +158,11 @@ private:
     ++_tprof.events;   // profiling counter
   }
 
+  // Stateless per-cell PRNG (splitmix-style), deterministic across threads:
+  // a pure function of (idx, salt, seed, tick counter) — no shared RNG state,
+  // so the parallel sweep has no locks and no std::rand data race.
+  uint32_t prng(int idx, int salt) const;
+
   std::vector<Cell> _nodes;
   std::vector<CellEvent> _events; // effect log drained by the Game presenter
   int _dragSrcIndex = -1;
@@ -165,4 +170,6 @@ private:
   int _dragItemId = -1;
   InteractConfig _interactCfg;
   TickProfile _tprof;   // profiling of the last tick()
+  unsigned _prngSeed = 0;  // per-simulation seed for the stateless cell PRNG
+  int _tickCounter = 0;    // incremented each tick (salt for the per-cell PRNG)
 };

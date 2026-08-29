@@ -3,8 +3,12 @@
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
+#include <thread>
+#include <unordered_set>
 
 void GameModel::init(const Config &cfg) {
+  _prngSeed = (cfg.seed != 0) ? (unsigned)cfg.seed : 0x9E3779B9u;
+  _tickCounter = 0;
   if (cfg.seed != 0)
     std::srand(cfg.seed);
   else
@@ -412,73 +416,129 @@ int GameModel::findSpillTarget(int idx) {
   }
 
   if (candidates.empty()) return -1;
-  return candidates[std::rand() % (int)candidates.size()];
+  return candidates[(int)(prng(idx, 2) % (uint32_t)candidates.size())];
+}
+
+// Planned per-cell actions recorded in phase-1, applied serially in phase-2.
+struct PlMut   { int idx; CellType type; int item; int count; CellEventType ev; };
+struct PlSpill { int src, tgt, item; };
+
+uint32_t GameModel::prng(int idx, int salt) const {
+  uint32_t x = (uint32_t)idx ^ (uint32_t)salt * 0x9E3779B1u;
+  x ^= _prngSeed;
+  x ^= (uint32_t)_tickCounter * 0x85EBCA6Du;
+  x += 0x9E3779B9u;
+  x = (x ^ (x >> 16)) * 0x85EBCA6Bu;
+  x = (x ^ (x >> 13)) * 0xC2B2AE35u;
+  x ^= (x >> 16);
+  return x;
 }
 
 void GameModel::tick() {
   using clk = std::chrono::steady_clock;
   _tprof = TickProfile{};
   _tprof.nodes = (int)_nodes.size();
-  auto ts = clk::now();
-  for (int i = 0; i < (int)_nodes.size(); i++) {
-    if (_nodes[i].content.type == CellType::ITEM) _tprof.items++;
-    tickCell(i);
-  }
-  _tprof.sweepMs =
-      std::chrono::duration<double, std::milli>(clk::now() - ts).count();
-}
+  ++_tickCounter;
+  auto wall = clk::now();
 
-void GameModel::tickCell(int idx) {
-  Cell &cell = _nodes[idx];
-  switch (cell.content.type) {
-  case CellType::EMPTY:    tickEmpty(idx); break;
-  case CellType::ITEM:     tickItem(idx);  break;
-  case CellType::GRID:     tickGrid(idx);  break;
-  case CellType::STATION:  tickStation(idx); break;
-  case CellType::RESERVED: break; // no-op
+  const int n = (int)_nodes.size();
+  int nThreads = std::clamp((int)std::thread::hardware_concurrency(), 1, 8);
+  if (n < 16384) nThreads = 1;          // small boards: thread spawn dominates
+  nThreads = std::min(nThreads, std::max(1, n));
+
+  // Phase 1 (PARALLEL, strict read-only): each thread scans a disjoint node
+  // range and PLANS item mutations, spill intents, and station indices. No
+  // writes at all -> no locks, no atomics, no std::rand shared state.
+  struct ThreadBuf {
+    std::vector<PlMut> muts;
+    std::vector<PlSpill> spills;
+    std::vector<int> stations;
+    long items = 0;
+    double spillMs = 0.0;
+  };
+  std::vector<ThreadBuf> bufs(nThreads);
+  const int64_t bigN = n;
+  auto worker = [&](int tid) {
+    const int b = (int)((int64_t)tid * bigN / nThreads);
+    const int e = (int)((int64_t)(tid + 1) * bigN / nThreads);
+    ThreadBuf &buf = bufs[tid];
+    for (int i = b; i < e; i++) {
+      const Cell &c = _nodes[i];
+      const CellType t = c.content.type;
+      if (t == CellType::ITEM) {
+        buf.items++;
+        const int item = c.content.data.item.id;
+        const int cnt  = c.content.data.item.count;
+        if (prng(i, 0) % 100 != 0) continue;        // most cells idle
+        if (prng(i, 1) & 1) {                        // shrink / destroy
+          if (cnt > 1)
+            buf.muts.push_back({i, CellType::ITEM, item, cnt - 1, CellEventType::SHRINK});
+          else
+            buf.muts.push_back({i, CellType::EMPTY, item, 0, CellEventType::DESTROY});
+        } else {                                    // grow / spill
+          if (cnt < 5)
+            buf.muts.push_back({i, CellType::ITEM, item, cnt + 1, CellEventType::GROW});
+          else {
+            auto s = clk::now();
+            int tgt = findSpillTarget(i);
+            buf.spillMs +=
+                std::chrono::duration<double, std::milli>(clk::now() - s).count();
+            if (tgt != -1) buf.spills.push_back({i, tgt, item});
+          }
+        }
+      } else if (t == CellType::STATION) {
+        buf.stations.push_back(i);
+      }
+    }
+  };
+
+  if (nThreads <= 1) {
+    worker(0);
+  } else {
+    std::vector<std::thread> threads;
+    threads.reserve(nThreads);
+    for (int t = 0; t < nThreads; t++) threads.emplace_back(worker, t);
+    for (auto &th : threads) th.join();
   }
+
+  // Aggregate profiling counts.
+  for (const auto &buf : bufs) {
+    _tprof.items   += (int)buf.items;
+    _tprof.spills  += (int)buf.spills.size();
+    _tprof.spillMs += buf.spillMs;
+  }
+
+  // Phase 2 (SERIAL): apply mutations, then spills (first-wins per target), then
+  // stations. This touches only changed cells, so it is a tiny fraction of the
+  // frame. Processing buffers in thread order keeps the result deterministic.
+  std::unordered_set<int> spillClaimed;
+  spillClaimed.reserve((size_t)_tprof.spills);
+  for (auto &buf : bufs) {
+    for (const PlMut &m : buf.muts) {
+      Cell &cl = _nodes[m.idx];
+      if (m.ev == CellEventType::DESTROY)
+        cl.content.type = CellType::EMPTY;
+      else
+        cl.content.data.item.count = m.count;   // GROW / SHRINK: count only
+      emitEvent(m.ev, m.idx, m.item);
+    }
+    for (const PlSpill &sp : buf.spills) {
+      if (!spillClaimed.insert(sp.tgt).second) continue;  // first-wins per target
+      _nodes[sp.tgt].content.type = CellType::ITEM;
+      _nodes[sp.tgt].content.data.item.id  = sp.item;
+      _nodes[sp.tgt].content.data.item.count = 3;
+      _nodes[sp.src].content.data.item.count = 3;
+      emitEvent(CellEventType::SPILL, sp.src, sp.item);
+    }
+    for (int si : buf.stations) tickStation(si);
+  }
+
+  _tprof.sweepMs =
+      std::chrono::duration<double, std::milli>(clk::now() - wall).count();
 }
 
 void GameModel::tickEmpty(int) {
   // No-op for now
-}
-
-void GameModel::tickItem(int idx) {
-  Cell &cell = _nodes[idx];
-  if (std::rand() % 100 != 0) return;
-
-  if (std::rand() % 2 == 0) {
-    if (cell.content.data.item.count < 5) {
-      cell.content.data.item.count++;
-      emitEvent(CellEventType::GROW, idx, cell.content.data.item.id);
-    } else {
-      int target = -1;
-      {
-        using clk = std::chrono::steady_clock;
-        auto s = clk::now();
-        target = findSpillTarget(idx);
-        _tprof.spills++;
-        _tprof.spillMs +=
-            std::chrono::duration<double, std::milli>(clk::now() - s).count();
-      }
-      if (target != -1) {
-        cell.content.data.item.count = 3;
-        _nodes[target].content.type = CellType::ITEM;
-        _nodes[target].content.data.item.id = cell.content.data.item.id;
-        _nodes[target].content.data.item.count = 3;
-        emitEvent(CellEventType::SPILL, idx, cell.content.data.item.id);
-      }
-    }
-  } else {
-    if (cell.content.data.item.count > 1) {
-      cell.content.data.item.count--;
-      emitEvent(CellEventType::SHRINK, idx, cell.content.data.item.id);
-    } else {
-      int id = cell.content.data.item.id;
-      cell.content.type = CellType::EMPTY;
-      emitEvent(CellEventType::DESTROY, idx, id);
-    }
-  }
 }
 
 void GameModel::tickGrid(int) {

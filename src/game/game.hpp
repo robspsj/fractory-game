@@ -52,6 +52,12 @@ public:
   };
   StepProfile stepProfile() const { return _profile; }
 
+  // Headless micro-benchmark: run `n` model ticks back-to-back, draining the
+  // event log each tick to bound memory, and return the average tick time (ms).
+  // Used to measure the sweep before/after parallelization.
+  double benchModelTicks(int n);
+  int modelNodeCount() const { return _model ? _model->totalNodes() : 0; }
+
 private:
   enum class MouseState {
     NONE,

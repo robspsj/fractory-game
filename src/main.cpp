@@ -258,6 +258,9 @@ int main(int argc, char *argv[]) {
   // window, no SDL present; present (SDL UpdateWindowSurface) is not included.
   bool benchMode = false;
   int benchW = 3840, benchH = 2049, benchFrames = 5;
+  // --tick <ticks>: headless model-tick micro-benchmark (avg tick ms).
+  bool tickMode = false;
+  int tickCount = 60;
   // --single <out.ppm> <elementIdx> <size>: render ONE icon (piece+glow) centred
   // on a <size>x<size> surface, to measure piece-vs-glow alignment.
   std::string singlePath;
@@ -292,7 +295,22 @@ int main(int argc, char *argv[]) {
       singlePath = argv[++a];
       singleIdx = std::atoi(argv[++a]);
       singleSize = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--tick") {
+      tickMode = true;
+      if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
+        tickCount = std::atoi(argv[++a]);
     }
+  }
+
+  if (tickMode) {
+    // Headless model-tick micro-benchmark: avg time per GameModel::tick() on the
+    // auto-generated config, useful to measure sweep parallelization speedup.
+    Game g(cfg);
+    (void)g.benchModelTicks(1);   // warm-up (caches, first-use allocs)
+    double ms = g.benchModelTicks(tickCount);
+    fprintf(stderr, "[tick] avg=%.3f ms/tick  nodes=%d  (%d ticks)\n",
+            ms, g.modelNodeCount(), tickCount);
+    return 0;
   }
 
   if (!headlessPath.empty()) {
