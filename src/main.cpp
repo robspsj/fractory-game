@@ -86,27 +86,30 @@ static void drawHud(SkCanvas *canvas) {
   updateFps();
   canvas->resetMatrix();
   int disp = (int)(s_fps + 0.5f);
+  const auto sp = s_game->stepProfile();   // last step()'s per-stage timing
+  const auto &tp = sp.tick;
   char t[12][72];
   snprintf(t[0],  72, "FPS: %d  %c", disp, s_vsyncOn ? 'V' : 'v');
-  snprintf(t[1],  72, "Frame: %.2fms", (double)s_msFrame);
-  snprintf(t[2],  72, "  Render: %.2fms", (double)s_msRender);
-  snprintf(t[3],  72, "  Copy:   %.2fms", (double)s_msCopy);
-  snprintf(t[4],  72, "  Present:%.2fms", (double)s_msPresent);
-  snprintf(t[5],  72, "Cells: %d  Depth: %d", s_game->lastCellDrawCount(), s_game->anchorDepth());
-  snprintf(t[6],  72, "Zoom: x%.2f", (double)s_game->zoomFactor());
-  snprintf(t[7],  72, "res: %dx%d", winW, winH);
-  snprintf(t[8],  72, "v%s", FRACTORY_VERSION);
+  snprintf(t[1],  72, "Step: %.2fms  tick %.2f x%d | parts %.2f | eff %.2f",
+           (double)s_msStep, sp.tickMs, sp.ticks, sp.partsMs, sp.effectsMs);
+  snprintf(t[2],  72, "  tick: sweep %.2f  nodes=%d  items=%d  spills=%d",
+           tp.sweepMs, tp.nodes, tp.items, tp.spills);
+  snprintf(t[3],  72, "Render: %.2fms  Present: %.2fms",
+           (double)s_msRender, (double)s_msPresent);
+  snprintf(t[4],  72, "Cells: %d  Depth: %d", s_game->lastCellDrawCount(), s_game->anchorDepth());
+  snprintf(t[5],  72, "Zoom: x%.2f", (double)s_game->zoomFactor());
+  snprintf(t[6],  72, "res: %dx%d", winW, winH);
+  snprintf(t[7],  72, "v%s", FRACTORY_VERSION);
   {
     std::size_t mem = s_game->allocatedMemory();
     const char* units[] = {"B", "KB", "MB", "GB"};
     int u = 0;
     double v = (double)mem;
     while (v >= 1024.0 && u < 3) { v /= 1024.0; u++; }
-    snprintf(t[9], 72, "Mem: %.2f %s", v, units[u]);
+    snprintf(t[8], 72, "Mem: %.2f %s", v, units[u]);
   }
-  snprintf(t[10], 72, "Sources: %d  Drawn: %d  A:%d", s_game->puffSources(), s_game->puffsDrawn(), s_game->particleAllocs());
-  t[11][0] = '\0';
-  for (int i = 0; i < 11; i++)
+  snprintf(t[9], 72, "Sources: %d  Drawn: %d  A:%d", s_game->puffSources(), s_game->puffsDrawn(), s_game->particleAllocs());
+  for (int i = 0; i < 10; i++)
     drawText(canvas, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
 }
 
