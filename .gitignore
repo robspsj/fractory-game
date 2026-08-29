@@ -9,3 +9,6 @@ index.wasm
 index.data
 window_state.txt
 .DS_Store.cache/
+
+# IDE config
+.idea/
