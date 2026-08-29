@@ -442,8 +442,12 @@ void GameModel::tick() {
   auto wall = clk::now();
 
   const int n = (int)_nodes.size();
-  int nThreads = std::clamp((int)std::thread::hardware_concurrency(), 1, 8);
-  if (n < 16384) nThreads = 1;          // small boards: thread spawn dominates
+  int nThreads = std::clamp((int)std::thread::hardware_concurrency(), 1, 16);
+  if (const char *tg = std::getenv("FRACTORY_TICK_THREADS")) {
+    int v = std::atoi(tg);
+    if (v >= 1) nThreads = std::min(v, 64);
+  }
+  if (n < 16384 && nThreads > 1) nThreads = 1; // small boards: spawn dominates
   nThreads = std::min(nThreads, std::max(1, n));
 
   // Phase 1 (PARALLEL, strict read-only): each thread scans a disjoint node
