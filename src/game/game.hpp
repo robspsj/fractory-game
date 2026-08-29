@@ -40,6 +40,18 @@ public:
   float lastDrawMs() const;
   std::size_t allocatedMemory() const;
 
+  // Per-stage timing of the model update (last step call), for profiling the
+  // gap between the render cost and the observed frame rate.
+  struct StepProfile {
+    double tickMs = 0.0;     // GameModel::tick (may run several times per step)
+    double partsMs = 0.0;    // ParticleSystem::update
+    double effectsMs = 0.0;  // applyEffects (drain events -> spawn smoke)
+    int ticks = 0;           // number of model ticks executed last step
+    bool ticked = false;
+    GameModel::TickProfile tick; // cost breakdown of the last model tick
+  };
+  StepProfile stepProfile() const { return _profile; }
+
 private:
   enum class MouseState {
     NONE,
@@ -58,4 +70,6 @@ private:
 
   // Drain the model's cell-change events and spawn matching smoke bursts.
   void applyEffects();
+
+  StepProfile _profile;   // timing of the last step() call (profiling)
 };

@@ -1,5 +1,6 @@
 #include "game_model.hpp"
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 
@@ -415,9 +416,16 @@ int GameModel::findSpillTarget(int idx) {
 }
 
 void GameModel::tick() {
+  using clk = std::chrono::steady_clock;
+  _tprof = TickProfile{};
+  _tprof.nodes = (int)_nodes.size();
+  auto ts = clk::now();
   for (int i = 0; i < (int)_nodes.size(); i++) {
+    if (_nodes[i].content.type == CellType::ITEM) _tprof.items++;
     tickCell(i);
   }
+  _tprof.sweepMs =
+      std::chrono::duration<double, std::milli>(clk::now() - ts).count();
 }
 
 void GameModel::tickCell(int idx) {
@@ -444,7 +452,15 @@ void GameModel::tickItem(int idx) {
       cell.content.data.item.count++;
       emitEvent(CellEventType::GROW, idx, cell.content.data.item.id);
     } else {
-      int target = findSpillTarget(idx);
+      int target = -1;
+      {
+        using clk = std::chrono::steady_clock;
+        auto s = clk::now();
+        target = findSpillTarget(idx);
+        _tprof.spills++;
+        _tprof.spillMs +=
+            std::chrono::duration<double, std::milli>(clk::now() - s).count();
+      }
       if (target != -1) {
         cell.content.data.item.count = 3;
         _nodes[target].content.type = CellType::ITEM;

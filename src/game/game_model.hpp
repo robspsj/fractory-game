@@ -134,6 +134,19 @@ public:
   // grows with subgrid depth.
   std::size_t allocatedBytes() const { return _nodes.capacity() * sizeof(Cell); }
 
+  // Cost breakdown of the last GameModel::tick() — the sweep over the node
+  // array (which dominates the frame on large auto-boards).
+  struct TickProfile {
+    double sweepMs = 0.0;  // time iterating every node + per-item rand() checks
+    double spillMs = 0.0;  // time inside findSpillTarget calls
+    double emitMs  = 0.0;  // time appending effect events
+    int nodes = 0;         // _nodes.size() swept
+    int items = 0;         // ITEM cells encountered
+    int events = 0;        // effect events appended
+    int spills = 0;        // findSpillTarget calls
+  };
+  TickProfile tickProfile() const { return _tprof; }
+
 private:
   void initEmptyGrid(int size);
   void initRandomGrid(const Config &cfg);
@@ -142,6 +155,7 @@ private:
   int findSpillTarget(int idx);
   void emitEvent(CellEventType t, int idx, int itemId) {
     _events.push_back({idx, itemId, t});
+    ++_tprof.events;   // profiling counter
   }
 
   std::vector<Cell> _nodes;
@@ -150,4 +164,5 @@ private:
   int _dragAmount = 0;
   int _dragItemId = -1;
   InteractConfig _interactCfg;
+  TickProfile _tprof;   // profiling of the last tick()
 };

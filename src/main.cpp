@@ -26,9 +26,11 @@ static float s_fps = 0.0f;
 
 // Frame-time breakdown (ms), smoothed via EMA for stable HUD numbers.
 static float s_msFrame = 0.0f;   // full measured frame (render->present)
+static float s_msStep = 0.0f;    // Game::step (model tick + particles + effects)
 static float s_msRender = 0.0f;  // Skia render + HUD
 static float s_msCopy = 0.0f;    // surface binding / buffer wrap
 static float s_msPresent = 0.0f; // present (SDL surface blit / canvas putImageData)
+static uint64_t s_lastProfileTick = 0;
 static uint64_t s_perfFreq = 0;
 static bool s_vsyncOn = false;
 
@@ -487,7 +489,9 @@ int main(int argc, char *argv[]) {
     SDL_GetWindowSize(s_window, &winW, &winH);
 
     uint64_t now = SDL_GetTicks();
+    uint64_t st0 = perfNow();
     s_game->step((int)(now - s_lastFrameMs));
+    s_msStep = ema(s_msStep, (float)perfMs(st0, perfNow()));
     s_lastFrameMs = now;
 
     uint64_t f0 = perfNow();
@@ -539,6 +543,21 @@ int main(int argc, char *argv[]) {
         // frame but keep looping (don't peg the HUD / spin on a stale surface).
         s_msFrame = ema(s_msFrame, (float)perfMs(f0, perfNow()));
       }
+    }
+    // Periodic profile beacon: where does the frame time actually go?
+    if (now - s_lastProfileTick >= 1000) {
+      s_lastProfileTick = now;
+      Game::StepProfile sp = s_game->stepProfile();
+      fprintf(stderr,
+              "[prof] step=%6.1fms (tick=%6.1f x%d | parts=%5.1f | eff=%5.1f) "
+              "copy=%5.1f run=%5.1f hwPresent=%5.1f total=%6.1fms fps=%.0f\n",
+              s_msStep, sp.tickMs, sp.ticks, sp.partsMs, sp.effectsMs,
+              s_msCopy, s_msRender, s_msPresent, s_msFrame, s_fps);
+      fprintf(stderr,
+              "      tick: sweep=%6.1fms nodes=%-8d items=%-8d events=%-6d "
+              "spills=%-6d (spillMs=%6.1f)\n",
+              sp.tick.sweepMs, sp.tick.nodes, sp.tick.items, sp.tick.events,
+              sp.tick.spills, sp.tick.spillMs);
     }
   }
 

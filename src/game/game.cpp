@@ -20,20 +20,38 @@ Game::Game(const Config &cfg)
 Game::~Game() = default;
 
 bool Game::step(int elapsedMs) {
+  using clk = std::chrono::steady_clock;
   _particles->beginFrame(); // start per-frame allocation accounting
   if (_tickAccumMs < 0)
     _tickAccumMs = 0;
   _tickAccumMs += elapsedMs;
   int tickMs = (_ticksPerSecond > 0) ? (1000 / _ticksPerSecond) : 1000;
   bool ticked = false;
+  double tickSum = 0.0;
+  int ticks = 0;
   while (_tickAccumMs >= tickMs) {
     _tickAccumMs -= tickMs;
+    auto s = clk::now();
     _model->tick();
+    tickSum += std::chrono::duration<double, std::milli>(clk::now() - s).count();
+    ticks++;
     ticked = true;
   }
   // Advance the particle/smoke layer, then spawn anything the ticks produced.
+  auto s1 = clk::now();
   _particles->update((double)elapsedMs / 1000.0);
+  double partsMs = std::chrono::duration<double, std::milli>(clk::now() - s1).count();
+  auto s2 = clk::now();
   applyEffects();
+  double effectsMs = std::chrono::duration<double, std::milli>(clk::now() - s2).count();
+
+  _profile.tickMs = tickSum;
+  _profile.partsMs = partsMs;
+  _profile.effectsMs = effectsMs;
+  _profile.ticks = ticks;
+  _profile.ticked = ticked;
+  const auto &t = _model->tickProfile();
+  _profile.tick = t;
   return ticked;
 }
 
