@@ -68,7 +68,7 @@ void GameModel::initRandomGrid(const Config &cfg) {
     } else {
       cell.content.type = CellType::GRID;
       gridCount++;
-      int subSize = std::rand() % 2 + 2;
+      int subSize = std::rand() % 6 + 2; // sub-grid dimension: 2..7
       populateWithSubgrid(i, subSize);
     }
     i++;

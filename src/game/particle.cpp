@@ -33,7 +33,7 @@ static float blobRadius(float th, float seed) {
 
 ParticleSystem::ParticleSystem() {
   buildBlobs();
-  _sources.resize(kMaxSources);         // reserve ring storage ONCE (no realloc)
+  // _sources is a fixed member array: all slots default to alive=false.
 }
 
 ParticleSystem::~ParticleSystem() = default; // SkShader is complete here
@@ -98,6 +98,7 @@ static inline float puffRotSpeed(int seed, int i, float swirl) {
 void ParticleSystem::spawn(int node, const float color[3], EffectKind kind,
                            int itemId) {
   if (!color) return;
+  if ((size_t)_count >= (size_t)kMaxSources) return; // pool full -> ignore
   const PuffConfig cfg = PuffConfig::cfgFor(kind, itemId);
   gradientFor(itemId, color);              // warm tint cache (alloc only 1st time)
   Source s;
@@ -108,21 +109,34 @@ void ParticleSystem::spawn(int node, const float color[3], EffectKind kind,
   s.kind = kind;
   s.startTime = _now;
   s.cfg = cfg;
-  // O(1) ring insert: append on a free slot, else overwrite the OLDEST stored
-  // source (eviction keeps storage bounded — never a full-vector memmove).
-  if ((size_t)_count >= (size_t)kMaxSources) {
-    _sources[_head] = s;                       // overwrite oldest
-    _head = (_head + 1) % (size_t)kMaxSources; // oldest advances
-  } else {
-    _sources[(_head + (size_t)_count) % (size_t)kMaxSources] = s;
-    ++_count;
+  s.alive = true;
+  // Find a FREE (dead) slot scanning from (lastInsert + 1), rolling over the
+  // array length. Guaranteed to find one because count < kMaxSources.
+  size_t i = _lastInsert;
+  for (size_t step = 0; step < (size_t)kMaxSources; step++) {
+    i = (i + 1) % (size_t)kMaxSources;
+    if (!_sources[i].alive) {
+      _sources[i] = s;
+      _lastInsert = i;
+      ++_count;               // a live source was added
+      return;
+    }
   }
 }
 
 void ParticleSystem::update(double dt) {
-  // Advance the animation clock ONLY. Sources are NOT removed here: whether any
-  // source/puff is displayed is decided entirely at render time.
   _now += dt;
+  if (_count == 0) return;
+  // Sweep the fixed pool once: flag expired sources dead and drop the count.
+  // Cheap death — no removal, no memory moves, the slot is just free again.
+  for (size_t i = 0; i < (size_t)kMaxSources; i++) {
+    if (_sources[i].alive &&
+        (_now - _sources[i].startTime) >= (double)_sources[i].cfg.life) {
+      _sources[i].alive = false;
+      --_count;
+      if (_count == 0) return;
+    }
+  }
 }
 
 void ParticleSystem::draw(SkCanvas *canvas, int winW, int winH,
@@ -133,11 +147,9 @@ void ParticleSystem::draw(SkCanvas *canvas, int winW, int winH,
   const float scalePx = 0.5f * std::min(W, H);
 
   int budget = kMaxPuffsPerFrame;
-  const size_t mod = (size_t)kMaxSources;
-  // Iterate NEWEST source first so a saturated pool keeps the freshest bursts
-  // and only drops the oldest under the per-frame puff budget.
-  for (size_t k = _count; k-- > 0;) {
-    const Source &s = _sources[(_head + k) % mod];
+  for (size_t si = 0; si < (size_t)kMaxSources; si++) {
+    const Source &s = _sources[si];
+    if (!s.alive) continue;
     const double age = std::max(0.0, _now - s.startTime);
     const float t = (float)(age / s.cfg.life);     // 0..1 progress
     if (t >= 1.0f) continue;                       // expired — render-time cull
@@ -151,7 +163,7 @@ void ParticleSystem::draw(SkCanvas *canvas, int winW, int winH,
     const float sizeNow = halfNDC * (s.cfg.size0 + (s.cfg.size1 - s.cfg.size0) * t);
 
     for (int i = 0; i < s.cfg.count; i++) {
-      if (budget <= 0) return;    // budget exhausted — stop (newest already drawn)
+      if (budget <= 0) return;    // budget exhausted — stop
       const double ang = puffAngle(s.seed, i);
       const float scat = s.cfg.spread * halfNDC * (float)puffRand(s.seed, i);
       const float nx = cx + (float)std::cos(ang) * scat;
@@ -185,15 +197,16 @@ void ParticleSystem::draw(SkCanvas *canvas, int winW, int winH,
 }
 
 void ParticleSystem::clear() {
+  for (Source &s : _sources) s.alive = false;
   _count = 0;
-  _head = 0;
+  _lastInsert = 0;
   _lastVisible = 0;
 }
 
 std::size_t ParticleSystem::allocatedBytes() const {
-  // Ring storage is fully reserved up-front (kMaxSources descriptors).
-  std::size_t bytes = _sources.size() * sizeof(Source);
-  bytes += _grads.size() * 64;
+  // The source pool is a fixed member array (no heap); count only what lives on
+  // the heap: gradient shaders and the blob paths.
+  std::size_t bytes = _grads.size() * 64;
   for (const SkPath &p : _blobs) bytes += p.countPoints() * sizeof(SkPoint) * 2;
   return bytes;
 }

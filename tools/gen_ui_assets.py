@@ -28,7 +28,7 @@ CELL_RX = 10.0
 # Per-gap between adjacent cells (must match GameView::_gapRatio).
 GAP = 0.0714
 
-# Per-size colour families. Index = size-1 (sizes 1..5); clamped beyond.
+# Per-size colour families. Index = size-1 (sizes 1..7).
 PALETTE = [
     # (bg fill, cell fill)  size
     ('#6B7280', '#9CA3AF'),  # 1 gray
@@ -36,6 +36,8 @@ PALETTE = [
     ('#D97706', '#FBBF24'),  # 3 amber
     ('#7C3AED', '#A78BFA'),  # 4 purple
     ('#2563EB', '#60A5FA'),  # 5 blue
+    ('#E11D48', '#FB7185'),  # 6 rose
+    ('#059669', '#34D399'),  # 7 emerald
 ]
 
 

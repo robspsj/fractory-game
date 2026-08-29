@@ -2,17 +2,21 @@
 // Isolated presentation-layer particle system. Owns ALL smoke state; the game
 // model and Cell carry nothing about particles.
 //
-// Memory model: the pool stores only lightweight SOURCE DESCRIPTORS — one per
-// burst, holding {type, itemId, element, seed, spawn time, cell node index,
-// resolved config}. Individual puffs are NOT stored: at render time every puff
-// is derived deterministically from (source.seed, puff index, elapsed time) —
-// position, drift, growth, rotation and fade are all computed on the fly. The
-// parent cell's on-screen position is resolved from its node index the SAME way
-// cells are laid out, so puffs stay glued to their cell exactly as it is drawn.
+// Memory model: a FIXED pool of kMaxSources (2048) lightweight SOURCE
+// DESCRIPTORS — one per burst, holding {type, itemId, element, seed, spawn
+// time, cell node index, resolved config, alive}. Individual puffs are NOT
+// stored: every puff is derived deterministically at render from (seed, puff
+// index, elapsed time). The parent cell's on-screen position is resolved from
+// its node index the SAME way cells are laid out, so puffs stay glued to their
+// cell exactly as it is drawn.
 //
-// The config lookup is expandable: every spawn carries an EffectKind and item
-// id, and PuffConfig::cfgFor(kind, itemId) is the single extension point for
-// per-situation or per-item looks (uniform default today).
+// Sources are controlled by a LIVE COUNT and a free-slot search that starts
+// rolling from (lastInsert + 1) over the array length — so spawn() is ~O(1) for
+// a typical mostly-live pool. When the pool is FULL a new spawn is simply
+// IGNORED (count == kMaxSources). A source that dies is only flagged `alive =
+// false` (no erase / no moves) and the live count is decremented. The config
+// lookup is expandable: every spawn carries an EffectKind and item id, and
+// PuffConfig::cfgFor(kind, itemId) is the single extension point.
 
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
@@ -20,7 +24,7 @@
 #include <cstddef>
 #include <functional>
 #include <map>
-#include <vector>
+
 class SkCanvas;
 
 // Which game event produced a burst. Spawns are keyed by this so later we can
@@ -64,25 +68,26 @@ public:
   ParticleSystem(const ParticleSystem &) = delete;
   ParticleSystem &operator=(const ParticleSystem &) = delete;
 
-  // Spawn ONE source (burst) for a cell at `node`. The node's position is NOT
-  // stored — it is resolved at render time via NdcResolver so the puff stays
-  // glued to the cell exactly as it's drawn. baseColor tints the smoke. Sources
-  // are always stored (ring-evicting the oldest only once the pool is full);
-  // display culling is deferred entirely to render().
+  // Spawn ONE source (burst) for a cell at `node`. Position is NOT stored — it
+  // is resolved at render via NdcResolver so the puff stays glued to the cell
+  // exactly as it's drawn. baseColor tints the smoke. If the pool is FULL
+  // (count == kMaxSources) the new spawn is IGNORED. Otherwise a free (dead)
+  // slot is found by scanning from (lastInsert + 1) forward, rolling over the
+  // array length; the live count is incremented.
   void spawn(int node, const float color[3], EffectKind kind, int itemId);
-  // Advance the internal animation clock only. Does NOT remove sources — whether
-  // a source/puff is shown (expired/offscreen/faded/tiny) is decided at render.
+  // Advance the animation clock, then sweep the fixed pool once: any live source
+  // whose lifetime has elapsed is flagged dead (alive = false) and the live
+  // count is decremented — a cheap death, no removal or memory moves.
   void update(double dtSec);
-  // Draw live puffs from stored sources; this is the ONLY culling point. The
-  // resolver maps each source's cell node to its current on-screen NDC centre.
+  // Draw live puffs from alive sources. The resolver maps each source's cell
+  // node to its current on-screen NDC centre.
   void draw(SkCanvas *canvas, int winW, int winH, const NdcResolver &resolve) const;
   void clear();
-  int sourceCount() const { return (int)_count; } // live bursts stored
+  int sourceCount() const { return (int)_count; } // LIVE bursts stored
   int lastVisible() const { return _lastVisible; } // puffs drawn last frame
-  // Per-frame allocation accounting: reset at the start of a frame
-  // (Game::step -> beginFrame), then incremented by any heap alloc the particle
-  // layer does. The pool's ring storage is reserved once, so spawn() never
-  // reallocates; the only allocations are first-use gradient shaders.
+  // Per-frame allocation accounting, reset at the start of a frame
+  // (Game::step -> beginFrame). The pool is a fixed member array (no heap), so
+  // spawn() never allocates; the only allocations are first-use gradient shaders.
   void beginFrame() { _allocsFrame = 0; }
   int allocationsLast() const { return _allocsFrame; }
   std::size_t allocatedBytes() const;
@@ -96,26 +101,28 @@ private: // ---------------- source descriptor ----------------
     EffectKind kind;   // config key (future per-kind look)
     double startTime;  // seconds on the internal anim clock (age = now - t0)
     PuffConfig cfg;    // resolved params
+    bool   alive = false; // true while the source is live; false = free slot
   };
 
   // Number of distinct irregular silhouettes, keyed by puff seed.
   static constexpr int kBlobs = 6;
-  // Hard cap on simultaneous stored SOURCE descriptors (tiny; ring storage).
-  static constexpr int kMaxSources = 8192;
+  // Hard live cap — when reached, new spawns are ignored.
+  static constexpr int kMaxSources = 2048;
   // Per-frame cap on puffs actually drawn, so a burst-flood degrades gracefully
-  // (drops the oldest, keeps the newest) instead of tanking the frame rate.
+  // instead of tanking the frame rate.
   static constexpr int kMaxPuffsPerFrame = 1024;
 
-  std::vector<Source> _sources;                 // ring storage, reserved once
-  size_t _count = 0;                            // logical number stored (0..cap)
-  size_t _head = 0;                             // index of the oldest stored source
-  std::array<SkPath, kBlobs> _blobs;            // unit-space soft blobs (~r=1)
-  std::map<int, sk_sp<SkShader>> _grads;        // per-element radial gradients
-  SkPaint _scratch;                             // shared draw paint
-  double _now = 0.0;                            // animation clock (seconds)
-  int _seedCounter = 0;                         // incremental burst seed
-  mutable int _lastVisible = 0;                 // puffs drawn last frame (HUD)
-  int _allocsFrame = 0;                         // heap allocs this frame
+  std::array<Source, kMaxSources> _sources;  // fixed pool (member, no heap)
+  size_t _count = 0;                         // LIVE source count
+  size_t _lastInsert = 0;                    // last insert idx; free-slot search
+                                             // starts at (this + 1) % kMaxSources
+  std::array<SkPath, kBlobs> _blobs;         // unit-space soft blobs (~r=1)
+  std::map<int, sk_sp<SkShader>> _grads;     // per-element radial gradients
+  SkPaint _scratch;                          // shared draw paint
+  double _now = 0.0;                         // animation clock (seconds)
+  int _seedCounter = 0;                      // incremental burst seed
+  mutable int _lastVisible = 0;              // puffs drawn last frame (HUD)
+  int _allocsFrame = 0;                      // heap allocs this frame
 
   void buildBlobs();
   sk_sp<SkShader> gradientFor(int elem, const float color[3]); // lazy, cached

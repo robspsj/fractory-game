@@ -304,7 +304,7 @@ struct PieceLib {
 // `cell[i]` = inner cell, where i = GridData.variation (a per-size colour family).
 #if !defined(__EMSCRIPTEN__)
 struct UiLib {
-  static constexpr int kFamilies = 5;
+  static constexpr int kFamilies = 7;
   std::array<sk_sp<SkSVGDOM>, kFamilies> bg;
   std::array<sk_sp<SkSVGDOM>, kFamilies> cell;
   explicit UiLib() {
@@ -1059,6 +1059,40 @@ void GameView::renderAnchor(const int anchorIndex, const Rect r, const int depth
     renderCell(anchorIndex, r, depth);
 }
 
+// Wave background: a few thin STROKED sinusoid curves drawn directly under the
+// NDC matrix. Smooth Skia paths, fixed on screen; only the clock `t` undulates
+// them at per-line speed. Cheap enough to be ~free on FPS.
+#if !defined(__EMSCRIPTEN__)
+void GameView::drawBackground(int winW, int winH, double t) {
+  (void)winW; (void)winH;
+  if (!_canvas) return;
+  const int XSEG = 96;
+  const float twoPi = (float)SK_ScalarPI * 2.0f;
+  struct L { uint32_t col; float a, cy, amp, f, sp, w; };
+  const L Ls[4] = {
+      {0xFF4D6A9E, 0.22f, -0.55f, 0.13f, 1.8f, 0.40f, 0.013f},
+      {0xFF5A6BB0, 0.18f, -0.16f, 0.10f, 2.6f, 0.56f, 0.010f},
+      {0xFF7A5FB0, 0.18f,  0.22f, 0.11f, 2.0f, 0.70f, 0.010f},
+      {0xFF3F8A8D, 0.22f,  0.58f, 0.14f, 1.5f, 0.46f, 0.013f},
+  };
+  for (const L &l : Ls) {
+    const float ph = (float)t * l.sp;
+    SkPathBuilder b;
+    b.moveTo(-1.0f, l.cy + l.amp * std::sin(-l.f * twoPi + ph));
+    for (int i = 1; i <= XSEG; i++) {
+      const float x = -1.0f + 2.0f * (float)i / (float)XSEG;
+      b.lineTo(x, l.cy + l.amp * std::sin(x * l.f * twoPi + ph));
+    }
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(l.w);
+    p.setColor(SkColorSetA(l.col, (uint8_t)std::lround(l.a * 255.0f)));
+    _canvas->drawPath(b.detach(), p);
+  }
+}
+#endif
+
 void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   if (!canvas) return;
   _canvas = canvas;
@@ -1104,6 +1138,9 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   // Fully replace the frame with the background, then alpha-blend the
   // cells/icons/(drag glow) on top so gradients + glow composite correctly.
   canvas->clear(SkColorSetARGB(0xFF, 0x1A, 0x1A, 0x26));
+#if !defined(__EMSCRIPTEN__)
+  drawBackground(winW, winH, animSeconds());
+#endif
 
   constexpr float anchorW = _anchorWidth;
   float ox = -anchorW * 0.5f * _zoom + _panX;

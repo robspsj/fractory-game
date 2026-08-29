@@ -155,6 +155,7 @@ private:
     // Rounded-color-square UI tiles (grid bg + inner cells), per-size families.
     UiLib* _ui = nullptr;
 #endif
+    void drawBackground(int winW, int winH, double t);
 
     GameModel& _model;
     Framebench _bench;   // accumulate glow/svg render-stage times (for benchmarks)
