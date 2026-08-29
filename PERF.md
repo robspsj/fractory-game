@@ -91,3 +91,35 @@ model tick.
 FRACTORY_TICK_THREADS=16 ./build-native/fractory --tick 60
 ./build-native/fractory                          # interactive [prof] beacon each 1s
 ```
+
+## Render parallelization — explored, NOT a win
+Because the cells never overlap, we prototyped parallel software rasterisation of
+the cell layer: flatten the visible cells to a display list (single-thread collect
+pass), then rasterize contiguous slices on separate threads — each into its own
+full-frame transparent surface via a `thread_local` render canvas — and composite
+in list order (parent-before-child preserved). Code lives on `perf/parallel-render`,
+gated behind `FRACTORY_RENDER_THREADS` (off on main).
+
+Pixel-correct (fixed seed + frozen `animSeconds()`: only AA-level rounding,
+`|Δ| <= 3`). But it is **not faster** (offscreen CPU bench @1572x1003, ~526 SVG
+pieces):
+
+| threads | render | geometry | SVG per-inst | fps |
+|---:|---:|---:|---:|---:|
+| 1 | 5.60 | 2.51 | 2.38 | 135 |
+| 2 | 5.73 | 1.42 | 3.21 | 134 |
+| 4 | 5.49 | 0.78 | 3.50 | 137 |
+| 8 | 6.77 | 1.45 | 3.94 | 118 |
+| 16 | 10.92 | 5.02 | 4.30 | 79 |
+
+Diagnosis:
+- Geometry/cells parallelize well (2.5 -> 0.78 ms).
+- The single most expensive stage, per-instance SVG (`SkSVGDOM::render` on the
+  ~526 piece sprites), shares the same 5 DOM objects across threads; they are
+  not thread-safe, so that time *grows* with thread count instead of shrinking.
+- Compositing N full-frame transparent surfaces per frame adds memory traffic
+  that outweighs the geometry win at >4 threads.
+
+Verdict: not worth pursuing until the SVG stage is either pre-rasterized (which the
+user rejected) or given per-thread DOM copies AND the composite moves to Y-tiles.
+The next real render target is that per-instance SVG+Sprite cost itself.
