@@ -101,6 +101,9 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
         model.tick();
       std::cout << "Action: tick x" << step.count << std::endl;
       printState(model);
+    } else if (step.type == "test_rng") {
+      model.setRngOverride(step.rng);
+      std::cout << "Action: test_rng = " << step.rng << std::endl;
     } else if (step.type == "interact") {
       std::cout << "Action: interact at [" << step.row << "," << step.col
                 << "]" << std::endl;
@@ -187,6 +190,20 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
     if (line.rfind("empty_grid:", 0) == 0) {
       outEmptyGrid = true;
       outGridSize = std::stoi(line.substr(11));
+      continue;
+    }
+
+    // test_rng <N>  (also accepts test_rng,<N>): force every RNG call to return
+    // a fixed value (deterministic tick/interact) until a later test_rng changes
+    // it. -1 restores the real PRNG.
+    if (line.rfind("test_rng", 0) == 0) {
+      size_t v = line.find_first_of(", ");
+      if (v != std::string::npos) {
+        TestStep step;
+        step.type = "test_rng";
+        step.rng = std::stoi(line.substr(v + 1));
+        steps.push_back(step);
+      }
       continue;
     }
 

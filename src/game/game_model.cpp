@@ -424,6 +424,8 @@ struct PlMut   { int idx; CellType type; int item; int count; CellEventType ev; 
 struct PlSpill { int src, tgt, item; };
 
 uint32_t GameModel::prng(int idx, int salt) const {
+  if (_rngOverride >= 0)   // test hook: fixed value for deterministic CSV tests
+    return (uint32_t)_rngOverride;
   uint32_t x = (uint32_t)idx ^ (uint32_t)salt * 0x9E3779B1u;
   x ^= _prngSeed;
   x ^= (uint32_t)_tickCounter * 0x85EBCA6Du;

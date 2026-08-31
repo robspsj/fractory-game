@@ -147,6 +147,11 @@ public:
   };
   TickProfile tickProfile() const { return _tprof; }
 
+  // Testing hook: force every (stateless per-cell) RNG call to return a fixed
+  // value so tick/interact-based CSV tests are deterministic. -1 (default) = use
+  // the real per-cell PRNG. e.g. test_rng,1 -> all rand()/prng() calls return 1.
+  void setRngOverride(int v) { _rngOverride = v; }
+
 private:
   void initEmptyGrid(int size);
   void initRandomGrid(const Config &cfg);
@@ -172,4 +177,5 @@ private:
   TickProfile _tprof;   // profiling of the last tick()
   unsigned _prngSeed = 0;  // per-simulation seed for the stateless cell PRNG
   int _tickCounter = 0;    // incremented each tick (salt for the per-cell PRNG)
+  int _rngOverride = -1;   // >=0: all prng()/rand calls return this (test hook)
 };
