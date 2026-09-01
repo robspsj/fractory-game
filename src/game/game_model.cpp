@@ -445,7 +445,7 @@ void GameModel::tick() {
   ++_tickCounter;
   auto wall = clk::now();
 
-  const int n = (int)_nodes.size();
+  const int n = static_cast<int>(_nodes.size());
   int nThreads = std::clamp((int)std::thread::hardware_concurrency(), 1, 16);
   if (const char *tg = std::getenv("FRACTORY_TICK_THREADS")) {
     int v = std::atoi(tg);

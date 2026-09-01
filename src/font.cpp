@@ -1,5 +1,6 @@
 #include "font.hpp"
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include "include/core/SkCanvas.h"
 #include "include/core/SkFont.h"
@@ -11,6 +12,14 @@
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkFontMgr.h"
 #include "include/ports/SkFontMgr_mac_ct.h"
+
+// Per-frame text-stage timing: font.cpp writes into a Framebench (declared in
+// font.hpp → game/framebench.hpp) when the caller passes one.
+static inline uint64_t fontNowUs() {
+  return (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+             .count();
+}
 
 #define FONT_W 8
 #define FONT_H 8
@@ -143,32 +152,45 @@ void initFont() {
 
 // Measure text width in pixels. Uses SkFont::measureText for the vector font,
 // or the fixed 8x8 metric for the fallback bitmap.
-float textWidth(const char *text, float scale) {
+float textWidth(const char *text, float scale, Framebench *bench) {
   if (!text || !*text) return 0.0f;
   ensureFont();
   if (!gTypeface) return (float)strlen(text) * FONT_W * scale;
+  uint64_t t0 = bench ? fontNowUs() : 0;
   SkFont font(gTypeface);
   font.setSize((SkScalar)(FONT_H * scale));
   font.setEdging(SkFont::Edging::kAntiAlias);
   font.setHinting(SkFontHinting::kNormal);
-  return font.measureText(text, strlen(text), SkTextEncoding::kUTF8);
+  float w = font.measureText(text, strlen(text), SkTextEncoding::kUTF8);
+  if (bench) {
+    bench->textMetricsMs += (double)(fontNowUs() - t0) / 1000.0;
+    bench->textMetricsN++;
+  }
+  return w;
 }
 
 // Text height (ascent + descent) in pixels for the current font at scale.
 // Note: Skia reports fAscent as NEGATIVE (distance above baseline), so take
 // its absolute value; otherwise the sum goes negative and callers misplace
 // anything sized from this.
-float textHeight(float scale) {
+float textHeight(float scale, Framebench *bench) {
   ensureFont();
   if (!gTypeface) return FONT_H * scale;
+  uint64_t t0 = bench ? fontNowUs() : 0;
   SkFont font(gTypeface);
   font.setSize((SkScalar)(FONT_H * scale));
   SkFontMetrics m;
   font.getMetrics(&m);
-  return std::fabs(SkScalarToFloat(m.fAscent)) + SkScalarToFloat(m.fDescent);
+  float h = std::fabs(SkScalarToFloat(m.fAscent)) + SkScalarToFloat(m.fDescent);
+  if (bench) {
+    bench->textMetricsMs += (double)(fontNowUs() - t0) / 1000.0;
+    bench->textMetricsN++;
+  }
+  return h;
 }
 
-void drawText(SkCanvas* canvas, float x, float y, const char *text, float scale) {
+void drawText(SkCanvas* canvas, float x, float y, const char *text, float scale,
+              Framebench *bench) {
   if (!canvas || !text || !*text) return;
   int len = (int)strlen(text);
   if (len > 64) len = 64;
@@ -195,13 +217,19 @@ void drawText(SkCanvas* canvas, float x, float y, const char *text, float scale)
     return;
   }
 
+  uint64_t t0 = bench ? fontNowUs() : 0;
   SkFont font(gTypeface);
   font.setSize((SkScalar)(FONT_H * scale));
   font.setEdging(SkFont::Edging::kAntiAlias);
   font.setHinting(SkFontHinting::kNormal);
 
+  uint64_t tb0 = bench ? fontNowUs() : 0;
   sk_sp<SkTextBlob> blob = SkTextBlob::MakeFromString(text, font, SkTextEncoding::kUTF8);
   if (!blob) return;
+  if (bench) {
+    bench->textBlobMs += (double)(fontNowUs() - tb0) / 1000.0;
+    bench->textBlobN++;
+  }
 
   SkPaint paint;
   paint.setAntiAlias(true);
@@ -211,5 +239,11 @@ void drawText(SkCanvas* canvas, float x, float y, const char *text, float scale)
   // bitmap font did.
   SkFontMetrics metrics;
   font.getMetrics(&metrics);
+  uint64_t td0 = bench ? fontNowUs() : 0;
   canvas->drawTextBlob(blob, x, y - SkScalarToFloat(metrics.fAscent), paint);
+  if (bench) {
+    bench->textDrawMs += (double)(fontNowUs() - td0) / 1000.0;
+    bench->textMs += (double)(fontNowUs() - t0) / 1000.0;
+    bench->textN++;
+  }
 }

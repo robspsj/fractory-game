@@ -310,6 +310,26 @@ struct PieceLib {
 // per cell — no raster cache, no generated header. `bg[i]` = grid container,
 // `cell[i]` = inner cell, where i = GridData.variation (a per-size colour family).
 #if !defined(__EMSCRIPTEN__)
+// Resolve a CWD-relative asset path to an absolute one so tile loading works
+// regardless of the working directory. CLion runs the binary with CWD = build
+// dir, not the project root, so a bare fopen("assets/ui/...") finds nothing and
+// the tiles silently fall back to flat quads. Try CWD first (headless/CLI runs
+// from the project root), then walk up from CWD looking for <dir>/<path>; the
+// first ancestor that contains the file wins.
+static std::string resolveAsset(const char *path) {
+  namespace fs = std::filesystem;
+  fs::path rel(path);
+  std::error_code ec;
+  if (fs::exists(rel, ec)) return rel.string();
+  fs::path dir = fs::current_path(ec);
+  while (true) {
+    fs::path cand = dir / rel;
+    if (fs::exists(cand, ec)) return cand.string();
+    if (!dir.has_parent_path()) break;
+    dir = dir.parent_path();
+  }
+  return std::string(path);  // not found; caller's fopen fails -> flat fallback
+}
 struct UiLib {
   static constexpr int kFamilies = 7;
   std::array<sk_sp<SkSVGDOM>, kFamilies> bg;
@@ -326,7 +346,7 @@ struct UiLib {
   // Parse an independent .svg file from disk into an SkSVGDOM. Returns nullptr
   // (graceful flat-quad fallback) if the file is missing/unreadable.
   static sk_sp<SkSVGDOM> load(const char *path) {
-    FILE *f = fopen(path, "rb");
+    FILE *f = fopen(resolveAsset(path).c_str(), "rb");
     if (!f) return nullptr;
     fseek(f, 0, SEEK_END);
     long n = ftell(f);
@@ -744,8 +764,8 @@ void GameView::drawCountBadge(const Rect &r, int count) {
   // Glyph scale so the badge stays a modest fraction of the cell, clamped to
   // stay readable at high zoom without dominating small cells.
   const float scale = std::clamp(cellMin / 48.0f, 1.0f, 6.0f);
-  const float textW = textWidth(buf, scale);
-  const float textH = textHeight(scale);
+  const float textW = textWidth(buf, scale, &_bench);
+  const float textH = textHeight(scale, &_bench);
 
   // Cell bounds in pixels (NDC y-up -> pixel y-down).
   const float cellLeft = (r.ox + 1.0f) * 0.5f * (float)_targetW;
@@ -766,7 +786,7 @@ void GameView::drawCountBadge(const Rect &r, int count) {
 
   _canvas->save();
   _canvas->resetMatrix();  // pixel space for the vector font
-  drawText(_canvas, pillX + padX, pillY + padY, buf, scale);
+  drawText(_canvas, pillX + padX, pillY + padY, buf, scale, &_bench);
   _canvas->restore();
 }
 
@@ -826,6 +846,7 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
   constexpr float minClipSize = 0.002f;
   if (r.w < minClipSize || r.h < minClipSize)
     return;
+  _bench.cellN++;   // this leaf cell actually renders this frame
 
   const Cell &cell = _model.node(nodeIndex);
   const bool isAnchor = _showAnchor && nodeIndex == _anchorIndex;
@@ -1341,6 +1362,7 @@ void GameView::drawBackground(int winW, int winH, double t) {
 void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   if (!canvas) return;
   _canvas = canvas;
+  _bench.reset();   // per-frame stage timers: isolate THIS frame's cost (idempotent with the --bench manual reset)
   _targetW = winW;
   _targetH = winH;
   _aspect = (float)winW / (float)winH;
@@ -1393,7 +1415,17 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   float cw = anchorW * _zoom;
   float ch = anchorW * _aspect * _zoom;
 
-  renderAnchor(_anchorIndex, {ox, oy, cw, ch}, 0);
+  {
+    // Time the whole anchor walk (tiles + culling + items + svg + glow + badges).
+    // The net "cells/geometry" stage is this minus the already-measured
+    // sub-stages (svg/glow/text), so the profiler shows disjoint bars.
+    uint64_t a0 = nowMs();
+    renderAnchor(_anchorIndex, {ox, oy, cw, ch}, 0);
+    uint64_t a1 = nowMs();
+    double anchorMs = (double)(a1 - a0) / 1000.0;
+    double sub = _bench.svgMs + _bench.glowMs + _bench.textMs;
+    _bench.cellsMs = anchorMs > sub ? anchorMs - sub : 0.0;
+  }
 
   if (_model.hasDrag()) {
     int dragId = _model.dragItemId();

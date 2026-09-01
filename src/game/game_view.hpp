@@ -1,6 +1,7 @@
 #pragma once
 #include "config.hpp"
 #include "game_model.hpp"
+#include "framebench.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -24,16 +25,6 @@ class SkCanvas;
 struct PieceLib;
 struct UiLib;
 class ParticleSystem;
-
-// Per-frame render-stage timing, accumulated by GameView during renderTo so a
-// benchmark can break the frame budget down by what Skia is doing. Reset per
-// frame by the driver, read back after renderTo returns.
-struct Framebench {
-  double glowMs = 0.0;   // item glow radial gradients
-  double svgMs  = 0.0;   // per-instance chess-piece SVG rendering
-  int    svgN   = 0;     // how many SVG pieces drawn this frame
-  void reset() { glowMs = 0.0; svgMs = 0.0; svgN = 0; }
-};
 
 struct Rect {
     float ox, oy, w, h;

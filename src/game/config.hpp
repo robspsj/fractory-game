@@ -9,7 +9,7 @@ constexpr float MAX_CELL_ON_SCREEN_PROPORTION_THRESHOLD_PARENT = 0.7f/10;
 struct Config {
     const unsigned int seed;
     const int gridChance;
-    const int gridLimit;
+    int gridLimit;  // non-const: overridable via --grid-limit for board-size studies
     const bool showAnchor;
     const int ticksPerSecond;
     bool emptyGrid = false;

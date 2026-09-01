@@ -3,6 +3,7 @@
 #include "game/game.hpp"
 #include "test_runner.hpp"
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -10,6 +11,8 @@
 #include <vector>
 #include "include/core/SkCanvas.h"
 #include "include/core/SkImageInfo.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkRect.h"
 #include "include/core/SkSurface.h"
 
 #if defined(__EMSCRIPTEN__)
@@ -33,6 +36,64 @@ static float s_msPresent = 0.0f; // present (SDL surface blit / canvas putImageD
 static uint64_t s_lastProfileTick = 0;
 static uint64_t s_perfFreq = 0;
 static bool s_vsyncOn = false;
+
+// ---- Live frame profiler (F3 toggles the on-screen bar panel) ---------------
+// Per-stage render timings are captured once per frame from GameView's
+// Framebench (which the render pass fills), EMA-smoothed for stable bars, and
+// drawn as a bar chart so you can WATCH which stage grows as you zoom. The
+// stage that expands with zoom level is your culprit.
+struct ProfilerStat {
+  double stepMs = 0.0;     // model step (zoom-independent — sanity baseline)
+  double renderMs = 0.0;   // total renderTo
+  double cellsMs = 0.0;    // geometry/cells/other (render minus svg+glow+text)
+  double svgMs = 0.0;      // per-instance piece SVG rendering
+  double glowMs = 0.0;     // item contour glow
+  double textMs = 0.0;     // badge vector-font text
+  double presentMs = 0.0;  // SDL blit / putImageData
+  double frameMs = 0.0;    // full measured frame
+  int svgN = 0;            // piece SVGs drawn this frame
+  int textN = 0;           // badges drawn this frame
+  int cells = 0;           // cells drawn this frame (draw count)
+  int depth = 0;           // anchor recursion depth
+  float zoom = 1.0f;
+  int fps = 0;
+};
+static ProfilerStat s_prof;            // EMA-smoothed values shown by the panel
+static bool s_profilerOn = false;      // F3 toggles
+static int s_profW = 0, s_profH = 0;   // last window size (panel is bottom-left)
+
+static void profilerCapture() {
+  // Pull the just-finished frame's per-stage timings. renderTo() filled the
+  // view's Framebench; read it before the next frame resets it.
+  const Framebench& fb = s_game->view().framebench();
+  const Game::StepProfile sp = s_game->stepProfile();
+  double frameTotal = (double)s_msFrame;
+  // "cells/other" = render minus the individually-timed stages.
+  double cells = (double)s_msRender - fb.svgMs - fb.glowMs - fb.textMs;
+  if (cells < 0.0) cells = 0.0;
+  // Smooth each channel the same way the existing ms* HUD numbers do.
+  auto e = [](double prev, double cur) { return prev + 0.2 * (cur - prev); };
+  // Model step plotted as PER-TICK cost (tickSum / ticks this frame), not the
+  // per-frame sum: a fixed 20 Hz tick rate means slower (heavier-render) frames
+  // pack MORE ticks into them, so the raw sum rises with zoom even though each
+  // tick costs the same. Dividing out the tick count keeps this bar flat — the
+  // true view-independent baseline.
+  const double perTick = sp.ticks > 0 ? sp.tickMs / sp.ticks : 0.0;
+  s_prof.stepMs    = e(s_prof.stepMs, perTick);
+  s_prof.renderMs  = e(s_prof.renderMs, (double)s_msRender);
+  s_prof.cellsMs   = e(s_prof.cellsMs, cells);
+  s_prof.svgMs     = e(s_prof.svgMs, fb.svgMs);
+  s_prof.glowMs    = e(s_prof.glowMs, fb.glowMs);
+  s_prof.textMs    = e(s_prof.textMs, fb.textMs);
+  s_prof.presentMs = e(s_prof.presentMs, (double)s_msPresent);
+  s_prof.frameMs   = e(s_prof.frameMs, frameTotal);
+  s_prof.svgN  = fb.svgN;
+  s_prof.textN = fb.textN;
+  s_prof.cells = s_game->lastCellDrawCount();
+  s_prof.depth = s_game->anchorDepth();
+  s_prof.zoom  = s_game->zoomFactor();
+  s_prof.fps   = (int)(s_fps + 0.5f);
+}
 
 #if !defined(__EMSCRIPTEN__)
 static bool s_gpuActive = false;   // true when the Metal Ganesh path is live
@@ -80,10 +141,132 @@ static void updateFps() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Live frame profiler — an on-screen bar chart (F3 toggles it) showing where
+// the frame time goes, per stage. Watch the bars while you ZOOM: the stage
+// whose bar grows with zoom level is your culprit. Uses the same primitives as
+// the HUD (custom drawText + SkPaint hex-color rects).
+// ---------------------------------------------------------------------------
+static void drawProfiler(SkCanvas *canvas) {
+  if (!s_profilerOn || !canvas) return;
+  canvas->resetMatrix();
+  const float fs = 1.4f;             // text scale (1.0 = 8px HUD glyphs)
+  const float rowPitch = 22.0f;      // vertical gap between bar rows
+  const float left = 12.0f, top = 14.0f;
+  const float barX = 152.0f;         // x where value bars start
+  const float barWMax = 184.0f;      // full bar width == frameMs
+  const float headerH = 48.0f;       // room for title + hint, above the bars
+  const int nBars = 6;
+
+  const float panelW = barX + barWMax + 88.0f;
+  const float panelH = top + headerH + (nBars + 1) * rowPitch + 14.0f;
+  {
+    SkPaint bg;
+    bg.setAntiAlias(false);
+    bg.setColor(0xD010141B);        // dark translucent panel
+    canvas->drawRect(SkRect::MakeXYWH(0, 0, panelW, panelH), bg);
+  }
+
+  const float scale = barWMax / (s_prof.frameMs > 1e-3 ? s_prof.frameMs : 1.0);
+  char line[96];
+  snprintf(line, sizeof(line), "%d fps   %.1f ms   zoom x%.2f   cells %d  svg %d  badge %d",
+           s_prof.fps, s_prof.frameMs, s_prof.zoom, s_prof.cells, s_prof.svgN, s_prof.textN);
+  drawText(canvas, left, top + 12, line, fs);
+  snprintf(line, sizeof(line), "which bar grows as you ZOOM?");
+  drawText(canvas, left, top + 12 + 17, line, fs);
+
+  struct Row { const char *label; double ms; uint32_t col; };
+  const Row rows[nBars] = {
+    { "model step", s_prof.stepMs,    0xFF9C5555 },
+    { "cells/geom", s_prof.cellsMs,   0xFF4C8CB3 },
+    { "piece SVG",  s_prof.svgMs,     0xFF9A6CBE },
+    { "glow",       s_prof.glowMs,    0xFFBF9A40 },
+    { "badge text", s_prof.textMs,    0xFF73BF73 },
+    { "present",    s_prof.presentMs, 0xFF808C99 },
+  };
+  float y = top + headerH;
+  for (int i = 0; i < nBars; i++) {
+    drawText(canvas, left, y, rows[i].label, fs);
+    // track
+    {
+      SkPaint tr;
+      tr.setAntiAlias(false);
+      tr.setColor(0x14FFFFFF);
+      canvas->drawRect(SkRect::MakeXYWH(barX, y - 11, barWMax, 14), tr);
+    }
+    // bar
+    if (rows[i].ms > 0.01) {
+      float bw = (float)(rows[i].ms * scale);
+      if (bw > barWMax) bw = barWMax;
+      SkPaint bp;
+      bp.setAntiAlias(false);
+      bp.setColor(rows[i].col);
+      canvas->drawRect(SkRect::MakeXYWH(barX, y - 11, bw, 14), bp);
+    }
+    // value
+    char v[24];
+    snprintf(v, sizeof(v), "%.2fms", rows[i].ms);
+    drawText(canvas, barX + barWMax + 6, y, v, fs);
+    y += rowPitch;
+  }
+
+  // Stacked render-breakdown bar (renderTo only): the render stage, split.
+  {
+    y += 6.0f;
+    drawText(canvas, left, y, "render", fs);
+    const double rref = s_prof.renderMs > 1e-3 ? s_prof.renderMs : 1.0;
+    const float rscale = barWMax / (float)rref;
+    const Row sub[] = {
+      { "c", s_prof.cellsMs, 0xFF4C8CB3 },
+      { "s", s_prof.svgMs,   0xFF9A6CBE },
+      { "g", s_prof.glowMs,  0xFFBF9A40 },
+      { "t", s_prof.textMs,  0xFF73BF73 },
+    };
+    float x = barX;
+    for (int i = 0; i < 4; i++) {
+      if (sub[i].ms <= 0.0) continue;
+      float bw = (float)(sub[i].ms * rscale);
+      if (bw < 0.5f) bw = 0.5f;
+      if (x + bw > barX + barWMax) bw = (barX + barWMax) - x;
+      SkPaint bp;
+      bp.setAntiAlias(false);
+      bp.setColor(sub[i].col);
+      canvas->drawRect(SkRect::MakeXYWH(x, y - 11, bw, 14), bp);
+      x += bw;
+    }
+    char v[24];
+    snprintf(v, sizeof(v), "%.2fms", s_prof.renderMs);
+    drawText(canvas, barX + barWMax + 6, y, v, fs);
+  }
+}
+
+// Pull this frame's stage timings out of GameView's Framebench into the
+// smoothed s_prof (exponentially averaged so the on-screen bars don't jitter),
+// plus the current zoom + cell count for the headline. Called from drawHud,
+// which runs in every render path (native CPU, GPU/Metal, web) right after
+// renderTo — so the profiler is correct everywhere.
+static void captureFrameStats() {
+  const Framebench &b = s_game->view().framebench();
+  s_prof.fps       = s_fps;
+  s_prof.zoom      = (double)s_game->zoomFactor();
+  s_prof.cells     = b.cellN;
+  s_prof.svgN      = b.svgN;
+  s_prof.textN     = b.textN;
+  s_prof.stepMs    = ema(s_prof.stepMs,    (float)s_msStep);
+  s_prof.renderMs  = ema(s_prof.renderMs,  (float)s_msRender);
+  s_prof.presentMs = ema(s_prof.presentMs, (float)s_msPresent);
+  s_prof.frameMs   = ema(s_prof.frameMs,   (float)s_msFrame);
+  s_prof.cellsMs   = ema(s_prof.cellsMs,   (float)b.cellsMs);
+  s_prof.svgMs     = ema(s_prof.svgMs,     (float)b.svgMs);
+  s_prof.glowMs    = ema(s_prof.glowMs,    (float)b.glowMs);
+  s_prof.textMs    = ema(s_prof.textMs,    (float)b.textMs);
+}
+
 // Overlay the HUD. The caller's canvas carries the game's NDC matrix; we reset
 // to an identity (pixel) matrix before drawing the monospace 8x8 font.
 static void drawHud(SkCanvas *canvas) {
   updateFps();
+  captureFrameStats();
   canvas->resetMatrix();
   int disp = (int)(s_fps + 0.5f);
   const auto sp = s_game->stepProfile();   // last step()'s per-stage timing
@@ -112,6 +295,7 @@ static void drawHud(SkCanvas *canvas) {
            s_game->offscreenSources(), s_game->puffsDrawn(), s_game->particleAllocs());
   for (int i = 0; i < 10; i++)
     drawText(canvas, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
+  drawProfiler(canvas);   // F3-toggled live bar chart (no-op when off)
 }
 
 #if defined(__EMSCRIPTEN__)
@@ -255,6 +439,8 @@ int main(int argc, char *argv[]) {
   // VSync is off by default (unlocked FPS); --vsync re-enables it.
   // --headless <out.ppm> [W H] renders one frame offscreen for deterministic
   // pixel verification (no window, no SDL), writing a PPM (no codec needed).
+  // --grid-limit <N>: override Config::gridLimit (subgrid count) for board-size
+  // studies. Default 500000 -> ~11.5M nodes; lowering it shrinks the board.
   std::string headlessPath;
   int headW = 800, headH = 600;
   // --bench [W H] [frames]: render N frames offscreen at W x H and report the
@@ -273,7 +459,9 @@ int main(int argc, char *argv[]) {
   // --badge-test: force a row of cells with counts 1..10 so the X{count} badge
   // can be visually verified without playing through RNG.
   bool badgeTest = false;
+  bool benchFull = false;  // --full: fill EVERY grid cell with count>=5 (worst-case badges)
   int hoverNode = -1; // --hover <nodeIdx>: force a hover highlight on a cell (headless)
+  bool profilerHeadless = false; // --profiler: paint the F3 bar-chart panel in the headless frame
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -281,6 +469,8 @@ int main(int argc, char *argv[]) {
         cfg.initialGridSize = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--badge-test") {
       badgeTest = true;
+    } else if (std::string(argv[a]) == "--full") {
+      benchFull = true;
     } else if (std::string(argv[a]) == "--vsync") {
       cfg.vsync = true;
     } else if (std::string(argv[a]) == "--cpu") {
@@ -311,6 +501,11 @@ int main(int argc, char *argv[]) {
         tickCount = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--hover" && a + 1 < argc) {
       hoverNode = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--profiler") {
+      profilerHeadless = true;
+    } else if (std::string(argv[a]) == "--grid-limit" && a + 1 < argc) {
+      if (std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
+        cfg.gridLimit = std::atoi(argv[++a]);
     }
   }
 
@@ -322,6 +517,34 @@ int main(int argc, char *argv[]) {
     double ms = g.benchModelTicks(tickCount);
     fprintf(stderr, "[tick] avg=%.3f ms/tick  nodes=%d  (%d ticks)\n",
             ms, g.modelNodeCount(), tickCount);
+    // One-shot node-type histogram: what are the 11.5M nodes actually?
+    {
+      const auto &m = g.model();
+      long cnt[5] = {0, 0, 0, 0, 0}; // EMPTY,ITEM,GRID,STATION,RESERVED
+      int maxDepth = 0;
+      for (int i = 0; i < m.totalNodes(); i++) {
+        int t = (int)m.node(i).content.type;
+        if (t >= 0 && t < 5) cnt[t]++;
+        // depth = number of GRID ancestors (walk parentId chain, cheap-ish)
+        if (m.node(i).content.type == CellType::GRID) {
+          int d = 0, p = m.node(i).parentId;
+          while (p > 0) {
+            if (m.node(p).content.type == CellType::GRID) d++;
+            p = m.node(p).parentId;
+          }
+          if (d > maxDepth) maxDepth = d;
+        }
+      }
+      fprintf(stderr,
+              "[tick] breakdown: EMPTY=%ld ITEM=%ld GRID=%ld STATION=%ld "
+              "RESERVED=%ld  (max subgrid depth=%d)\n",
+              cnt[0], cnt[1], cnt[2], cnt[3], cnt[4], maxDepth);
+      fprintf(stderr,
+              "[tick] sizeof(Cell)=%zu  node-array-cap=%.1f MB  (capacity "
+              "x sizeof)\n",
+              sizeof(Cell),
+              (double)m.allocatedBytes() / (1024.0 * 1024.0));
+    }
     return 0;
   }
 
@@ -339,12 +562,20 @@ int main(int argc, char *argv[]) {
 #if !defined(__EMSCRIPTEN__)
     // --badge-test: force the 5x6 grid cells to counts 1..10, rest empty, so we
     // can visually verify the X{count} badge rendering at every size.
-    if (badgeTest) {
+    // --full: fill EVERY cell with count>=5 for a worst-case badge board.
+    if (badgeTest || benchFull) {
       int gridData[GameModel::GRID * GameModel::GRID * 2];
       for (int i = 0; i < GameModel::GRID * GameModel::GRID; i++) {
-        if (i < 10) {
+        int count;
+        if (benchFull)
+          count = 5 + (i % 20);
+        else if (i < 10)
+          count = i + 1;
+        else
+          count = 0;
+        if (count > 0) {
           gridData[i * 2] = i % 3;      // item id cycles 0,1,2
-          gridData[i * 2 + 1] = i + 1;  // count = 1..10
+          gridData[i * 2 + 1] = count;
         } else {
           gridData[i * 2] = -1;         // empty
           gridData[i * 2 + 1] = 0;
@@ -356,6 +587,22 @@ int main(int argc, char *argv[]) {
       g.view().setHoveredCellNode(hoverNode);
 #endif
     g.renderTo(surf->getCanvas(), headW, headH);
+#if !defined(__EMSCRIPTEN__)
+    // --profiler: also paint the live F3 bar-chart panel over this frame so it
+    // can be visually verified offscreen (uses the just-rendered frame's bench).
+    if (profilerHeadless) {
+      const Framebench &b = g.view().framebench();
+      s_prof.fps = 0; s_prof.zoom = (double)g.zoomFactor();
+      s_prof.cells = b.cellN; s_prof.svgN = b.svgN; s_prof.textN = b.textN;
+      s_prof.renderMs = b.cellsMs + b.svgMs + b.glowMs + b.textMs;
+      s_prof.frameMs  = 24.0;   // nominal, so bars are on a sane scale
+      s_prof.stepMs   = 0.0; s_prof.presentMs = 0.0;
+      s_prof.cellsMs  = b.cellsMs; s_prof.svgMs = b.svgMs;
+      s_prof.glowMs   = b.glowMs; s_prof.textMs = b.textMs;
+      s_profilerOn = true;
+      drawProfiler(surf->getCanvas());
+    }
+#endif
     std::string hdr = "P6\n" + std::to_string(headW) + " " + std::to_string(headH) + "\n255\n";
     FILE *f = fopen(headlessPath.c_str(), "wb");
     if (!f)
@@ -402,6 +649,31 @@ int main(int argc, char *argv[]) {
 #if !defined(__EMSCRIPTEN__)
     s_game->view().loadChessAssets();
   s_game->view().loadUiAssets();
+    // --bench ... --badge: fill the top-left cells with counts 1..10 so the
+    // X{count} badges render during the benchmark and their text cost is
+    // measured (otherwise an empty board draws no text at all).
+    // --bench ... --full: fill EVERY grid cell with count>=5 → a worst-case
+    // full board of badges to stress the text path and watch it scale.
+    if (badgeTest || benchFull) {
+      int gridData[GameModel::GRID * GameModel::GRID * 2];
+      for (int i = 0; i < GameModel::GRID * GameModel::GRID; i++) {
+        int count;
+        if (benchFull)
+          count = 5 + (i % 20);        // 5..24, every cell has a badge
+        else if (i < 10)
+          count = i + 1;               // 1..10
+        else
+          count = 0;
+        if (count > 0) {
+          gridData[i * 2] = i % 3;      // item id cycles 0,1,2
+          gridData[i * 2 + 1] = count;
+        } else {
+          gridData[i * 2] = -1;
+          gridData[i * 2 + 1] = 0;
+        }
+      }
+      s_game->model().setFullState(gridData);
+    }
 #endif
     std::vector<uint8_t> buf((size_t)benchW * benchH * 4);
     SkImageInfo info = SkImageInfo::Make(benchW, benchH, kRGBA_8888_SkColorType,
@@ -410,7 +682,8 @@ int main(int argc, char *argv[]) {
     if (!surf)
       return 1;
     double stepMs = 0, renderMs = 0, hudMs = 0, svgMs = 0, glowMs = 0;
-    long svgN = 0;
+    double textMs = 0, textMetricsMs = 0, textBlobMs = 0, textDrawMs = 0;
+    long svgN = 0, textN = 0, textMetricsN = 0, textBlobN = 0;
     for (int f = 0; f < benchFrames; f++) {
       s_game->view().resetFramebench();
       uint64_t t;
@@ -418,6 +691,9 @@ int main(int argc, char *argv[]) {
       t = perfNow(); s_game->renderTo(surf->getCanvas(), benchW, benchH); renderMs += perfMs(t, perfNow());
       const Framebench& fb = s_game->view().framebench();
       svgMs += fb.svgMs; glowMs += fb.glowMs; svgN += fb.svgN;
+      textMs += fb.textMs; textMetricsMs += fb.textMetricsMs;
+      textBlobMs += fb.textBlobMs; textDrawMs += fb.textDrawMs;
+      textN += fb.textN; textMetricsN += fb.textMetricsN; textBlobN += fb.textBlobN;
       t = perfNow(); drawHud(surf->getCanvas()); hudMs += perfMs(t, perfNow());
     }
     const int n = benchFrames;
@@ -434,15 +710,25 @@ int main(int argc, char *argv[]) {
             benchW, benchH, n);
     row("Model step (game->step)", stepMs / n, "");
     row("Render  (renderTo: cells+items)", renderMs / n, "");
-    row("  ├─ geometry/cells & other", renderCore / n, "(render minus svg+glow)");
+    row("  ├─ geometry/cells & other", renderCore / n, "(render minus svg+glow+text)");
     row("  ├─ item contour glow (blurred sprite)", glowMs / n, "per item");
-    row("  └─ chess-piece SVG (per-instance)", svgMs / n, "");
+    row("  ├─ chess-piece SVG (per-instance)", svgMs / n, "");
+    row("  └─ badge text (vector font)", textMs / n, "metrics+blob+draw");
+    fprintf(stderr,
+            "       └─ text breakdown/frame:\n"
+            "          metrics (width+height) %8.3f ms  (%.0f calls)\n"
+            "          blob build (CoreText)  %8.3f ms  (%.0f blobs)\n"
+            "          drawTextBlob           %8.3f ms\n",
+            textMetricsMs / n, (double)textMetricsN / n,
+            textBlobMs / n, (double)textBlobN / n,
+            textDrawMs / n);
     row("HUD", hudMs / n, "");
     fprintf(stderr,
             "  ------------------------------------------------\n"
             "  frame (offscreen render pipeline) ≈ %8.3f ms  →  ~%.0f FPS\n",
             total / n, 1000.0 / (total / n));
-    fprintf(stderr, "  SVG pieces drawn/frame ≈ %.1f\n", (double)svgN / n);
+    fprintf(stderr, "  SVG pieces drawn/frame ≈ %.1f   badges drawn/frame ≈ %.1f\n",
+            (double)svgN / n, (double)textN / n);
     return 0;
   }
 
@@ -527,10 +813,14 @@ int main(int argc, char *argv[]) {
       else if (e.type == SDL_EVENT_MOUSE_WHEEL)
         s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
       else if (e.type == SDL_EVENT_KEY_DOWN) {
-        Key k = Key::UNKNOWN;
-        if (e.key.key == SDLK_F1) k = Key::F1;
-        bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
-        s_game->keyDown(k, shift, winW, winH);
+        if (e.key.key == SDLK_F3) {
+          s_profilerOn = !s_profilerOn;   // live on-screen frame profiler
+        } else {
+          Key k = Key::UNKNOWN;
+          if (e.key.key == SDLK_F1) k = Key::F1;
+          bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
+          s_game->keyDown(k, shift, winW, winH);
+        }
       }
     }
 
