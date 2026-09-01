@@ -870,6 +870,26 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
     break;
   }
   }
+
+  // Subtle grey hover highlight: a low-alpha light-grey fill over this exact
+  // on-screen cell rect. `r` is the rect the renderer just used, so the tint
+  // sits precisely on the cell (including its items) at any zoom/focus/pan —
+  // and it's anchored to this node, so it never drifts when the anchor changes.
+  // Rounded to match the tile's own corner radius (rx=10 in the 64px tile SVG)
+  // so the wash stays inside the tile's rounded corners instead of poking out
+  // as hard square tabs into the gap.
+  if (nodeIndex == _hoverCellNode) {
+    static const float kHoverTint[3] = {0.85f, 0.86f, 0.90f};
+    const SkScalar radX = (SkScalar)(r.w * (10.0f / 64.0f));
+    const SkScalar radY = (SkScalar)(r.h * (10.0f / 64.0f));
+    SkRRect rr;
+    rr.setRectXY(SkRect::MakeXYWH((SkScalar)r.ox, (SkScalar)r.oy, (SkScalar)r.w, (SkScalar)r.h),
+                 radX, radY);
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setColor(rgba(kHoverTint, 0.18f));
+    _canvas->drawRRect(rr, p);
+  }
 }
 
 int GameView::resolveLeafCell(float worldX, float worldY) const {

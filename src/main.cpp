@@ -273,6 +273,7 @@ int main(int argc, char *argv[]) {
   // --badge-test: force a row of cells with counts 1..10 so the X{count} badge
   // can be visually verified without playing through RNG.
   bool badgeTest = false;
+  int hoverNode = -1; // --hover <nodeIdx>: force a hover highlight on a cell (headless)
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -308,6 +309,8 @@ int main(int argc, char *argv[]) {
       tickMode = true;
       if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
         tickCount = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--hover" && a + 1 < argc) {
+      hoverNode = std::atoi(argv[++a]);
     }
   }
 
@@ -349,6 +352,8 @@ int main(int argc, char *argv[]) {
       }
       g.model().setFullState(gridData);
     }
+    if (hoverNode >= 0)
+      g.view().setHoveredCellNode(hoverNode);
 #endif
     g.renderTo(surf->getCanvas(), headW, headH);
     std::string hdr = "P6\n" + std::to_string(headW) + " " + std::to_string(headH) + "\n255\n";

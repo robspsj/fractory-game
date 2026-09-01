@@ -75,9 +75,16 @@ private:
 
   MouseState _mouseState = MouseState::NONE;
   float _dragNX = 0.0f, _dragNY = 0.0f;
+  // Last known cursor (pixel) + window size, so the hovered cell can be
+  // recomputed every frame from the CURRENT view transform — it then tracks
+  // the cursor through zooms/pan/anchor changes even when the mouse is held
+  // still (no motion event) and stays glued to the cell under it.
+  int _mousePX = 0, _mousePY = 0, _mouseWinW = 0, _mouseWinH = 0;
 
   // Drain the model's cell-change events and spawn matching smoke bursts.
   void applyEffects();
+  // Recompute the hovered leaf cell from the last cursor position.
+  void refreshHover();
 
   StepProfile _profile;   // timing of the last step() call (profiling)
 };

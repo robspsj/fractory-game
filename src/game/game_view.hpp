@@ -82,8 +82,8 @@ public:
       if (i < 0) i += GameModel::ELEMS;
       out[0] = _elemColors[i][0]; out[1] = _elemColors[i][1]; out[2] = _elemColors[i][2];
     }
-    void setHoveredCell(int row, int col) { _hoverRow = row; _hoverCol = col; }
-    void clearHoveredCell() { _hoverRow = -1; _hoverCol = -1; }
+    void setHoveredCellNode(int nodeIdx) { _hoverCellNode = nodeIdx; }
+    void clearHoveredCell() { _hoverCellNode = -1; }
 
     void zoom(float factor, float mouseNX, float mouseNY);
     float zoomFactor() const { return _zoom; }
@@ -219,7 +219,7 @@ private:
     int _anchorIndex = 0;
     int _anchorSize = 0;
     int _anchorDepth = 0;
-    int _hoverRow = -1, _hoverCol = -1;
+    int _hoverCellNode = -1; // leaf cell currently under the mouse (or -1)
 
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];

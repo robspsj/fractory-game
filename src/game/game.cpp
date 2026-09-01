@@ -30,9 +30,30 @@ Game::Game(const Config &cfg)
 
 Game::~Game() = default;
 
+void Game::refreshHover() {
+  // Re-derive the hovered leaf cell from the last cursor using the CURRENT view
+  // transform. Runs every frame, so the highlight tracks the cursor through
+  // zooms / panning / anchor changes even when the mouse is held still (no
+  // motion event fired), and it stays glued to the cell under the pointer.
+  if (_mouseWinW <= 0 || _mouseWinH <= 0)
+    return;
+  if (_view->isPanning()) {
+    _view->clearHoveredCell();
+    return;
+  }
+  float wx, wy;
+  _view->screenToWorld(_mousePX, _mousePY, _mouseWinW, _mouseWinH, wx, wy);
+  int leafIdx = _view->resolveLeafCell(wx, wy);
+  if (leafIdx >= 0)
+    _view->setHoveredCellNode(leafIdx);
+  else
+    _view->clearHoveredCell();
+}
+
 bool Game::step(int elapsedMs) {
   using clk = std::chrono::steady_clock;
   _particles->beginFrame(); // start per-frame allocation accounting
+  refreshHover();
   if (_tickAccumMs < 0)
     _tickAccumMs = 0;
   _tickAccumMs += elapsedMs;
@@ -82,6 +103,10 @@ double Game::benchModelTicks(int n) {
 }
 
 void Game::update(int mousePx, int mousePy, int winW, int winH) {
+  // Always remember the last cursor so step() can re-derive the hovered cell
+  // from the CURRENT view transform (even on frames with no motion event).
+  _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
+
   if (_view->isPanning()) {
     _view->continuePan(mousePx, mousePy, winW, winH);
     _view->focusCenterCell(winW, winH);
