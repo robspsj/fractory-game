@@ -606,12 +606,12 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
   const float rw = 0.05f * s * _zoom;           // icon half-size (NDC x)
   const float rh = 0.05f * s * _aspect * _zoom; // icon half-size (NDC y)
 
-  // Readable centre-to-centre spacing (small gap) for stacks of 1..5.
-  const float sx = rw * 2.5f;
-  const float sy = rh * 2.5f;
-  // Tight overlapping spacing for the dense 6..9 pile.
-  const float px = rw * 1.5f;
-  const float py = rh * 1.5f;
+  // Centre-to-centre spacing: tight enough that a stack reads as one bunch.
+  const float sx = rw * 2.2f;   // readable grid for 1..5
+  const float sy = rh * 2.2f;
+  // Dense hex-style pile for 6..9: row step and vertical row spacing.
+  const float hx = rw * 1.35f;
+  const float vy = rh * 1.25f;
 
   auto put = [&](float fx, float fy, float stepX, float stepY, int inst) {
     drawIcon(centerX + fx * stepX, centerY + fy * stepY, icon, color, rw, rh, inst);
@@ -648,18 +648,37 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
       break;
   }
 
-  // Overlapping pile for 6..9: pack onto a 3x3 grid with tight spacing so a
-  // large stack reads as a dense bunch. Fill the outer ring first, then the
-  // centre and middle sides, keeping every prefix visually balanced.
-  static const float PILE[9][2] = {
-      {-1.0f,  1.0f}, {0.0f,  1.0f}, {1.0f,  1.0f},  // top row
-      {-1.0f, -1.0f}, {0.0f, -1.0f}, {1.0f, -1.0f},  // bottom row
-      { 0.0f,  0.0f},                                 // centre
-      {-1.0f,  0.0f}, {1.0f,  0.0f},                  // middle sides
+  // Dense hex-packed piles for 6..9: half-step row offsets so the items
+  // nestle together — 3/3, 2/3/2 (flower), 3/2/3, 3/3/3. 10+ cap at the 9
+  // layout; the count badge already shows the real number.
+  int inst = 0;
+  auto row = [&](float yf, const float *xs, int nxs) {
+    for (int i = 0; i < nxs; i++)
+      put(xs[i], yf, hx, vy, inst++);
   };
-  const int n = std::min(count, 9);
-  for (int i = 0; i < n; i++)
-    put(PILE[i][0], PILE[i][1], px, py, i);
+  if (count == 6) {
+    static const float top[3] = {-0.75f, 0.25f, 1.25f};
+    static const float bot[3] = {-1.25f, -0.25f, 0.75f};
+    row(-0.5f, top, 3);
+    row(0.5f, bot, 3);
+  } else if (count == 7) {
+    static const float edge[2] = {-0.5f, 0.5f};
+    static const float mid[3] = {-1.0f, 0.0f, 1.0f};
+    row(-1.0f, edge, 2);
+    row(0.0f, mid, 3);
+    row(1.0f, edge, 2);
+  } else if (count == 8) {
+    static const float mid[2] = {-0.5f, 0.5f};
+    static const float edge[3] = {-1.0f, 0.0f, 1.0f};
+    row(-1.0f, edge, 3);
+    row(0.0f, mid, 2);
+    row(1.0f, edge, 3);
+  } else {
+    static const float full[3] = {-1.0f, 0.0f, 1.0f};
+    row(-1.0f, full, 3);
+    row(0.0f, full, 3);
+    row(1.0f, full, 3);
+  }
 }
 
 void GameView::renderEmpty(Rect r, const float bgColor[3]) {
