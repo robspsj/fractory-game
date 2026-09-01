@@ -597,11 +597,12 @@ void GameView::renderCellItems(float centerX, float centerY, int count,
                                const float color[3], float scale, int icon) {
   if (count <= 0)
     return;
-  // Scale single items up a bit so they read as more prominent on the cell;
-  // don't penalise larger groups (they already fill the cell by count).
+  // Prominence scaling: a lone item is drawn biggest, and the boost eases
+  // off linearly as the stack grows until it reaches exactly 1x at 6 items.
+  // 7+ items stop scaling entirely — they fill the cell by count.
   float s = scale;
-  if (count == 1) s *= 1.4f;
-  else if (count == 2) s *= 1.2f;
+  if (count < 6)
+    s *= 1.0f + 0.6f * (6 - count) / 5.0f;  // count 1: 1.6x ... count 5: 1.12x
   const float rw = 0.05f * s * _zoom;           // icon half-size (NDC x)
   const float rh = 0.05f * s * _aspect * _zoom; // icon half-size (NDC y)
 
