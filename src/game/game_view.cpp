@@ -1392,8 +1392,13 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
 
     float scale = (0.5f + 0.5f * eased) / _zoom;
 
-    float sx = _dragWX * _zoom + _panX;
-    float sy = _dragWY * _aspect * _zoom + _panY;
+    // The held item lives at a fixed SCREEN position (the cursor's location,
+    // captured in NDC at pickup/mouse-move). Drawing it straight from screen
+    // NDC — instead of re-projecting a world point with the current zoom/pan —
+    // means zooming, panning, resizing or changing the anchor mid-drag can
+    // never shift it off the mouse.
+    float sx = _dragNX;
+    float sy = _dragNY;
     const float *elemCol = (dragId >= 0 && dragId < GameModel::ELEMS) ? _elemColors[dragId] : _white;
     int dragIcon = dragId;
     renderCellItems(sx, sy, dragAmount, elemCol, scale, dragIcon);
@@ -1444,6 +1449,11 @@ bool GameView::screenToGrid(int pixelX, int pixelY, int winW, int winH, int &row
     return false;
 
   return true;
+}
+
+void GameView::screenToNdc(int pixelX, int pixelY, int winW, int winH, float &nx, float &ny) const {
+  nx = 2.0f * (float)pixelX / (float)winW - 1.0f;
+  ny = 1.0f - 2.0f * (float)pixelY / (float)winH;
 }
 
 void GameView::screenToWorld(int pixelX, int pixelY, int winW, int winH, float &worldX,

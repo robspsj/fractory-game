@@ -74,7 +74,7 @@ private:
   int _tickAccumMs = 0;
 
   MouseState _mouseState = MouseState::NONE;
-  float _dragMX = 0.0f, _dragMY = 0.0f;
+  float _dragNX = 0.0f, _dragNY = 0.0f;
 
   // Drain the model's cell-change events and spawn matching smoke bursts.
   void applyEffects();

@@ -75,7 +75,7 @@ public:
     // Small for Skia: cached icon paths/paints + the GL surface (GPU path).
     std::size_t allocatedBytes() const;
 
-    void setDragWorldPos(float worldX, float worldY) { _dragWX = worldX; _dragWY = worldY; }
+    void setDragScreenNdc(float ndcX, float ndcY) { _dragNX = ndcX; _dragNY = ndcY; }
     // Element tint RGB (0..1) for effects/particles (0..ELEMS-1, clamped).
     void elementColor(int id, float out[3]) const {
       int i = id % GameModel::ELEMS;
@@ -105,6 +105,8 @@ public:
 
     bool screenToGrid(int pixelX, int pixelY, int winW, int winH, int& row, int& col) const;
     void screenToWorld(int pixelX, int pixelY, int winW, int winH, float& worldX, float& worldY) const;
+    // Pixel -> screen NDC (x in [-1,1], y in [-1,1], y up), before zoom/pan.
+    void screenToNdc(int pixelX, int pixelY, int winW, int winH, float& nx, float& ny) const;
     int resolveLeafCell(float worldX, float worldY) const;
 
     float gridToWorldX(int col) const;
@@ -196,7 +198,11 @@ private:
     // (letterboxed, squares stay square); re-fit when the window resizes.
     float _fitZoom = 1.0f;
     int _lastWinW = 0, _lastWinH = 0;
-    float _dragWX = 0.0f, _dragWY = 0.0f;
+    // Held item's anchor point in SCREEN NDC (fixed screen location, like the
+    // mouse). Screen space is independent of zoom/pan/anchor, so the held item
+    // never drifts off the cursor when the view changes mid-drag; renderTo
+    // converts it to world with the CURRENT transform each frame.
+    float _dragNX = 0.0f, _dragNY = 0.0f;
     bool _isPanning = false;
     ParticleSystem* _particles = nullptr;
     int _lastPanX = 0, _lastPanY = 0;

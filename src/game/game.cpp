@@ -117,8 +117,8 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
   }
 
   if (_model->hasDrag()) {
-    _view->screenToWorld(mousePx, mousePy, winW, winH, _dragMX, _dragMY);
-    _view->setDragWorldPos(_dragMX, _dragMY);
+    _view->screenToNdc(mousePx, mousePy, winW, winH, _dragNX, _dragNY);
+    _view->setDragScreenNdc(_dragNX, _dragNY);
   }
 }
 
@@ -149,9 +149,8 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
       int idx = _view->resolveLeafCell(wx, wy);
       if (idx >= 0 && _model->node(idx).content.type == CellType::ITEM) {
         _model->pickUp(idx, _model->node(idx).content.data.item.count);
-        _dragMX = wx;
-        _dragMY = wy;
-        _view->setDragWorldPos(wx, wy);
+        _view->screenToNdc(mousePx, mousePy, winW, winH, _dragNX, _dragNY);
+        _view->setDragScreenNdc(_dragNX, _dragNY);
       }
     }
   }
