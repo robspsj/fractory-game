@@ -6,8 +6,8 @@ BUILD_DIR="build-native"
 EXECUTABLE="$BUILD_DIR/fractory"
 
 echo "==> Building native (Skia/SDL2)..."
-cmake -B "$BUILD_DIR" -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=1 >/dev/null
-cmake --build "$BUILD_DIR" >/dev/null
+cmake -B "$BUILD_DIR" -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+cmake --build "$BUILD_DIR"
 
 echo "==> Running fractory..."
 echo ""

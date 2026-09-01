@@ -108,7 +108,8 @@ static void drawHud(SkCanvas *canvas) {
     while (v >= 1024.0 && u < 3) { v /= 1024.0; u++; }
     snprintf(t[8], 72, "Mem: %.2f %s", v, units[u]);
   }
-  snprintf(t[9], 72, "Sources: %d  Drawn: %d  A:%d", s_game->puffSources(), s_game->puffsDrawn(), s_game->particleAllocs());
+  snprintf(t[9], 72, "Sources: %d (off %d)  Drawn: %d  A:%d", s_game->puffSources(),
+           s_game->offscreenSources(), s_game->puffsDrawn(), s_game->particleAllocs());
   for (int i = 0; i < 10; i++)
     drawText(canvas, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
 }
@@ -269,11 +270,16 @@ int main(int argc, char *argv[]) {
   std::string singlePath;
   int singleIdx = 0, singleSize = 600;
   bool useGpu = true;   // native default; --cpu forces the CPU present path
+  // --badge-test: force a row of cells with counts 1..10 so the X{count} badge
+  // can be visually verified without playing through RNG.
+  bool badgeTest = false;
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
       if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
         cfg.initialGridSize = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--badge-test") {
+      badgeTest = true;
     } else if (std::string(argv[a]) == "--vsync") {
       cfg.vsync = true;
     } else if (std::string(argv[a]) == "--cpu") {
@@ -327,6 +333,23 @@ int main(int argc, char *argv[]) {
     sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, buf.data(), (size_t)headW * 4);
     if (!surf)
       return 1;
+#if !defined(__EMSCRIPTEN__)
+    // --badge-test: force the 5x6 grid cells to counts 1..10, rest empty, so we
+    // can visually verify the X{count} badge rendering at every size.
+    if (badgeTest) {
+      int gridData[GameModel::GRID * GameModel::GRID * 2];
+      for (int i = 0; i < GameModel::GRID * GameModel::GRID; i++) {
+        if (i < 10) {
+          gridData[i * 2] = i % 3;      // item id cycles 0,1,2
+          gridData[i * 2 + 1] = i + 1;  // count = 1..10
+        } else {
+          gridData[i * 2] = -1;         // empty
+          gridData[i * 2 + 1] = 0;
+        }
+      }
+      g.model().setFullState(gridData);
+    }
+#endif
     g.renderTo(surf->getCanvas(), headW, headH);
     std::string hdr = "P6\n" + std::to_string(headW) + " " + std::to_string(headH) + "\n255\n";
     FILE *f = fopen(headlessPath.c_str(), "wb");

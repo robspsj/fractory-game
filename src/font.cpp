@@ -2,8 +2,15 @@
 #include <algorithm>
 #include <cstring>
 #include "include/core/SkCanvas.h"
+#include "include/core/SkFont.h"
+#include "include/core/SkFontTypes.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkRect.h"
+#include "include/core/SkTextBlob.h"
+#include "include/core/SkTypeface.h"
+#include "include/core/SkFontMetrics.h"
+#include "include/core/SkFontMgr.h"
+#include "include/ports/SkFontMgr_mac_ct.h"
 
 #define FONT_W 8
 #define FONT_H 8
@@ -108,42 +115,101 @@ static const unsigned char fontBits[NUM_GLYPH * FONT_H] = {
     0x00, 0x60, 0x7B, 0x0C, 0x00, 0x00, 0x00, 0x00, // 126 '~'
 };
 
-void initFont() {
-  // 8x8 bitmap glyphs are drawn directly from fontBits on demand (no atlas
-  // rasterization needed). Nothing to precompute.
+// ---------------------------------------------------------------------------
+// System-font backed text (Skia CoreText font mgr on macOS).
+// Falls back to the crunchy 8x8 bitmap font if no system font is available.
+// ---------------------------------------------------------------------------
+
+static sk_sp<SkTypeface> gTypeface;
+static bool              gFontInit = false;
+
+static void ensureFont() {
+  if (gFontInit) return;
+  gFontInit = true;
+#if !defined(__EMSCRIPTEN__)
+  // macOS: CoreText font manager (skia_use_fonthost_mac = true).
+  sk_sp<SkFontMgr> mgr = SkFontMgr_New_CoreText(nullptr);
+  if (!mgr) mgr = SkFontMgr::RefEmpty();
+  if (!mgr) return;
+  gTypeface = mgr->matchFamilyStyle("Helvetica", SkFontStyle::Normal());
+  if (!gTypeface) gTypeface = mgr->matchFamilyStyle("sans-serif", SkFontStyle::Normal());
+  if (!gTypeface) gTypeface = mgr->legacyMakeTypeface(nullptr, SkFontStyle::Normal());
+#endif
 }
 
+void initFont() {
+  // Nothing to precompute for either path.
+}
+
+// Measure text width in pixels. Uses SkFont::measureText for the vector font,
+// or the fixed 8x8 metric for the fallback bitmap.
 float textWidth(const char *text, float scale) {
-  int len = (int)strlen(text);
-  return len * FONT_W * scale;
+  if (!text || !*text) return 0.0f;
+  ensureFont();
+  if (!gTypeface) return (float)strlen(text) * FONT_W * scale;
+  SkFont font(gTypeface);
+  font.setSize((SkScalar)(FONT_H * scale));
+  font.setEdging(SkFont::Edging::kAntiAlias);
+  font.setHinting(SkFontHinting::kNormal);
+  return font.measureText(text, strlen(text), SkTextEncoding::kUTF8);
+}
+
+// Text height (ascent + descent) in pixels for the current font at scale.
+// Note: Skia reports fAscent as NEGATIVE (distance above baseline), so take
+// its absolute value; otherwise the sum goes negative and callers misplace
+// anything sized from this.
+float textHeight(float scale) {
+  ensureFont();
+  if (!gTypeface) return FONT_H * scale;
+  SkFont font(gTypeface);
+  font.setSize((SkScalar)(FONT_H * scale));
+  SkFontMetrics m;
+  font.getMetrics(&m);
+  return std::fabs(SkScalarToFloat(m.fAscent)) + SkScalarToFloat(m.fDescent);
 }
 
 void drawText(SkCanvas* canvas, float x, float y, const char *text, float scale) {
-  if (!canvas)
-    return;
+  if (!canvas || !text || !*text) return;
   int len = (int)strlen(text);
-  if (len > 64)
-    len = 64;
+  if (len > 64) len = 64;
 
-  float charW = FONT_W * scale;
-  float charH = FONT_H * scale;
-
-  SkPaint paint;
-  paint.setAntiAlias(false);  // crisp 1:1 text pixels
-  paint.setColor(SK_ColorWHITE);
-  for (int i = 0; i < len; i++) {
-    int g = text[i] - 32;
-    if (g < 0 || g >= NUM_GLYPH)
-      continue;
-    float gx = x + (float)i * charW;
-    for (int r = 0; r < FONT_H; r++) {
-      unsigned char bits = fontBits[g * FONT_H + r];
-      if (bits == 0)
-        continue;
-      for (int c = 0; c < FONT_W; c++) {
-        if (bits & (0x80 >> c))
-          canvas->drawRect(SkRect::MakeXYWH(gx + (float)c * scale, y + (float)r * scale, scale, scale), paint);
+  ensureFont();
+  if (!gTypeface) {
+    // crunchy 8x8 fallback if the system font manager isn't available
+    SkPaint paint;
+    paint.setAntiAlias(false);
+    paint.setColor(SK_ColorWHITE);
+    float charW = FONT_W * scale;
+    for (int i = 0; i < len; i++) {
+      int g = text[i] - 32;
+      if (g < 0 || g >= NUM_GLYPH) continue;
+      float gx = x + i * charW;
+      for (int r = 0; r < FONT_H; r++) {
+        unsigned char bits = fontBits[g * FONT_H + r];
+        if (!bits) continue;
+        for (int c = 0; c < FONT_W; c++)
+          if (bits & (0x80 >> c))
+            canvas->drawRect(SkRect::MakeXYWH(gx + c * scale, y + r * scale, scale, scale), paint);
       }
     }
+    return;
   }
+
+  SkFont font(gTypeface);
+  font.setSize((SkScalar)(FONT_H * scale));
+  font.setEdging(SkFont::Edging::kAntiAlias);
+  font.setHinting(SkFontHinting::kNormal);
+
+  sk_sp<SkTextBlob> blob = SkTextBlob::MakeFromString(text, font, SkTextEncoding::kUTF8);
+  if (!blob) return;
+
+  SkPaint paint;
+  paint.setAntiAlias(true);
+  paint.setColor(SK_ColorWHITE);
+  // y is the baseline; SkTextBlob draws from the baseline up, so shift by
+  // ascent so callers can position from the top-left corner like the old
+  // bitmap font did.
+  SkFontMetrics metrics;
+  font.getMetrics(&metrics);
+  canvas->drawTextBlob(blob, x, y - SkScalarToFloat(metrics.fAscent), paint);
 }

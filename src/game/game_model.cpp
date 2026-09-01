@@ -9,6 +9,7 @@
 void GameModel::init(const Config &cfg) {
   _prngSeed = (cfg.seed != 0) ? (unsigned)cfg.seed : 0x9E3779B9u;
   _tickCounter = 0;
+  _numItems = (cfg.numItems > 0) ? cfg.numItems : GameModel::ELEMS;
   if (cfg.seed != 0)
     std::srand(cfg.seed);
   else
@@ -58,7 +59,7 @@ void GameModel::initRandomGrid(const Config &cfg) {
       cell.content.type = CellType::EMPTY;
     } else if (randVal < emptyChance + itemChance || gridCount >= cfg.gridLimit) {
       cell.content.type = CellType::ITEM;
-      cell.content.data.item.id = std::rand() % ELEMS;
+      cell.content.data.item.id = std::rand() % _numItems;
       cell.content.data.item.count = std::rand() % 4 + 1;
     } else if (randVal < emptyChance + itemChance + stationChance) {
       // Try to place a station
@@ -279,8 +280,9 @@ void GameModel::interact(int idx) {
         return;  // Only one reaction per interact
       }
     }
-    // No reaction found — cycle item ID (1→2→3→4→5→1)
-    cell.content.data.item.id = (cell.content.data.item.id % GameModel::ELEMS) + 1;
+    // No reaction found — cycle item ID within the active item-type count
+    // (0→1→2→0 for wood/stone/water).
+    cell.content.data.item.id = (cell.content.data.item.id + 1) % _numItems;
     break;
   }
   case CellType::GRID:

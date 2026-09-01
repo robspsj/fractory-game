@@ -178,4 +178,5 @@ private:
   unsigned _prngSeed = 0;  // per-simulation seed for the stateless cell PRNG
   int _tickCounter = 0;    // incremented each tick (salt for the per-cell PRNG)
   int _rngOverride = -1;   // >=0: all prng()/rand calls return this (test hook)
+  int _numItems = 5;       // active item-type count (from Config::numItems)
 };

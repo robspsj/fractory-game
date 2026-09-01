@@ -15,6 +15,17 @@ Game::Game(const Config &cfg)
   _view = std::make_unique<GameView>(*_model, cfg);
   _particles = std::make_unique<ParticleSystem>();
   _view->setParticles(_particles.get());
+  // Tiered particle spawning: reserve half the source pool for on-screen cells
+  // by capping off-screen sources at half. The checker resolves a cell's current
+  // on-screen status through the view's camera (cell bbox intersects the NDC
+  // viewport [-1,1]). It runs only for spawns the pool can actually accept, so
+  // the full-pool hot path stays cheap.
+  _particles->setOnScreenChecker([this](int node) {
+    float nx, ny, half;
+    if (!_view->cellCenterNDC(node, nx, ny, half)) return false;
+    return nx + half >= -1.0f && nx - half <= 1.0f &&
+           ny + half >= -1.0f && ny - half <= 1.0f;
+  });
 }
 
 Game::~Game() = default;
@@ -184,6 +195,7 @@ int Game::lastCellDrawCount() const { return _view->lastVertexCount(); }
 int Game::anchorDepth() const { return _view->anchorDepth(); }
 int Game::puffSources() const { return _particles ? _particles->sourceCount() : 0; }
 int Game::puffsDrawn() const { return _particles ? _particles->lastVisible() : 0; }
+int Game::offscreenSources() const { return _particles ? _particles->offscreenCount() : 0; }
 int Game::particleAllocs() const { return _particles ? _particles->allocationsLast() : 0; }
 float Game::lastGenMs() const { return _view->lastGenMs(); }
 float Game::lastDrawMs() const { return _view->lastDrawMs(); }

@@ -11,3 +11,6 @@ void drawText(SkCanvas* canvas, float x, float y, const char* text, float scale)
 
 // Text width in pixels for a given scale (monospaced 8px font).
 float textWidth(const char* text, float scale);
+
+// Text height (ascent + descent) in pixels for the current font at scale.
+float textHeight(float scale);

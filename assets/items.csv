@@ -1,0 +1,4 @@
+# id,name,R,G,B,icon,svgPath
+0,wood,0.55,0.35,0.15,0,assets/Lilypad.svg
+1,stone,0.55,0.55,0.55,1,assets/Pétanque Cochonnet.svg
+2,water,0.20,0.40,0.80,2,assets/Watering Can Green.svg

@@ -1,0 +1,5 @@
+# Force specific item counts to verify the X{count} badge rendering
+# Row 0: counts 1,2,3,4,5 — last one should show "X5" badge
+# Row 1: counts 6,7,8,9,10 — all should show badges
+# Row 2-5: empty
+init:0:1,1:2,2:3,0:4,1:5,2:6,0:7,1:8,2:9,0:10,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0

@@ -99,6 +99,13 @@ void ParticleSystem::spawn(int node, const float color[3], EffectKind kind,
                            int itemId) {
   if (!color) return;
   if ((size_t)_count >= (size_t)kMaxSources) return; // pool full -> ignore
+  // Tiered spawning: off-screen cells may only use half the pool. The on-screen
+  // check is consulted LAZILY (only when the pool has room), so the hot path of
+  // a full pool still just bails out above with no resolver/tree-walk cost.
+  bool onScreen = true;
+  if (_onScreen) onScreen = _onScreen(node);
+  if (!onScreen && (size_t)_offscreenCount >= (size_t)kMaxOffscreenSources)
+    return; // off-screen tier at its reserved cap
   const PuffConfig cfg = PuffConfig::cfgFor(kind, itemId);
   gradientFor(itemId, color);              // warm tint cache (alloc only 1st time)
   Source s;
@@ -110,6 +117,7 @@ void ParticleSystem::spawn(int node, const float color[3], EffectKind kind,
   s.startTime = _now;
   s.cfg = cfg;
   s.alive = true;
+  s.onScreen = onScreen;
   // Find a FREE (dead) slot scanning from (lastInsert + 1), rolling over the
   // array length. Guaranteed to find one because count < kMaxSources.
   size_t i = _lastInsert;
@@ -119,6 +127,7 @@ void ParticleSystem::spawn(int node, const float color[3], EffectKind kind,
       _sources[i] = s;
       _lastInsert = i;
       ++_count;               // a live source was added
+      if (!onScreen) ++_offscreenCount;
       return;
     }
   }
@@ -132,6 +141,7 @@ void ParticleSystem::update(double dt) {
   for (size_t i = 0; i < (size_t)kMaxSources; i++) {
     if (_sources[i].alive &&
         (_now - _sources[i].startTime) >= (double)_sources[i].cfg.life) {
+      if (!_sources[i].onScreen) --_offscreenCount;
       _sources[i].alive = false;
       --_count;
       if (_count == 0) return;
@@ -199,6 +209,7 @@ void ParticleSystem::draw(SkCanvas *canvas, int winW, int winH,
 void ParticleSystem::clear() {
   for (Source &s : _sources) s.alive = false;
   _count = 0;
+  _offscreenCount = 0;
   _lastInsert = 0;
   _lastVisible = 0;
 }

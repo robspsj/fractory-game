@@ -16,12 +16,16 @@ struct Config {
     bool vsync = false;  // sync present to display refresh; off = unlocked FPS
     int initialGridSize = 3;
     int stationChance = 10;
+    // Number of distinct item types the simulation uses (drives random item-id
+    // generation). Keep this in sync with the rows defined in assets/items.csv
+    // (id 0..numItems-1). Defaults to 3: wood, stone, water.
+    int numItems = 3;
     std::string reactionsCsvPath;
     std::string spawnCsvPath;
     std::string stationRecipesCsvPath;
 
     Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false), ticksPerSecond(20) {}
     Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000,
-           bool showAnchor_ = false, int ticksPerSecond_ = 20)
-        : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_), showAnchor(showAnchor_), ticksPerSecond(ticksPerSecond_) {}
+           bool showAnchor_ = false, int ticksPerSecond_ = 20, int numItems_ = 3)
+        : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_), showAnchor(showAnchor_), ticksPerSecond(ticksPerSecond_), numItems(numItems_) {}
 };

@@ -2,12 +2,16 @@
 #include "chess_assets.h"
 #include "config.hpp"
 #include "particle.hpp"
+#include "../font.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
 #include "include/core/SkCanvas.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkM44.h"
@@ -88,6 +92,9 @@ static float getRotationAngle(float x, float y, int id, int instance, double tSe
 
 GameView::GameView(GameModel &model, const Config &cfg)
     : _model(model), _showAnchor(cfg.showAnchor) {
+  // Load the item-render CSV automatically at startup.
+  loadItemConfig();
+
   const Cell &cell = _model.node(_anchorIndex);
   _anchorSize =
       (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
@@ -412,6 +419,37 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
     return;
   _lastVertexCount++;
 
+#if !defined(__EMSCRIPTEN__)
+  // Data-driven item icon: `icon` carries the item id at every call site
+  // (renderItem, the drag preview, reserved cells). Look up the item's render
+  // config and draw its SVG per-item — right-side-up and aspect-independent, in
+  // pixel space. Native-only (web has no expat/SkSVGDOM and stays on symbols).
+  {
+    const ItemRenderInfo *itemInfo = nullptr;
+    auto cfgIt = _itemRenderInfo.find(icon);
+    if (cfgIt != _itemRenderInfo.end()) itemInfo = &cfgIt->second;
+    if (itemInfo && !itemInfo->svgPath.empty()) {
+      SkSVGDOM *itemDom = getSvgDom(itemInfo->svgPath);
+      if (itemDom) {
+        _canvas->save();
+        _canvas->resetMatrix();
+        _canvas->translate((SkScalar)px, (SkScalar)py);
+        _canvas->rotate(getRotationAngle(cx, cy, icon % GameModel::ELEMS, instance,
+                                         animSeconds()));
+        const float side = 2.0f * (float)rPx;
+        itemDom->setContainerSize(SkSize::Make(side, side));
+        _canvas->translate(-side * 0.5f, -side * 0.5f);
+        uint64_t t = nowUs();
+        itemDom->render(_canvas);
+        _bench.svgMs += (double)(nowUs() - t) / 1000.0;
+        _bench.svgN++;
+        _canvas->restore();
+        return;
+      }
+    }
+  }
+#endif
+
   const IconStyle &st = _icons[icon % GameModel::ELEMS];
   // Work in pixel space: reset to identity, position at (px,py), scale by the
   // on-screen radius so the symbol/glow scale with zoom.
@@ -470,6 +508,60 @@ void GameView::drawIcon(float cx, float cy, int icon, const float color[3],
   _canvas->restore();
 }
 
+void GameView::loadItemConfig(const std::string &path) {
+  _itemRenderInfo.clear();
+  std::string tryPath = path;
+  if (!std::filesystem::exists(tryPath)) {
+    tryPath = "../" + path;
+  }
+  std::ifstream in(tryPath);
+  if (!in) {
+    std::cout << "[GameView] WARNING: could not open item config \"" << tryPath << "\"" << std::endl;
+    return;
+  }
+  std::string line;
+  while (std::getline(in, line)) {
+    // trim leading whitespace
+    size_t start = line.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) continue;
+    line = line.substr(start);
+    if (line.empty() || line[0] == '#') continue;
+
+    // Split on commas (the last field may contain spaces, e.g. SVG file names
+    // like "assets/Pétanque Cochonnet.svg"). Splitting on commas (rather than
+    // whitespace) keeps those paths intact.
+    std::vector<std::string> f;
+    size_t pos = 0;
+    while (pos <= line.size()) {
+      size_t comma = line.find(',', pos);
+      std::string tok = (comma == std::string::npos) ? line.substr(pos)
+                                                     : line.substr(pos, comma - pos);
+      size_t a = tok.find_first_not_of(" \t");
+      size_t b = tok.find_last_not_of(" \t");
+      tok = (a == std::string::npos) ? "" : tok.substr(a, b - a + 1);
+      f.push_back(tok);
+      if (comma == std::string::npos) break;
+      pos = comma + 1;
+    }
+    if (f.size() < 6) continue;
+
+    try {
+      int id = std::stoi(f[0]);
+      float r = std::stof(f[2]), g = std::stof(f[3]), b = std::stof(f[4]);
+      int icon = std::stoi(f[5]);
+      ItemRenderInfo info;
+      info.color[0] = r; info.color[1] = g; info.color[2] = b;
+      info.icon = icon;
+      info.svgPath = (f.size() > 6) ? f[6] : "";
+      _itemRenderInfo.emplace(id, std::move(info));
+    } catch (...) {
+      continue;  // skip malformed rows rather than aborting the whole load
+    }
+  }
+  std::cout << "[GameView] Loaded " << _itemRenderInfo.size() << " item configs from \""
+            << tryPath << "\"" << std::endl;
+}
+
 void GameView::debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac) {
   _canvas = canvas;
   _targetW = w;
@@ -480,45 +572,93 @@ void GameView::debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac) 
   _canvas = nullptr;
 }
 
+SkSVGDOM* GameView::getSvgDom(const std::string &path) {
+  if (path.empty()) return nullptr;
+  auto it = _svgCache.find(path);
+  if (it != _svgCache.end()) return it->second.get();
+  sk_sp<SkData> data = SkData::MakeFromFileName(path.c_str());
+  if (!data) {
+    // CWD-agnostic fallback: if the game was launched from build-native/, the
+    // asset lives one level up. Mirror loadItemConfig's ../ retry.
+    std::string alt = "../" + path;
+    if (std::filesystem::exists(alt))
+      data = SkData::MakeFromFileName(alt.c_str());
+  }
+  if (!data) return nullptr;
+  SkMemoryStream stream(data);
+  sk_sp<SkSVGDOM> dom = SkSVGDOM::MakeFromStream(stream);
+  if (!dom) return nullptr;
+  SkSVGDOM* raw = dom.get();
+  _svgCache[path] = std::unique_ptr<SkSVGDOM>(dom.release());
+  return raw;
+}
+
 void GameView::renderCellItems(float centerX, float centerY, int count,
                                const float color[3], float scale, int icon) {
   if (count <= 0)
     return;
-  float itemDotW = 0.05f * scale * _zoom;
-  float itemDotH = 0.05f * scale * _aspect * _zoom;
-  float spacingX = itemDotW * 2.5f;
-  float spacingY = itemDotH * 2.5f;
-  auto dot = [&](float cx, float cy, int inst) {
-    drawIcon(cx, cy, icon, color, itemDotW, itemDotH, inst);
+  // Scale single items up a bit so they read as more prominent on the cell;
+  // don't penalise larger groups (they already fill the cell by count).
+  float s = scale;
+  if (count == 1) s *= 1.4f;
+  else if (count == 2) s *= 1.2f;
+  const float rw = 0.05f * s * _zoom;           // icon half-size (NDC x)
+  const float rh = 0.05f * s * _aspect * _zoom; // icon half-size (NDC y)
+
+  // Readable centre-to-centre spacing (small gap) for stacks of 1..5.
+  const float sx = rw * 2.5f;
+  const float sy = rh * 2.5f;
+  // Tight overlapping spacing for the dense 6..9 pile.
+  const float px = rw * 1.5f;
+  const float py = rh * 1.5f;
+
+  auto put = [&](float fx, float fy, float stepX, float stepY, int inst) {
+    drawIcon(centerX + fx * stepX, centerY + fy * stepY, icon, color, rw, rh, inst);
   };
-  // Pass a per-copy instance index so every dot wobbles on its own.
+
+  // Readable stacking strategies for 1..5 — every icon stays fully visible.
   switch (count) {
-  case 2:
-    dot(centerX - spacingX * 0.5f, centerY, 0);
-    dot(centerX + spacingX * 0.5f, centerY, 1);
-    break;
-  case 3:
-    dot(centerX, centerY - spacingY * 0.5f, 0);
-    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f, 1);
-    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f, 2);
-    break;
-  case 4:
-    dot(centerX - spacingX * 0.5f, centerY - spacingY * 0.5f, 0);
-    dot(centerX + spacingX * 0.5f, centerY - spacingY * 0.5f, 1);
-    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f, 2);
-    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f, 3);
-    break;
-  case 5:
-    dot(centerX, centerY, 0);
-    dot(centerX - spacingX * 0.5f, centerY - spacingY * 0.5f, 1);
-    dot(centerX + spacingX * 0.5f, centerY - spacingY * 0.5f, 2);
-    dot(centerX - spacingX * 0.5f, centerY + spacingY * 0.5f, 3);
-    dot(centerX + spacingX * 0.5f, centerY + spacingY * 0.5f, 4);
-    break;
-  default:
-    dot(centerX, centerY, 0);
-    break;
+    case 1:
+      put(0.0f, 0.0f, sx, sy, 0);
+      return;
+    case 2:
+      put(-0.5f, 0.0f, sx, sy, 0);
+      put(0.5f, 0.0f, sx, sy, 1);
+      return;
+    case 3:
+      put(0.0f, -0.5f, sx, sy, 0);
+      put(-0.5f, 0.5f, sx, sy, 1);
+      put(0.5f, 0.5f, sx, sy, 2);
+      return;
+    case 4:
+      put(-0.5f, -0.5f, sx, sy, 0);
+      put(0.5f, -0.5f, sx, sy, 1);
+      put(-0.5f, 0.5f, sx, sy, 2);
+      put(0.5f, 0.5f, sx, sy, 3);
+      return;
+    case 5:
+      put(0.0f, 0.0f, sx, sy, 0);
+      put(-0.5f, -0.5f, sx, sy, 1);
+      put(0.5f, -0.5f, sx, sy, 2);
+      put(-0.5f, 0.5f, sx, sy, 3);
+      put(0.5f, 0.5f, sx, sy, 4);
+      return;
+    default:
+      break;
   }
+
+  // Overlapping pile for 6..9: pack onto a 3x3 grid with tight spacing so a
+  // large stack reads as a dense bunch. Fill the outer ring first, then the
+  // centre and middle sides, keeping every prefix visually balanced.
+  static const float PILE[9][2] = {
+      {-1.0f,  1.0f}, {0.0f,  1.0f}, {1.0f,  1.0f},  // top row
+      {-1.0f, -1.0f}, {0.0f, -1.0f}, {1.0f, -1.0f},  // bottom row
+      { 0.0f,  0.0f},                                 // centre
+      {-1.0f,  0.0f}, {1.0f,  0.0f},                  // middle sides
+  };
+  const int n = std::min(count, 9);
+  for (int i = 0; i < n; i++)
+    put(PILE[i][0], PILE[i][1], px, py, i);
 }
 
 void GameView::renderEmpty(Rect r, const float bgColor[3]) {
@@ -528,6 +668,7 @@ void GameView::renderEmpty(Rect r, const float bgColor[3]) {
 
 void GameView::renderItem(Rect r, int itemId, int count, float scale,
                           const float bgColor[3], int variation) {
+  // 1. Background: Restore the detailed UI-based tiles (variation-driven)
 #if !defined(__EMSCRIPTEN__)
   if (_ui) {
     int vi = std::clamp(variation - 1, 0, UiLib::kFamilies - 1);
@@ -538,10 +679,75 @@ void GameView::renderItem(Rect r, int itemId, int count, float scale,
     const float *bgCol = bgColor ? bgColor : _grey;
     addQuad(r, bgCol);
   }
-  const float *elemCol =
-      (itemId >= 0 && itemId < GameModel::ELEMS) ? _elemColors[itemId] : _white;
-  int icon = (itemId >= 0) ? itemId % GameModel::ELEMS : 0;
-  renderCellItems(r.cx(), r.cy(), count, elemCol, scale, icon);
+
+  // 2. Look up the item render configuration (colour/icon fallback only — the
+  // actual SVG is resolved per-icon inside drawIcon, keyed by the item id).
+  const ItemRenderInfo *info = nullptr;
+  auto it = _itemRenderInfo.find(itemId);
+  if (it != _itemRenderInfo.end()) {
+    info = &it->second;
+  } else if (itemId >= 0 && itemId < GameModel::ELEMS) {
+    const float *legacyCol = _elemColors[itemId];
+    static ItemRenderInfo tmp;
+    tmp.color[0] = legacyCol[0]; tmp.color[1] = legacyCol[1]; tmp.color[2] = legacyCol[2];
+    tmp.icon = itemId % GameModel::ELEMS;
+    tmp.svgPath.clear();
+    info = &tmp;
+  }
+
+  // 3. Render the items — each item instance is drawn by drawIcon, which uses
+  // the item's SVG (or vector-symbol fallback). Pass the item id so multiple
+  // copies in a cell each render their own icon (and the drag preview matches).
+  const float *elemCol = info ? info->color : _white;
+  renderCellItems(r.cx(), r.cy(), count, elemCol, scale, itemId);
+
+  // Large stacks (5+): draw a compact "X{count}" badge at the cell's
+  // bottom-right corner so the true quantity stays visible without drawing
+  // dozens of icons.
+  if (count >= 5)
+    drawCountBadge(r, count);
+}
+
+void GameView::drawCountBadge(const Rect &r, int count) {
+  if (!_canvas)
+    return;
+  // Cell size in pixels; skip the badge when the cell is too small to read it.
+  const float pw = r.w * (float)_targetW * 0.5f;
+  const float ph = r.h * (float)_targetH * 0.5f;
+  const float cellMin = std::min(pw, ph);
+  if (cellMin < 18.0f)
+    return;
+
+  char buf[16];
+  snprintf(buf, sizeof(buf), "X%d", count);
+
+  // Glyph scale so the badge stays a modest fraction of the cell, clamped to
+  // stay readable at high zoom without dominating small cells.
+  const float scale = std::clamp(cellMin / 48.0f, 1.0f, 6.0f);
+  const float textW = textWidth(buf, scale);
+  const float textH = textHeight(scale);
+
+  // Cell bounds in pixels (NDC y-up -> pixel y-down).
+  const float cellLeft = (r.ox + 1.0f) * 0.5f * (float)_targetW;
+  const float cellRight = (r.ox + r.w + 1.0f) * 0.5f * (float)_targetW;
+  const float cellBottom = (1.0f - r.oy) * 0.5f * (float)_targetH;
+  const float cellTop = (1.0f - (r.oy + r.h)) * 0.5f * (float)_targetH;
+
+  // Pill size and padding.
+  const float padX = 3.0f, padY = 2.0f;
+  const float pillW = textW + padX * 2.0f;
+  const float pillH = textH + padY * 2.0f;
+
+  // Anchor pill at bottom-right, but clamp so it stays inside the cell.
+  float pillX = cellRight - pillW;
+  float pillY = cellBottom - pillH;
+  if (pillX < cellLeft) pillX = cellLeft;
+  if (pillY < cellTop) pillY = cellTop;
+
+  _canvas->save();
+  _canvas->resetMatrix();  // pixel space for the vector font
+  drawText(_canvas, pillX + padX, pillY + padY, buf, scale);
+  _canvas->restore();
 }
 
 Rect GameView::childCellLayout(int nodeIndex, Rect r, int row, int col) const {
@@ -639,8 +845,7 @@ void GameView::renderCell(int nodeIndex, Rect r, int depth) {
     if (rd.itemId >= 0) {
       const float *elemCol =
           (rd.itemId >= 0 && rd.itemId < GameModel::ELEMS) ? _elemColors[rd.itemId] : _white;
-      renderCellItems(r.cx(), r.cy(), rd.itemCount, elemCol, 1.0f,
-                      (rd.itemId >= 0) ? rd.itemId % GameModel::ELEMS : 0);
+      renderCellItems(r.cx(), r.cy(), rd.itemCount, elemCol, 1.0f, rd.itemId);
     }
     break;
   }
@@ -1170,7 +1375,7 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
     float sx = _dragWX * _zoom + _panX;
     float sy = _dragWY * _aspect * _zoom + _panY;
     const float *elemCol = (dragId >= 0 && dragId < GameModel::ELEMS) ? _elemColors[dragId] : _white;
-    int dragIcon = (dragId >= 0) ? dragId % GameModel::ELEMS : 0;
+    int dragIcon = dragId;
     renderCellItems(sx, sy, dragAmount, elemCol, scale, dragIcon);
   }
   _dragWasActive = _model.hasDrag();

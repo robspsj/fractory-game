@@ -29,12 +29,14 @@ public:
   void renderTo(SkCanvas* canvas, int winW, int winH);
   // Advance model logic. Returns whether a model tick ran.
   bool step(int elapsedMs);
+  GameModel& model() { return *_model; }
   GameView& view() { return *_view; }
   float zoomFactor() const;
   int lastCellDrawCount() const;
   int anchorDepth() const;
   int puffSources() const;   // distinct burst sources alive in the pool
   int puffsDrawn() const;    // puffs actually drawn last frame (visible)
+  int offscreenSources() const; // live sources whose cell was off-screen at spawn
   int particleAllocs() const; // heap allocations in the particle layer, last frame
   float lastGenMs() const;
   float lastDrawMs() const;

@@ -6,6 +6,12 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <string>
+#include <unordered_map>
+#include <memory>
+#include <filesystem>
+#include <iostream>
+#include <filesystem>
 
 // Skia headers pulled into the header: SkPaint + SkPath are needed as value
 // members. We forward-declare SkCanvas and the SVG piece library (PieceLib) so
@@ -53,6 +59,8 @@ public:
     // Owner (Game) hands the particle layer to the view for on-scene rendering.
     // Non-owning: the Game owns the ParticleSystem's lifetime.
     void setParticles(ParticleSystem* particles) { _particles = particles; }
+    // Load or reload the item‑render CSV. Called automatically from constructor.
+    void loadItemConfig(const std::string &path = "assets/items.csv");
     // Debug: render a single icon (piece + glow for `icon`) centered on the given
     // canvas, so alignment of the silhouette vs its glow can be measured directly.
     void debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac);
@@ -113,7 +121,17 @@ public:
     void resetView();
 
 private:
-    int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
+  // Item rendering configuration (loaded from assets/items.csv)
+  struct ItemRenderInfo {
+    float   color[3] = {1.0f, 1.0f, 1.0f};
+    int     icon   = 0;
+    std::string svgPath;
+  };
+  std::unordered_map<int, ItemRenderInfo> _itemRenderInfo;
+  std::unordered_map<std::string, std::unique_ptr<class SkSVGDOM>> _svgCache;
+  class SkSVGDOM* getSvgDom(const std::string &path);
+
+  int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
     int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
     int resolveCenterCell(float worldX, float worldY) const;
     bool unfocusOneLevel();
@@ -128,6 +146,8 @@ private:
     void drawIcon(float cx, float cy, int icon, const float color[3],
                   float halfW, float halfH, int instance = 0);
     void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0);
+    // Draw a compact "X{count}" quantity badge at a cell's bottom-right corner.
+    void drawCountBadge(const Rect &r, int count);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
     void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr, int variation = 0);
     void renderGrid(int nodeIndex, Rect r, int depth, int excludeChild = -1);

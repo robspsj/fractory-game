@@ -92,6 +92,14 @@ public:
   int allocationsLast() const { return _allocsFrame; }
   std::size_t allocatedBytes() const;
 
+  // Tiered spawning: off-screen cells are only allowed to use half the source
+  // pool, reserving the other half for cells that are actually being rendered.
+  // The checker (set by Game from the view's camera) tells spawn() whether a
+  // node's cell is currently on-screen. It is only consulted for spawns that
+  // will actually be accepted, so the hot pool-full rejection path stays cheap.
+  void setOnScreenChecker(std::function<bool(int)> fn) { _onScreen = std::move(fn); }
+  int offscreenCount() const { return (int)_offscreenCount; } // live off-screen sources
+
 private: // ---------------- source descriptor ----------------
   struct Source {
     int   node;        // parent cell node index (position resolved at render)
@@ -102,18 +110,23 @@ private: // ---------------- source descriptor ----------------
     double startTime;  // seconds on the internal anim clock (age = now - t0)
     PuffConfig cfg;    // resolved params
     bool   alive = false; // true while the source is live; false = free slot
+    bool   onScreen = false; // cell was on-screen (being rendered) at spawn time
   };
 
   // Number of distinct irregular silhouettes, keyed by puff seed.
   static constexpr int kBlobs = 6;
   // Hard live cap — when reached, new spawns are ignored.
   static constexpr int kMaxSources = 2048;
+  // Off-screen sources are capped at half the pool, reserving the other half
+  // for cells that are actually being rendered (on-screen).
+  static constexpr int kMaxOffscreenSources = kMaxSources / 2;
   // Per-frame cap on puffs actually drawn, so a burst-flood degrades gracefully
   // instead of tanking the frame rate.
   static constexpr int kMaxPuffsPerFrame = 1024;
 
   std::array<Source, kMaxSources> _sources;  // fixed pool (member, no heap)
   size_t _count = 0;                         // LIVE source count
+  size_t _offscreenCount = 0;                // live sources whose cell was off-screen
   size_t _lastInsert = 0;                    // last insert idx; free-slot search
                                              // starts at (this + 1) % kMaxSources
   std::array<SkPath, kBlobs> _blobs;         // unit-space soft blobs (~r=1)
@@ -123,6 +136,7 @@ private: // ---------------- source descriptor ----------------
   int _seedCounter = 0;                      // incremental burst seed
   mutable int _lastVisible = 0;              // puffs drawn last frame (HUD)
   int _allocsFrame = 0;                      // heap allocs this frame
+  std::function<bool(int)> _onScreen;        // on-screen classifier (set by Game)
 
   void buildBlobs();
   sk_sp<SkShader> gradientFor(int elem, const float color[3]); // lazy, cached
