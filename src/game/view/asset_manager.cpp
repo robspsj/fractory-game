@@ -2,6 +2,7 @@
 #include "game_view.hpp"
 #include "piece_library.hpp"
 #include "ui_library.hpp"
+#include <cctype>
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -44,6 +45,17 @@ void AssetManager::loadItemConfig(GameView &view, const std::string &path) {
       info.color[0] = r; info.color[1] = g; info.color[2] = b;
       info.icon = icon;
       info.svgPath = (f.size() > 6) ? f[6] : "";
+      // Optional 8th column: sway mode — "static" or "perPath" (also 0/1, false/true)
+      if (f.size() > 7 && !f[7].empty()) {
+        std::string s = f[7];
+        for (auto &c : s) c = std::tolower(c);
+        if (s == "perpath" || s == "per_path" || s == "per-path" || s == "1" || s == "true" || s == "yes" || s == "sway")
+          info.sway = GameView::SwayMode::PerPath;
+        else
+          info.sway = GameView::SwayMode::Static;
+      } else {
+        info.sway = GameView::SwayMode::Static; // backward compat: no column → static
+      }
       view._itemRenderInfo.emplace(id, std::move(info));
     } catch (...) { continue; }
   }

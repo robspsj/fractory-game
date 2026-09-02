@@ -90,11 +90,15 @@ class GameView {
     void resetView();
 
  private:
-  // Item rendering configuration
+  // Item rendering configuration — data-driven per-item.
+  // sway == PerPath: each <path> in the SVG sways with its own frequency/phase
+  // (lilypad leaves etc. move independently). Static: whole icon rotates as one.
+  enum class SwayMode { Static, PerPath };
   struct ItemRenderInfo {
     float   color[3] = {1.0f, 1.0f, 1.0f};
     int     icon   = 0;
     std::string svgPath;
+    SwayMode sway = SwayMode::Static;
   };
   std::unordered_map<int, ItemRenderInfo> _itemRenderInfo;
   std::unordered_map<std::string, std::unique_ptr<class SkSVGDOM>> _svgCache;
