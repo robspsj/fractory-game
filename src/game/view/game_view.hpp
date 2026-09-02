@@ -117,11 +117,11 @@ class GameView {
     void focusTransform(int targetIdx);
     void addQuad(Rect r, const float color[3], float alpha = 1.0f);
     void drawIcon(float cx, float cy, int icon, const float color[3],
-                  float halfW, float halfH, int instance = 0);
-    void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0);
+                  float halfW, float halfH, int instance = 0, int nodeIndex = -1);
+    void renderCellItems(float centerX, float centerY, int count, const float color[3], float scale = 1.0f, int icon = 0, int nodeIndex = -1);
     void drawCountBadge(const Rect &r, int count);
     void renderEmpty(Rect r, const float bgColor[3] = nullptr);
-    void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr, int variation = 0);
+    void renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3] = nullptr, int variation = 0, int nodeIndex = -1);
     void renderGrid(int nodeIndex, Rect r, int depth, int excludeChild = -1);
     void renderCell(int nodeIndex, Rect r, int depth);
     void renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild = -1);

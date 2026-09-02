@@ -149,11 +149,11 @@ void GameView::focusCenterCell(int winW, int winH) { AnchorManager::focusCenterC
 bool GameView::unfocusOneLevel() { return AnchorManager::unfocusOneLevel(*this); }
 
 void GameView::addQuad(Rect r, const float color[3], float alpha) { CellRenderer::addQuad(*this, r, color, alpha); }
-void GameView::drawIcon(float cx, float cy, int icon, const float color[3], float halfW, float halfH, int instance) { IconRenderer::drawIcon(*this, cx, cy, icon, color, halfW, halfH, instance); }
-void GameView::renderCellItems(float centerX, float centerY, int count, const float color[3], float scale, int icon) { IconRenderer::renderCellItems(*this, centerX, centerY, count, color, scale, icon); }
+void GameView::drawIcon(float cx, float cy, int icon, const float color[3], float halfW, float halfH, int instance, int nodeIndex) { IconRenderer::drawIcon(*this, cx, cy, icon, color, halfW, halfH, instance, nodeIndex); }
+void GameView::renderCellItems(float centerX, float centerY, int count, const float color[3], float scale, int icon, int nodeIndex) { IconRenderer::renderCellItems(*this, centerX, centerY, count, color, scale, icon, nodeIndex); }
 void GameView::drawCountBadge(const Rect &r, int count) { BadgeRenderer::drawCountBadge(*this, r, count); }
 void GameView::renderEmpty(Rect r, const float bgColor[3]) { CellRenderer::renderEmpty(*this, r, bgColor); }
-void GameView::renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3], int variation) { CellRenderer::renderItem(*this, r, itemId, count, scale, bgColor, variation); }
+void GameView::renderItem(Rect r, int itemId, int count, float scale, const float bgColor[3], int variation, int nodeIndex) { CellRenderer::renderItem(*this, r, itemId, count, scale, bgColor, variation, nodeIndex); }
 void GameView::renderGrid(int nodeIndex, Rect r, int depth, int excludeChild) { CellRenderer::renderGrid(*this, nodeIndex, r, depth, excludeChild); }
 void GameView::renderCell(int nodeIndex, Rect r, int depth) { CellRenderer::renderCell(*this, nodeIndex, r, depth); }
 void GameView::renderAnchor(int anchorIndex, Rect r, int depth, int excludeChild) { CellRenderer::renderAnchor(*this, anchorIndex, r, depth, excludeChild); }

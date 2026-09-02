@@ -23,7 +23,7 @@ void CellRenderer::renderEmpty(GameView &view, Rect r, const float bgColor[3]) {
   addQuad(view, r, col);
 }
 
-void CellRenderer::renderItem(GameView &view, Rect r, int itemId, int count, float scale, const float bgColor[3], int variation) {
+void CellRenderer::renderItem(GameView &view, Rect r, int itemId, int count, float scale, const float bgColor[3], int variation, int nodeIndex) {
 #if !defined(__EMSCRIPTEN__)
   if (view._ui) {
     int vi = std::clamp(variation - 1, 0, UiLib::kFamilies - 1);
@@ -46,7 +46,7 @@ void CellRenderer::renderItem(GameView &view, Rect r, int itemId, int count, flo
     info = &tmp;
   }
   const float *elemCol = info ? info->color : view._white;
-  IconRenderer::renderCellItems(view, r.cx(), r.cy(), count, elemCol, scale, itemId);
+  IconRenderer::renderCellItems(view, r.cx(), r.cy(), count, elemCol, scale, itemId, nodeIndex);
   if (count >= 5) BadgeRenderer::drawCountBadge(view, r, count);
 }
 
@@ -105,7 +105,7 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
     break;
   case CellType::ITEM:
   { float scale = r.w / (view._zoom * view._cellSize);
-    renderItem(view, r, cell.content.data.item.id, cell.content.data.item.count, scale, isAnchor ? view._gridBg : nullptr, LayoutEngine::variationOf(view, nodeIndex));
+    renderItem(view, r, cell.content.data.item.id, cell.content.data.item.count, scale, isAnchor ? view._gridBg : nullptr, LayoutEngine::variationOf(view, nodeIndex), nodeIndex);
     break;
   }
   case CellType::GRID:
@@ -126,7 +126,7 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
     addQuad(view, r, col);
     if (rd.itemId >= 0) {
       const float *elemCol = (rd.itemId >= 0 && rd.itemId < GameModel::ELEMS) ? view._elemColors[rd.itemId] : view._white;
-      IconRenderer::renderCellItems(view, r.cx(), r.cy(), rd.itemCount, elemCol, 1.0f, rd.itemId);
+      IconRenderer::renderCellItems(view, r.cx(), r.cy(), rd.itemCount, elemCol, 1.0f, rd.itemId, nodeIndex);
     }
     break;
   }

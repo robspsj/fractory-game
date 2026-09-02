@@ -25,10 +25,12 @@ static double animSeconds() {
   return (double)((int64_t)nowUs() - base) / 1e6;
 }
 
-static float getRotationAngle(float x, float y, int id, int instance, double tSec) {
-  int64_t seed = (int64_t)(static_cast<int>(x)) * 73856093 ^
-                 (int64_t)(static_cast<int>(y)) * 19349663 ^
-                 (int64_t)id * 83492791 ^ (int64_t)instance * 2654435761;
+static float getRotationAngle(int nodeIndex, int id, int instance, double tSec, bool isHovered) {
+  constexpr int64_t kHeldNodeSeed = 999983;
+  constexpr int64_t kHoverXor = 0x9e3779b9LL;
+  int64_t baseIdx = (nodeIndex >= 0) ? (int64_t)nodeIndex : kHeldNodeSeed;
+  int64_t seed = baseIdx * 73856093LL ^ (int64_t)id * 83492791LL ^ (int64_t)instance * 2654435761LL;
+  if (isHovered) seed ^= kHoverXor;
   seed = std::llabs(seed);
   double amp = 6.0 + (double)(seed % 60) / 10.0;
   double freq = 0.3 + (double)(seed % 20) / 200.0;
@@ -84,7 +86,7 @@ void IconRenderer::buildIcon(GameView &view, int icon, const float color[3]) {
   }
 }
 
-void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const float color[3], float halfW, float halfH, int instance) {
+void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const float color[3], float halfW, float halfH, int instance, int nodeIndex) {
   (void)color;
   if (!view._canvas) return;
   const double W = view._targetW;
@@ -94,6 +96,7 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
   const double rPx = std::min(halfW * W * 0.5, halfH * H * 0.5);
   if (rPx <= 0.1) return;
   view._lastVertexCount++;
+  bool isHovered = (nodeIndex >= 0 && nodeIndex == view._hoverCellNode);
 #if !defined(__EMSCRIPTEN__)
   {
     const GameView::ItemRenderInfo *itemInfo = nullptr;
@@ -105,9 +108,11 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
       if (itemInfo->sway == GameView::SwayMode::PerPath) {
         if (PerPathSvg *pp = view.getPerPathSvg(itemInfo->svgPath)) {
           if (!pp->paths.empty()) {
-            float baseAngle = getRotationAngle(cx, cy, icon % GameModel::ELEMS, instance, animSeconds());
+            float baseAngle = getRotationAngle(nodeIndex, icon % GameModel::ELEMS, instance, animSeconds(), isHovered);
             uint64_t t = nowUs();
-            int seed = icon * 100 + instance * 17 + (int)(cx*1000) + (int)(cy*1000);
+            int base = (nodeIndex >= 0) ? nodeIndex * 7919 : 999983;
+            int hoverOff = isHovered ? 104729 : 0;
+            int seed = icon * 100 + instance * 17 + base + hoverOff;
             pp->render(view._canvas, (float)px, (float)py, (float)rPx, baseAngle, animSeconds(), seed);
             view._bench.svgMs += (double)(nowUs() - t) / 1000.0;
             view._bench.svgN++;
@@ -121,7 +126,7 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
         view._canvas->save();
         view._canvas->resetMatrix();
         view._canvas->translate((SkScalar)px, (SkScalar)py);
-        view._canvas->rotate(getRotationAngle(cx, cy, icon % GameModel::ELEMS, instance, animSeconds()));
+        view._canvas->rotate(getRotationAngle(nodeIndex, icon % GameModel::ELEMS, instance, animSeconds(), isHovered));
         const float side = 2.0f * (float)rPx;
         itemDom->setContainerSize(SkSize::Make(side, side));
         view._canvas->translate(-side * 0.5f, -side * 0.5f);
@@ -139,7 +144,7 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
   view._canvas->save();
   view._canvas->resetMatrix();
   view._canvas->translate((SkScalar)px, (SkScalar)py);
-  float angle = getRotationAngle(cx, cy, icon % GameModel::ELEMS, instance, animSeconds());
+  float angle = getRotationAngle(nodeIndex, icon % GameModel::ELEMS, instance, animSeconds(), isHovered);
   view._canvas->rotate(angle);
   view._canvas->scale((SkScalar)rPx, (SkScalar)rPx);
 #if !defined(__EMSCRIPTEN__)
@@ -173,7 +178,7 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
   view._canvas->restore();
 }
 
-void IconRenderer::renderCellItems(GameView &view, float centerX, float centerY, int count, const float color[3], float scale, int icon) {
+void IconRenderer::renderCellItems(GameView &view, float centerX, float centerY, int count, const float color[3], float scale, int icon, int nodeIndex) {
   if (count <= 0) return;
   float s = scale;
   if (count < 6) s *= 1.0f + 0.6f * (6 - count) / 5.0f;
@@ -183,7 +188,7 @@ void IconRenderer::renderCellItems(GameView &view, float centerX, float centerY,
   const float sy = rh * 2.2f;
   const float hx = rw * 1.35f;
   const float vy = rh * 1.25f;
-  auto put = [&](float fx, float fy, float stepX, float stepY, int inst) { drawIcon(view, centerX + fx * stepX, centerY + fy * stepY, icon, color, rw, rh, inst); };
+  auto put = [&](float fx, float fy, float stepX, float stepY, int inst) { drawIcon(view, centerX + fx * stepX, centerY + fy * stepY, icon, color, rw, rh, inst, nodeIndex); };
   switch (count) {
     case 1: put(0.0f, 0.0f, sx, sy, 0); return;
     case 2: put(-0.5f, 0.0f, sx, sy, 0); put(0.5f, 0.0f, sx, sy, 1); return;
