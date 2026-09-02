@@ -70,7 +70,27 @@ void GameView::debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac) 
 std::size_t GameView::allocatedBytes() const {
   std::size_t bytes = 0;
   bytes += _icons.size() * sizeof(IconStyle);
+  bytes += _visibleBits.size() * sizeof(uint32_t);
   return bytes;
+}
+
+void GameView::ensureVisibleSize() {
+  size_t need = (_model.totalNodes() + 31) / 32;
+  if (_visibleBits.size() != need) _visibleBits.assign(need, 0);
+  else std::fill(_visibleBits.begin(), _visibleBits.end(), 0);
+}
+void GameView::clearVisible() { std::fill(_visibleBits.begin(), _visibleBits.end(), 0); }
+void GameView::setVisible(int idx) {
+  if (idx < 0) return;
+  size_t w = (size_t)idx >> 5;
+  if (w >= _visibleBits.size()) return;
+  _visibleBits[w] |= 1u << (idx & 31);
+}
+bool GameView::isVisible(int idx) const {
+  if (idx < 0) return false;
+  size_t w = (size_t)idx >> 5;
+  if (w >= _visibleBits.size()) return false;
+  return (_visibleBits[w] & (1u << (idx & 31))) != 0;
 }
 
 // Delegating wrappers
@@ -137,6 +157,8 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
     _fitZoom = newFit;
   }
   _lastVertexCount = 0;
+  ensureVisibleSize();
+  clearVisible();
   SkMatrix ndc; ndc.setScaleTranslate((SkScalar)(winW * 0.5), (SkScalar)(-winH * 0.5), (SkScalar)(winW * 0.5), (SkScalar)(winH * 0.5));
   canvas->setMatrix(SkM44(ndc));
   uint64_t t0 = nowMs();
@@ -176,7 +198,10 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
     IconRenderer::renderCellItems(*this, sx, sy, dragAmount, elemCol, scale, dragIcon);
   }
   _dragWasActive = _model.hasDrag();
-  if (_particles) _particles->draw(_canvas, winW, winH, [this](int n, float &x, float &y, float &h){ return LayoutEngine::cellCenterNDC(*this, n, x, y, h); });
+  if (_particles) _particles->draw(_canvas, winW, winH, [this](int n, float &x, float &y, float &h){
+    if (!isVisible(n)) return false;
+    return LayoutEngine::cellCenterNDC(*this, n, x, y, h);
+  });
   uint64_t t1 = nowMs();
   _lastGenMs = (float)(t1 - t0);
   _lastDrawMs = (float)(nowMs() - t1);

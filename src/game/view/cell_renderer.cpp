@@ -56,6 +56,8 @@ void CellRenderer::renderGrid(GameView &view, int nodeIndex, Rect r, int depth, 
   int gridDim = cell.content.data.grid.gridDimension;
   int absDepth = 0;
   for (int i = nodeIndex; view._model.node(i).parentId >= 0; i = view._model.node(i).parentId) absDepth++;
+  // Mark grid container as visible (if its rect itself is on-screen, not culled)
+  if (!r.outsideClip() && r.w >= 0.002f && r.h >= 0.002f) view.setVisible(nodeIndex);
   float grayValue = 0.45f - std::min(absDepth, 10) * 0.03f;
   const float gridBg[3] = {grayValue, grayValue, grayValue + 0.03f};
 #if !defined(__EMSCRIPTEN__)
@@ -83,6 +85,7 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
   constexpr float minClipSize = 0.002f;
   if (r.w < minClipSize || r.h < minClipSize) return;
   view._bench.cellN++;
+  view.setVisible(nodeIndex);
   const Cell &cell = view._model.node(nodeIndex);
   const bool isAnchor = view._showAnchor && nodeIndex == view._anchorIndex;
   switch (cell.content.type) {
@@ -157,6 +160,8 @@ void CellRenderer::renderAnchor(GameView &view, int anchorIndex, Rect r, int dep
   if (r.outsideClip()) return;
   constexpr float minClipSize = 0.002f;
   if (r.w < minClipSize || r.h < minClipSize) return;
+  // Mark anchor node itself as visible (its rect is about to be rendered)
+  view.setVisible(anchorIndex);
   if (cell.content.type == CellType::GRID) renderGrid(view, anchorIndex, r, depth, excludeChild);
   else renderCell(view, anchorIndex, r, depth);
 }
