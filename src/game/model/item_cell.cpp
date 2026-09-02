@@ -73,7 +73,7 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
   int heat = cell.heat;
   int freqDenom = 100 - (heat * 80 / 255);
   if (freqDenom < 20) freqDenom = 20;
-  if (freqDenom < 1) freqDenom = 1;
+  if (freqDenom > 100) freqDenom = 100;
   if (model.prng(idx, 0) % (uint32_t)freqDenom != 0) return;
   if (model.prng(idx, 1) & 1) {
     if (cnt > 1)
