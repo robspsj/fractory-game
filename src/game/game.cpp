@@ -100,6 +100,23 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
   // from the CURRENT view transform (even on frames with no motion event).
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
 
+  // If a tap is armed, cancel it when the cursor drifts beyond epsilon.
+  // This handles dragging / moving before release — not a tap.
+  if (_tapArmed) {
+    float dx = float(mousePx - _tapDownPx);
+    float dy = float(mousePy - _tapDownPy);
+    if (dx*dx + dy*dy > TAP_EPSILON_PX * TAP_EPSILON_PX) {
+      _tapArmed = false;
+    } else {
+      // Also timeout while still held: if held longer than TAP_MAX_MS it's not a tap.
+      auto now = std::chrono::steady_clock::now();
+      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - _tapDownTime).count();
+      if (elapsed > TAP_MAX_MS) {
+        _tapArmed = false;
+      }
+    }
+  }
+
   if (_view->isPanning()) {
     _view->continuePan(mousePx, mousePy, winW, winH);
     _view->focusCenterCell(winW, winH);
@@ -140,47 +157,95 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
   }
 }
 
-void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, int winH) {
+void Game::handleTap(int mousePx, int mousePy, int winW, int winH, int mod) {
   float wx, wy;
   _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
 
-  if (button == 1) { // left
-    if (mod & (modShiftFlag())) {
-      int idx = _view->resolveLeafCell(wx, wy);
-      if (idx >= 0) {
-        _model->interact(idx);
-        applyEffects();
-      }
-    } else if (_model->hasDrag()) {
-      int idx = _view->resolveLeafCell(wx, wy);
-      if (idx >= 0) {
-        int dropId = _model->dragItemId();
-        _model->drop(idx);
-        float c[3];
-        _view->elementColor(dropId, c);
-        _particles->spawn(idx, c, EffectKind::DROP, dropId); // node -> NDC at render
-        applyEffects();
-      } else {
-        _model->cancelDrag();
-      }
-    } else {
-      int idx = _view->resolveLeafCell(wx, wy);
-      if (idx >= 0 && _model->node(idx).content.type == CellType::ITEM) {
-        _model->pickUp(idx, _model->node(idx).content.data.item.count);
-        _view->screenToNdc(mousePx, mousePy, winW, winH, _dragNX, _dragNY);
-        _view->setDragScreenNdc(_dragNX, _dragNY);
-      }
+  // Left tap: shift -> interact, else pick / drop cycle.
+  if (mod & modShiftFlag()) {
+    int idx = _view->resolveLeafCell(wx, wy);
+    if (idx >= 0) {
+      _model->interact(idx);
+      applyEffects();
     }
+    return;
   }
 
-  if (button == 2) { // middle
-    _view->startPan(mousePx, mousePy);
+  if (_model->hasDrag()) {
+    int idx = _view->resolveLeafCell(wx, wy);
+    if (idx >= 0) {
+      int dropId = _model->dragItemId();
+      _model->drop(idx);
+      float c[3];
+      _view->elementColor(dropId, c);
+      _particles->spawn(idx, c, EffectKind::DROP, dropId); // node -> NDC at render
+      applyEffects();
+    } else {
+      _model->cancelDrag();
+    }
+    return;
+  }
+
+  // No drag: try to pick up an ITEM under the tap.
+  int idx = _view->resolveLeafCell(wx, wy);
+  if (idx >= 0 && _model->node(idx).content.type == CellType::ITEM) {
+    _model->pickUp(idx, _model->node(idx).content.data.item.count);
+    _view->screenToNdc(mousePx, mousePy, winW, winH, _dragNX, _dragNY);
+    _view->setDragScreenNdc(_dragNX, _dragNY);
   }
 }
 
-void Game::mouseUp(int button, int, int, int, int) {
-  if (button == 2)
+void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, int winH) {
+  // Remember cursor for hover refresh etc.
+  _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
+
+  if (button == 2) { // middle -> panning (immediate)
+    _view->startPan(mousePx, mousePy);
+    // Any pending tap is cancelled when panning starts.
+    _tapArmed = false;
+    return;
+  }
+
+  if (button == 1) { // left -> arm a tap (pick/drop happens on release)
+    _tapArmed = true;
+    _tapDownPx = mousePx;
+    _tapDownPy = mousePy;
+    _tapButton = button;
+    _tapMod = mod;
+    _tapDownWinW = winW;
+    _tapDownWinH = winH;
+    _tapDownTime = std::chrono::steady_clock::now();
+  }
+}
+
+void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
+  _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
+
+  if (button == 2) {
     _view->endPan();
+    return;
+  }
+
+  if (button == 1 && _tapArmed) {
+    bool sameButton = (button == _tapButton);
+    // distance between down and up must be within epsilon
+    float dx = float(mousePx - _tapDownPx);
+    float dy = float(mousePy - _tapDownPy);
+    float dist2 = dx*dx + dy*dy;
+    auto now = std::chrono::steady_clock::now();
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - _tapDownTime).count();
+
+    bool withinDist = dist2 <= TAP_EPSILON_PX * TAP_EPSILON_PX;
+    bool withinTime = elapsedMs <= TAP_MAX_MS && elapsedMs >= 0;
+
+    _tapArmed = false;
+    if (sameButton && withinDist && withinTime) {
+      handleTap(mousePx, mousePy, winW, winH, _tapMod);
+    }
+    // else: not a tap -> ignore (drag/move/cancel)
+  } else {
+    _tapArmed = false;
+  }
 }
 
 void Game::keyDown(Key key, bool shift, int winW, int winH) {

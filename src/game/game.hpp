@@ -81,6 +81,18 @@ private:
   // still (no motion event) and stays glued to the cell under it.
   int _mousePX = 0, _mousePY = 0, _mouseWinW = 0, _mouseWinH = 0;
 
+  // --- Tap picking (short press+release without moving > epsilon) ---------
+  static constexpr int TAP_MAX_MS = 250;      // max press duration for a tap
+  static constexpr float TAP_EPSILON_PX = 8.0f; // max movement (px) during tap
+  bool _tapArmed = false;
+  int _tapDownPx = 0, _tapDownPy = 0;
+  int _tapButton = 0;
+  int _tapMod = 0;
+  int _tapDownWinW = 0, _tapDownWinH = 0;
+  std::chrono::steady_clock::time_point _tapDownTime{};
+
+  void handleTap(int mousePx, int mousePy, int winW, int winH, int mod);
+
   // Drain the model's cell-change events and spawn matching smoke bursts.
   void applyEffects();
   // Recompute the hovered leaf cell from the last cursor position.
