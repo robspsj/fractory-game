@@ -30,7 +30,19 @@ set(FRACTORY_SOURCES
     src/test_runner.cpp
     src/print_state.cpp
     src/game/game.cpp
-    src/game/game_view.cpp
+    src/game/view/game_view.cpp
+    src/game/view/layout_engine.cpp
+    src/game/view/coordinate_mapper.cpp
+    src/game/view/picking_engine.cpp
+    src/game/view/camera_controller.cpp
+    src/game/view/anchor_manager.cpp
+    src/game/view/icon_renderer.cpp
+    src/game/view/cell_renderer.cpp
+    src/game/view/badge_renderer.cpp
+    src/game/view/background_renderer.cpp
+    src/game/view/asset_manager.cpp
+    src/game/view/piece_library.cpp
+    src/game/view/ui_library.cpp
     src/game/model/game_model.cpp
     src/game/model/empty_cell.cpp
     src/game/model/item_cell.cpp
