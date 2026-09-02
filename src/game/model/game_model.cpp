@@ -82,6 +82,11 @@ void GameModel::initRandomGrid(const Config &cfg) {
     }
     i++;
   }
+  // Seed visible heat for demo — 2% of non-GRID cells start warm
+  for (int j = 1; j < (int)_nodes.size(); j++) {
+    if (_nodes[j].content.type == CellType::GRID) continue;
+    if ((std::rand() % 100) < 2) _nodes[j].heat = (uint8_t)(80 + std::rand() % 120);
+  }
 }
 
 bool GameModel::tryPlaceRandomStation(int gridIndex) {
@@ -322,9 +327,9 @@ void GameModel::tick() {
       else
         cl.content.data.item.count = m.count;
       emitEvent(m.ev, m.idx, m.item);
-      // heat feedback from item activity
+      // heat feedback from item activity — make it pop visually
       if (cl.content.type != CellType::GRID) {
-        int dh = 2 + (cl.heat >> 6); // a bit more when already hot
+        int dh = 12 + (cl.heat >> 4); // 12..27, visible within few ticks
         int nh = (int)cl.heat + dh;
         if (nh > 255) nh = 255;
         cl.heat = (uint8_t)nh;
@@ -337,16 +342,16 @@ void GameModel::tick() {
       _nodes[sp.tgt].content.data.item.count = 3;
       _nodes[sp.src].content.data.item.count = 3;
       emitEvent(CellEventType::SPILL, sp.src, sp.item);
-      // spill heats both cells a little
-      addHeat(sp.src, 6);
-      addHeat(sp.tgt, 6);
+      // spill heats both cells noticeably
+      addHeat(sp.src, 18);
+      addHeat(sp.tgt, 18);
     }
     for (int si : buf.stations) tickStation(si);
   }
 
   // Heat decay & diffusion — was O(n) with heavy prng+findSpillTarget causing ~1000x slowdown.
-  // Now: cheap, sampled and sibling-only. Decay every 16 ticks, diffusion every 64 ticks.
-  if ((_tickCounter & 15) == 0) {
+  // Now: cheap, sampled and sibling-only. Decay every 32 ticks, diffusion every 64 ticks.
+  if ((_tickCounter & 31) == 0) {
     for (int i = 1; i < n; i++) {
       Cell &c = _nodes[i];
       if (c.content.type == CellType::GRID) continue;
