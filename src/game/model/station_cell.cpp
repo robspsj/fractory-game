@@ -1,5 +1,6 @@
 #include "station_cell.hpp"
 #include "game_model.hpp"
+#include "../heat_constants.hpp"
 #include <cstdio>
 
 void StationCell::collectTickPlan(int idx, GameModel &model, std::vector<int> &stations) {
@@ -13,12 +14,11 @@ void StationCell::tick(int idx, GameModel &model) {
   if (st.progress <= 0) return;
 
   int heat = cell.heat;
-  int steps = 1 + (heat / 64); // 1..5 at max heat
+  int steps = 1 + (heat / Heat::STATION_STEP_DIV);
   if (steps < 1) steps = 1;
   if (steps > st.progress) steps = st.progress;
   st.progress -= steps;
-  // a bit of self-heating while working
-  model.addHeat(idx, 1);
+  model.addHeat(idx, Heat::STATION_TICK_SELF_HEAT);
   if (st.progress == 0) {
     const StationRecipe *recipe = model._interactCfg.findStationRecipe(st.recipeIndex);
     if (!recipe) return;
@@ -130,8 +130,8 @@ void StationCell::interact(int idx, GameModel &model) {
           reserved.content.data.reserved.itemId == -1) {
         reserved.content.data.reserved.itemId = model._dragItemId;
         reserved.content.data.reserved.itemCount = model._dragAmount;
-        model.addHeat(cellIdx, 8);
-        model.addHeat(idx, 4);
+        model.addHeat(cellIdx, Heat::STATION_INPUT_HEAT);
+        model.addHeat(idx, Heat::STATION_ANCHOR_HEAT);
         model._dragSrcIndex = -1;
         model._dragAmount = 0;
         model._dragItemId = -1;

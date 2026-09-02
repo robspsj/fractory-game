@@ -186,3 +186,51 @@ Pick/drop intentionally **heat-neutral** (cell-local invariant).
 * **Sway**: multipliers `0.7` (amp) / `0.9` (freq) — reduce for calmer hot items.
 
 See `PERF.md` for tick cost: diffusion now ~0.7M checks/tick avg vs. 11M heavy before.
+
+---
+
+## 7. Balancing Constants (`src/game/heat_constants.hpp`)
+
+All tunables live in one header — edit, rebuild, no hunt for magic numbers.
+
+```cpp
+// src/game/heat_constants.hpp
+namespace Heat {
+  // Seeding
+  INIT_WARM_CHANCE_PCT = 2; INIT_WARM_MIN = 80; INIT_WARM_MAX = 200;
+  // ITEM reactiveness
+  ITEM_FREQ_BASE=100, ITEM_FREQ_RANGE=80, ITEM_FREQ_MIN=20, ITEM_FREQ_MAX=100;
+  ITEM_MUT_BASE=12, ITEM_MUT_SCALE_SHIFT=4; // + (heat>>4) → 12..27
+  // Spill / interactions
+  SPILL_HEAT_SRC=18, SPILL_HEAT_TGT=18;
+  INTERACT_REACTION_A=18, INTERACT_REACTION_B=12, INTERACT_CYCLE=6;
+  EMPTY_SPAWN_HEAT=10;
+  // Station / Reserved
+  STATION_INPUT_HEAT=8, STATION_ANCHOR_HEAT=4, STATION_TICK_SELF_HEAT=1;
+  STATION_STEP_DIV=64; // steps=1+heat/64
+  RESERVED_BUFFER_HEAT_IN=5, RESERVED_BUFFER_HEAT_OUT=2;
+  // Decay / diffusion (masks: interval = mask+1)
+  DECAY_PERIOD_MASK=31;       // every 32 ticks
+  DIFFUSION_PERIOD_MASK=63;   // every 64 ticks
+  DIFFUSION_SPARSE_MASK=127;  // ~1/128
+  namespace Visual {
+    ALPHA_BASE=0.14, ALPHA_SCALE=0.45, ALPHA_CAP=0.55;
+    WARM_R=1.0, WARM_G=0.22, WARM_B=0.05;
+    SWAY_AMP_SCALE=0.7, SWAY_FREQ_SCALE=0.9;
+    TRANS_AMP_SCALE=0.6, TRANS_FREQ_SCALE=0.6;
+  }
+}
+```
+
+### How to balance
+
+| Goal | Knob | Effect |
+|---|---|---|
+| Hot cells too rare / invisible | ↑ `INIT_WARM_CHANCE_PCT`, ↓ `INIT_WARM_MIN`, ↑ `Visual::ALPHA_BASE/SCALE` | More starting heat, stronger tint |
+| Game too frantic when hot | ↑ `ITEM_FREQ_MIN` (e.g. 30) or ↓ `ITEM_FREQ_RANGE` (e.g. 60) | Caps max tick rate |
+| Heat fizzles instantly | ↑ `DECAY_PERIOD_MASK` (e.g. 63 → 64 ticks) or ↓ `ITEM_MUT_BASE` | Slower cooling / less feedback |
+| Heat lingers forever | ↓ `DECAY_PERIOD_MASK` (e.g. 15 → 16 ticks) or ↓ `DIFFUSION_PERIOD_MASK` | Faster cooling / spread |
+| Station too slow/fast | `STATION_STEP_DIV` (smaller → more steps) | 32 → hot 1..8 steps, 128 → 1..3 |
+| Sway too wild/calm | `Visual::SWAY_*_SCALE` | 0.0 → no heat sway, 1.0 → double at max |
+
+**Workflow**: tweak `src/game/heat_constants.hpp` → `cmake --build build -j` → `./build/fractory --tick 20` (check `avg ms/tick`) and visual check of tint/sway. No other files need edits.

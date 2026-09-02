@@ -3,6 +3,7 @@
 #include "asset_manager.hpp"
 #include "per_path_svg.hpp"
 #include "../../font.hpp"
+#include "../heat_constants.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -36,8 +37,8 @@ static float getRotationAngle(int nodeIndex, int id, int instance, double tSec, 
   double freq = 0.3 + (double)(seed % 20) / 200.0;
   double phase = (double)(seed % 6283) / 1000.0;
   double heatF = (double)heat / 255.0;
-  amp *= (1.0 + heatF * 0.7);
-  freq *= (1.0 + heatF * 0.9);
+  amp *= (1.0 + heatF * Heat::Visual::SWAY_AMP_SCALE);
+  freq *= (1.0 + heatF * Heat::Visual::SWAY_FREQ_SCALE);
   return (float)(amp * std::sin(2.0 * 3.141592653589793 * freq * tSec + phase));
 }
 

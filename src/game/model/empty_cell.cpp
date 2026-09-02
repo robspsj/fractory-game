@@ -1,5 +1,6 @@
 #include "empty_cell.hpp"
 #include "game_model.hpp"
+#include "../heat_constants.hpp"
 
 void EmptyCell::interact(int idx, GameModel &model) {
   Cell &cell = model._nodes[idx];
@@ -10,7 +11,7 @@ void EmptyCell::interact(int idx, GameModel &model) {
     cell.content.data.item.count = rule->spawnCount;
     cell.content.byteSize = calcByteSize(CellType::ITEM);
     model.emitEvent(CellEventType::SPAWN, idx, rule->spawnItemId);
-    model.addHeat(idx, 10);
+    model.addHeat(idx, Heat::EMPTY_SPAWN_HEAT);
   }
 }
 

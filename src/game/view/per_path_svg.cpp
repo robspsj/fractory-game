@@ -1,4 +1,5 @@
 #include "per_path_svg.hpp"
+#include "../heat_constants.hpp"
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -238,12 +239,11 @@ std::unique_ptr<PerPathSvg> PerPathSvg::Load(const std::string &filePath) {
 
 float perPathSwayAngle(int pathIdx, int totalPaths, double tSec, int seed, uint8_t heat) {
   double heatF = (double)heat / 255.0;
-  // Heat makes leaves flutter faster and wider
-  double baseFreq = 0.35 + (double)(pathIdx % 7) * 0.08; // 0.35,0.43,0.51...
-  baseFreq *= (1.0 + heatF * 0.9); // up to ~1.9x faster at max heat
-  double phase = (double)((seed * 9781 + pathIdx * 6151) % 6283) / 1000.0; // 0..2pi
-  double amp = 4.0 + (double)(pathIdx % 5) * 1.2; // 4..8.8 deg
-  amp *= (1.0 + heatF * 0.7); // up to 70% wider
+  double baseFreq = 0.35 + (double)(pathIdx % 7) * 0.08;
+  baseFreq *= (1.0 + heatF * Heat::Visual::SWAY_FREQ_SCALE);
+  double phase = (double)((seed * 9781 + pathIdx * 6151) % 6283) / 1000.0;
+  double amp = 4.0 + (double)(pathIdx % 5) * 1.2;
+  amp *= (1.0 + heatF * Heat::Visual::SWAY_AMP_SCALE);
   return (float)(amp * std::sin(2.0 * 3.141592653589793 * baseFreq * tSec + phase));
 }
 
@@ -269,9 +269,8 @@ void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float b
     const auto &pi = paths[i];
     // Per-path sway: each path rotates around its own center with distinct frequency
     float ang = perPathSwayAngle(i, n, tSec, seed, heat);
-    // Also add a small per-path translation sway (horizontal) for more visible effect
-    float transAmp = 1.5f * (float)(1.0 + heatF * 0.6);
-    double transFreq = (0.5 + (double)(i % 4) * 0.15) * (1.0 + heatF * 0.6);
+    float transAmp = 1.5f * (float)(1.0 + heatF * Heat::Visual::TRANS_AMP_SCALE);
+    double transFreq = (0.5 + (double)(i % 4) * 0.15) * (1.0 + heatF * Heat::Visual::TRANS_FREQ_SCALE);
     double transPhase = (double)((seed * 31 + i * 137) % 6283) / 1000.0;
     float tx = (float)(transAmp * std::sin(2.0 * 3.141592653589793 * transFreq * tSec + transPhase));
     // Pivot around path center

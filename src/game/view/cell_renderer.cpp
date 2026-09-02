@@ -4,6 +4,7 @@
 #include "icon_renderer.hpp"
 #include "badge_renderer.hpp"
 #include "ui_library.hpp"
+#include "../heat_constants.hpp"
 #include <algorithm>
 #include <cmath>
 #include "include/core/SkCanvas.h"
@@ -24,10 +25,9 @@ void CellRenderer::drawHeatOverlay(GameView &view, Rect r, unsigned char heat) {
   if (r.outsideClip() || r.w < 0.002f || r.h < 0.002f) return;
   if (!view._canvas) return;
   float t = (float)heat / 255.0f;
-  // Make even low heat visible: base 0.14 + curve, sqrt for punch at low end
-  float alpha = 0.14f + 0.45f * std::sqrt(t);
-  if (alpha > 0.55f) alpha = 0.55f;
-  static const float warm[3] = {1.0f, 0.22f, 0.05f};
+  float alpha = Heat::Visual::ALPHA_BASE + Heat::Visual::ALPHA_SCALE * std::sqrt(t);
+  if (alpha > Heat::Visual::ALPHA_CAP) alpha = Heat::Visual::ALPHA_CAP;
+  static const float warm[3] = {Heat::Visual::WARM_R, Heat::Visual::WARM_G, Heat::Visual::WARM_B};
   SkScalar radX = (SkScalar)(r.w * (10.0f / 64.0f));
   SkScalar radY = (SkScalar)(r.h * (10.0f / 64.0f));
   SkRRect rr;

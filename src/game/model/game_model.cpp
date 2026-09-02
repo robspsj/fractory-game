@@ -5,6 +5,7 @@
 #include "reserved_cell.hpp"
 #include "station_cell.hpp"
 #include "tick_plan.hpp"
+#include "../heat_constants.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -82,10 +83,11 @@ void GameModel::initRandomGrid(const Config &cfg) {
     }
     i++;
   }
-  // Seed visible heat for demo — 2% of non-GRID cells start warm
+  // Seed visible heat for demo — see Heat::INIT_* in heat_constants.hpp
   for (int j = 1; j < (int)_nodes.size(); j++) {
     if (_nodes[j].content.type == CellType::GRID) continue;
-    if ((std::rand() % 100) < 2) _nodes[j].heat = (uint8_t)(80 + std::rand() % 120);
+    if ((std::rand() % 100) < Heat::INIT_WARM_CHANCE_PCT)
+      _nodes[j].heat = (uint8_t)(Heat::INIT_WARM_MIN + std::rand() % (Heat::INIT_WARM_MAX - Heat::INIT_WARM_MIN + 1));
   }
 }
 
@@ -324,9 +326,9 @@ void GameModel::tick() {
       else
         cl.content.data.item.count = m.count;
       emitEvent(m.ev, m.idx, m.item);
-      // heat feedback from item activity — make it pop visually
+      // heat feedback from item activity — see Heat::ITEM_MUT_* / SPILL_*
       if (cl.content.type != CellType::GRID) {
-        int dh = 12 + (cl.heat >> 4); // 12..27, visible within few ticks
+        int dh = Heat::ITEM_MUT_BASE + (cl.heat >> Heat::ITEM_MUT_SCALE_SHIFT);
         int nh = (int)cl.heat + dh;
         if (nh > 255) nh = 255;
         cl.heat = (uint8_t)nh;
@@ -339,16 +341,14 @@ void GameModel::tick() {
       _nodes[sp.tgt].content.data.item.count = 3;
       _nodes[sp.src].content.data.item.count = 3;
       emitEvent(CellEventType::SPILL, sp.src, sp.item);
-      // spill heats both cells noticeably
-      addHeat(sp.src, 18);
-      addHeat(sp.tgt, 18);
+      addHeat(sp.src, Heat::SPILL_HEAT_SRC);
+      addHeat(sp.tgt, Heat::SPILL_HEAT_TGT);
     }
     for (int si : buf.stations) tickStation(si);
   }
 
-  // Heat decay & diffusion — was O(n) with heavy prng+findSpillTarget causing ~1000x slowdown.
-  // Now: cheap, sampled and sibling-only. Decay every 32 ticks, diffusion every 64 ticks.
-  if ((_tickCounter & 31) == 0) {
+  // Heat decay & diffusion — see Heat::DECAY_* / DIFFUSION_* in heat_constants.hpp
+  if ((_tickCounter & Heat::DECAY_PERIOD_MASK) == 0) {
     for (int i = 1; i < n; i++) {
       Cell &c = _nodes[i];
       if (c.content.type == CellType::GRID) continue;
@@ -356,13 +356,12 @@ void GameModel::tick() {
       c.heat--;
     }
   }
-  if ((_tickCounter & 63) == 0) {
-    // diffuse 1 heat from a sparse subset (≈1/128 of hot cells) to a random sibling
+  if ((_tickCounter & Heat::DIFFUSION_PERIOD_MASK) == 0) {
     for (int i = 1; i < n; i++) {
       Cell &c = _nodes[i];
       if (c.content.type == CellType::GRID) continue;
       if (c.heat <= 1) continue;
-      if (( (uint32_t)i * 2654435761u + (uint32_t)_tickCounter) & 127) continue; // ~1/128
+      if (( (uint32_t)i * 2654435761u + (uint32_t)_tickCounter) & Heat::DIFFUSION_SPARSE_MASK) continue;
       int p = c.parentId;
       if (p < 0 || _nodes[p].content.type != CellType::GRID) continue;
       int dim = _nodes[p].content.data.grid.gridDimension;

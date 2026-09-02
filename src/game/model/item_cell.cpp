@@ -1,6 +1,7 @@
 #include "item_cell.hpp"
 #include "game_model.hpp"
 #include "tick_plan.hpp"
+#include "../heat_constants.hpp"
 #include <algorithm>
 #include <chrono>
 
@@ -68,12 +69,10 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
   itemCounter++;
   const int item = cell.content.data.item.id;
   const int cnt = cell.content.data.item.count;
-  // Heat makes cells more reactive: hotter => more frequent ticks.
-  // 0 heat: 1% (freqDenom 100), 255 heat: ~5% (freqDenom 20)
   int heat = cell.heat;
-  int freqDenom = 100 - (heat * 80 / 255);
-  if (freqDenom < 20) freqDenom = 20;
-  if (freqDenom > 100) freqDenom = 100;
+  int freqDenom = Heat::ITEM_FREQ_BASE - (heat * Heat::ITEM_FREQ_RANGE / 255);
+  if (freqDenom < Heat::ITEM_FREQ_MIN) freqDenom = Heat::ITEM_FREQ_MIN;
+  if (freqDenom > Heat::ITEM_FREQ_MAX) freqDenom = Heat::ITEM_FREQ_MAX;
   if (model.prng(idx, 0) % (uint32_t)freqDenom != 0) return;
   if (model.prng(idx, 1) & 1) {
     if (cnt > 1)
@@ -124,13 +123,13 @@ void ItemCell::interact(int idx, GameModel &model) {
       cell.content.data.item.id = rule->result;
       cell.content.data.item.count = rule->resultCount;
       model.emitEvent(CellEventType::REACTION, idx, rule->result);
-      model.addHeat(idx, 18);
-      model.addHeat(nIdx, 12);
+      model.addHeat(idx, Heat::INTERACT_REACTION_A);
+      model.addHeat(nIdx, Heat::INTERACT_REACTION_B);
       return;
     }
   }
   cell.content.data.item.id = (cell.content.data.item.id + 1) % model._numItems;
-  model.addHeat(idx, 6);
+  model.addHeat(idx, Heat::INTERACT_CYCLE);
 }
 
 void ItemCell::tick(int, GameModel &) {
