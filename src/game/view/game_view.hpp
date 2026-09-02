@@ -169,15 +169,18 @@ class GameView {
     int _anchorDepth = 0;
     int _hoverCellNode = -1;
 
-    // Optimized visible set for particles: bit i == node i was rendered this
-    // frame (on-screen, not culled). Updated every frame in renderTo() during
-    // the anchor walk, part of view state only (not model). Particle draw checks
-    // this bit array first to avoid per-particle NDC tree walks for off-screen cells.
+    // Optimized visible + NDC cache for particles: bit i == node i was rendered
+    // this frame (on-screen, not culled). NDC cache (x,y,half) is filled once
+    // per visible cell per frame during the anchor walk, then particles look up
+    // without any tree walk. Both are view state only, cleaned every frame.
     std::vector<uint32_t> _visibleBits;
+    std::unordered_map<int, std::array<float,3>> _ndcCache;
     void ensureVisibleSize();
     void clearVisible();
     void setVisible(int idx);
     bool isVisible(int idx) const;
+    void setNdc(int idx, float x, float y, float half);
+    bool getNdc(int idx, float &x, float &y, float &half) const;
 
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];

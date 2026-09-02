@@ -71,6 +71,7 @@ std::size_t GameView::allocatedBytes() const {
   std::size_t bytes = 0;
   bytes += _icons.size() * sizeof(IconStyle);
   bytes += _visibleBits.size() * sizeof(uint32_t);
+  bytes += _ndcCache.size() * (sizeof(int) + sizeof(std::array<float,3>));
   return bytes;
 }
 
@@ -78,8 +79,13 @@ void GameView::ensureVisibleSize() {
   size_t need = (_model.totalNodes() + 31) / 32;
   if (_visibleBits.size() != need) _visibleBits.assign(need, 0);
   else std::fill(_visibleBits.begin(), _visibleBits.end(), 0);
+  _ndcCache.clear();
+  _ndcCache.reserve(4096);
 }
-void GameView::clearVisible() { std::fill(_visibleBits.begin(), _visibleBits.end(), 0); }
+void GameView::clearVisible() {
+  std::fill(_visibleBits.begin(), _visibleBits.end(), 0);
+  _ndcCache.clear();
+}
 void GameView::setVisible(int idx) {
   if (idx < 0) return;
   size_t w = (size_t)idx >> 5;
@@ -91,6 +97,16 @@ bool GameView::isVisible(int idx) const {
   size_t w = (size_t)idx >> 5;
   if (w >= _visibleBits.size()) return false;
   return (_visibleBits[w] & (1u << (idx & 31))) != 0;
+}
+void GameView::setNdc(int idx, float x, float y, float half) {
+  if (idx < 0) return;
+  _ndcCache[idx] = {x, y, half};
+}
+bool GameView::getNdc(int idx, float &x, float &y, float &half) const {
+  auto it = _ndcCache.find(idx);
+  if (it == _ndcCache.end()) return false;
+  x = it->second[0]; y = it->second[1]; half = it->second[2];
+  return true;
 }
 
 // Delegating wrappers
@@ -199,8 +215,7 @@ void GameView::renderTo(SkCanvas *canvas, int winW, int winH) {
   }
   _dragWasActive = _model.hasDrag();
   if (_particles) _particles->draw(_canvas, winW, winH, [this](int n, float &x, float &y, float &h){
-    if (!isVisible(n)) return false;
-    return LayoutEngine::cellCenterNDC(*this, n, x, y, h);
+    return getNdc(n, x, y, h);
   });
   uint64_t t1 = nowMs();
   _lastGenMs = (float)(t1 - t0);
