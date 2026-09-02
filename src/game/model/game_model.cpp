@@ -344,39 +344,36 @@ void GameModel::tick() {
     for (int si : buf.stations) tickStation(si);
   }
 
-  // Heat decay & slight diffusion — keep cheap, run sequentially.
-  // Decay: ~8% chance per tick per hot non-GRID cell to cool by 1.
-  // Diffusion: ~3% chance to bleed 1 heat to a random sibling/neighbor empty/item/reserved cell.
-  for (int i = 1; i < n; i++) {
-    Cell &c = _nodes[i];
-    if (c.content.type == CellType::GRID) continue;
-    if (c.heat == 0) continue;
-    uint32_t r = prng(i, 0x9e37 + _tickCounter);
-    if ((r % 100) < 8) {
-      if (c.heat > 0) c.heat--;
+  // Heat decay & diffusion — was O(n) with heavy prng+findSpillTarget causing ~1000x slowdown.
+  // Now: cheap, sampled and sibling-only. Decay every 16 ticks, diffusion every 64 ticks.
+  if ((_tickCounter & 15) == 0) {
+    for (int i = 1; i < n; i++) {
+      Cell &c = _nodes[i];
+      if (c.content.type == CellType::GRID) continue;
+      if (c.heat == 0) continue;
+      c.heat--;
     }
-    if ((r % 100) < 3 && c.heat > 1) {
-      int tgt = findSpillTarget(i);
-      // fallback: random sibling if spill target not found
-      if (tgt < 0) {
-        int p = c.parentId;
-        if (p >= 0 && _nodes[p].content.type == CellType::GRID) {
-          int dim = _nodes[p].content.data.grid.gridDimension;
-          int first = _nodes[p].content.data.grid.firstChild;
-          int cnt = dim * dim;
-          int tries = 0;
-          while (tries < 4) {
-            int cand = first + (int)(prng(i + tries, 0x1234) % (uint32_t)cnt);
-            if (cand != i && _nodes[cand].content.type != CellType::GRID) { tgt = cand; break; }
-            tries++;
-          }
-        }
-      }
-      if (tgt >= 0 && tgt < n && _nodes[tgt].content.type != CellType::GRID) {
-        c.heat--;
-        uint8_t &th = _nodes[tgt].heat;
-        if (th < 255) th++;
-      }
+  }
+  if ((_tickCounter & 63) == 0) {
+    // diffuse 1 heat from a sparse subset (≈1/128 of hot cells) to a random sibling
+    for (int i = 1; i < n; i++) {
+      Cell &c = _nodes[i];
+      if (c.content.type == CellType::GRID) continue;
+      if (c.heat <= 1) continue;
+      if (( (uint32_t)i * 2654435761u + (uint32_t)_tickCounter) & 127) continue; // ~1/128
+      int p = c.parentId;
+      if (p < 0 || _nodes[p].content.type != CellType::GRID) continue;
+      int dim = _nodes[p].content.data.grid.gridDimension;
+      int first = _nodes[p].content.data.grid.firstChild;
+      int cnt = dim * dim;
+      uint32_t r = (uint32_t)i * 1103515245u + (uint32_t)_tickCounter * 134775813u;
+      int tgt = first + (int)(r % (uint32_t)cnt);
+      if (tgt == i) continue;
+      if (tgt < 0 || tgt >= n) continue;
+      if (_nodes[tgt].content.type == CellType::GRID) continue;
+      c.heat--;
+      uint8_t &th = _nodes[tgt].heat;
+      if (th < 255) th++;
     }
   }
 
