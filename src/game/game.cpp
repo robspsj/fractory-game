@@ -15,13 +15,10 @@ Game::Game(const Config &cfg)
   _view = std::make_unique<GameView>(*_model, cfg);
   _particles = std::make_unique<ParticleSystem>();
   _view->setParticles(_particles.get());
-  // On-screen (camera) tiering of particle spawns — DISABLED for now.
-  // It consulted cellCenterNDC() (a node-tree walk that resolves the cell in
-  // screen space) per spawn to cap off-screen sources at half the pool. That
-  // made the spawn DECISION depend on the camera, coupling it to zoom/pan.
-  // Left off while we isolate the model step: with no checker, spawn() treats
-  // every source as on-screen and never pays the tree walk.
-  // (Re-enable via _particles->setOnScreenChecker(...) to restore tiering.)
+  // On-screen tiering now uses the view's visible-bit cache (filled once per
+  // visible cell per frame during renderTo, view state only). O(1) bit test
+  // per spawn, no per-particle tree walk.
+  _particles->setOnScreenChecker([this](int node){ return _view->isVisible(node); });
 }
 
 Game::~Game() = default;

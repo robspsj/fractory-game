@@ -82,6 +82,8 @@ class GameView {
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;
     bool cellCenterNDC(int nodeIndex, float &nx, float &ny, float &halfNDC) const;
+    bool isVisible(int idx) const;
+    bool getNdc(int idx, float &x, float &y, float &half) const;
 
     void focusCenterCell(int winW, int winH);
     void resetView();
@@ -178,9 +180,7 @@ class GameView {
     void ensureVisibleSize();
     void clearVisible();
     void setVisible(int idx);
-    bool isVisible(int idx) const;
     void setNdc(int idx, float x, float y, float half);
-    bool getNdc(int idx, float &x, float &y, float &half) const;
 
     static const float _elemColors[GameModel::ELEMS][3];
     static const float _white[3];

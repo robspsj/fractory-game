@@ -94,6 +94,7 @@ void GameView::setVisible(int idx) {
 }
 bool GameView::isVisible(int idx) const {
   if (idx < 0) return false;
+  if (_visibleBits.empty()) return true; // before first render, treat as visible to avoid throttling
   size_t w = (size_t)idx >> 5;
   if (w >= _visibleBits.size()) return false;
   return (_visibleBits[w] & (1u << (idx & 31))) != 0;
