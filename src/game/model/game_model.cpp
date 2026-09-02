@@ -178,18 +178,15 @@ void GameModel::drop(int nodeIndex) {
     if (_nodes[nodeIndex].content.type == CellType::ITEM &&
         _nodes[nodeIndex].content.data.item.id == _dragItemId) {
       _nodes[nodeIndex].content.data.item.count += _dragAmount;
-      addHeat(nodeIndex, (int)_dragHeat / 4);
+      // keep heat with cell, not item — no heat change on merge
     } else if (_nodes[nodeIndex].content.type == CellType::EMPTY) {
       _nodes[nodeIndex].content = dragCell;
-      // transfer heat with the item
-      _nodes[nodeIndex].heat = _dragHeat;
+      // keep target's heat (cell-local), don't transfer item heat
     } else if (_nodes[nodeIndex].content.type == CellType::ITEM) {
       CellContent temp = _nodes[nodeIndex].content;
-      uint8_t targetHeat = _nodes[nodeIndex].heat;
       _nodes[nodeIndex].content = dragCell;
-      _nodes[nodeIndex].heat = _dragHeat;
       _nodes[_dragSrcIndex].content = temp;
-      _nodes[_dragSrcIndex].heat = targetHeat;
+      // heats stay with cells
       _dragSrcIndex = -1;
       _dragAmount = 0;
       _dragItemId = -1;
