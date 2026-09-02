@@ -184,15 +184,25 @@ static void drawProfiler(SkCanvas *canvas) {
     { "badge text", s_prof.textMs,    0xFF73BF73 },
     { "present",    s_prof.presentMs, 0xFF808C99 },
   };
+  // Vertical centering: a 14px bar over vector-font text whose tight
+  // height is textHeight(fs) with its top at y.  y-11 was valid for the old
+  // 8×8 bitmap font (8*fs = 11.2px, bar 14 => offset -1.4px looked like -11
+  // only because the bitmap origin differed); with the vector font the text's
+  // top is at y + |ascent| baseline correction, so the bar must be centered
+  // in the text box: barY = y + (th - barH)/2.
+  const float th = textHeight(fs);
+  const float barH = 14.0f;
+  const float barYO = (th - barH) * 0.5f; // add to y to get bar top
   float y = top + headerH;
   for (int i = 0; i < nBars; i++) {
     drawText(canvas, left, y, rows[i].label, fs);
+    const float barY = y + barYO;
     // track
     {
       SkPaint tr;
       tr.setAntiAlias(false);
       tr.setColor(0x14FFFFFF);
-      canvas->drawRect(SkRect::MakeXYWH(barX, y - 11, barWMax, 14), tr);
+      canvas->drawRect(SkRect::MakeXYWH(barX, barY, barWMax, barH), tr);
     }
     // bar
     if (rows[i].ms > 0.01) {
@@ -201,7 +211,7 @@ static void drawProfiler(SkCanvas *canvas) {
       SkPaint bp;
       bp.setAntiAlias(false);
       bp.setColor(rows[i].col);
-      canvas->drawRect(SkRect::MakeXYWH(barX, y - 11, bw, 14), bp);
+      canvas->drawRect(SkRect::MakeXYWH(barX, barY, bw, barH), bp);
     }
     // value
     char v[24];
@@ -214,6 +224,7 @@ static void drawProfiler(SkCanvas *canvas) {
   {
     y += 6.0f;
     drawText(canvas, left, y, "render", fs);
+    const float barY = y + barYO;
     const double rref = s_prof.renderMs > 1e-3 ? s_prof.renderMs : 1.0;
     const float rscale = barWMax / (float)rref;
     const Row sub[] = {
@@ -231,7 +242,7 @@ static void drawProfiler(SkCanvas *canvas) {
       SkPaint bp;
       bp.setAntiAlias(false);
       bp.setColor(sub[i].col);
-      canvas->drawRect(SkRect::MakeXYWH(x, y - 11, bw, 14), bp);
+      canvas->drawRect(SkRect::MakeXYWH(x, barY, bw, barH), bp);
       x += bw;
     }
     char v[24];
