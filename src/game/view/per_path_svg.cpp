@@ -236,18 +236,18 @@ std::unique_ptr<PerPathSvg> PerPathSvg::Load(const std::string &filePath) {
   return result;
 }
 
-float perPathSwayAngle(int pathIdx, int totalPaths, double tSec, int seed) {
-  // Each path gets a distinct frequency and phase. Base sway derived from
-  // global time plus per-path offset. Frequencies spread 0.3..0.9 Hz.
+float perPathSwayAngle(int pathIdx, int totalPaths, double tSec, int seed, uint8_t heat) {
+  double heatF = (double)heat / 255.0;
+  // Heat makes leaves flutter faster and wider
   double baseFreq = 0.35 + (double)(pathIdx % 7) * 0.08; // 0.35,0.43,0.51...
-  // Add seed-based phase to desync instances of same icon at different positions
+  baseFreq *= (1.0 + heatF * 0.9); // up to ~1.9x faster at max heat
   double phase = (double)((seed * 9781 + pathIdx * 6151) % 6283) / 1000.0; // 0..2pi
   double amp = 4.0 + (double)(pathIdx % 5) * 1.2; // 4..8.8 deg
-  // Also add a small per-path offset based on totalPaths to keep motion coherent
+  amp *= (1.0 + heatF * 0.7); // up to 70% wider
   return (float)(amp * std::sin(2.0 * 3.141592653589793 * baseFreq * tSec + phase));
 }
 
-void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float baseAngle, double tSec, int seed) const {
+void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float baseAngle, double tSec, int seed, uint8_t heat) const {
   if (!canvas || paths.empty()) return;
   // Map viewBox (e.g., 64) to pixel size side = 2*rPx
   float side = 2.0f * (float)rPx;
@@ -264,13 +264,14 @@ void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float b
   canvas->translate((SkScalar)(-viewBoxW*0.5f), (SkScalar)(-viewBoxH*0.5f));
 
   int n = (int)paths.size();
+  double heatF = (double)heat / 255.0;
   for (int i = 0; i < n; i++) {
     const auto &pi = paths[i];
     // Per-path sway: each path rotates around its own center with distinct frequency
-    float ang = perPathSwayAngle(i, n, tSec, seed);
+    float ang = perPathSwayAngle(i, n, tSec, seed, heat);
     // Also add a small per-path translation sway (horizontal) for more visible effect
-    float transAmp = 1.5f; // viewBox units
-    double transFreq = 0.5 + (double)(i % 4) * 0.15;
+    float transAmp = 1.5f * (float)(1.0 + heatF * 0.6);
+    double transFreq = (0.5 + (double)(i % 4) * 0.15) * (1.0 + heatF * 0.6);
     double transPhase = (double)((seed * 31 + i * 137) % 6283) / 1000.0;
     float tx = (float)(transAmp * std::sin(2.0 * 3.141592653589793 * transFreq * tSec + transPhase));
     // Pivot around path center

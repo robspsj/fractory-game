@@ -68,7 +68,13 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
   itemCounter++;
   const int item = cell.content.data.item.id;
   const int cnt = cell.content.data.item.count;
-  if (model.prng(idx, 0) % 100 != 0) return;
+  // Heat makes cells more reactive: hotter => more frequent ticks.
+  // 0 heat: 1% (freqDenom 100), 255 heat: ~5% (freqDenom 20)
+  int heat = cell.heat;
+  int freqDenom = 100 - (heat * 80 / 255);
+  if (freqDenom < 20) freqDenom = 20;
+  if (freqDenom < 1) freqDenom = 1;
+  if (model.prng(idx, 0) % (uint32_t)freqDenom != 0) return;
   if (model.prng(idx, 1) & 1) {
     if (cnt > 1)
       muts.push_back({idx, CellType::ITEM, item, cnt - 1, CellEventType::SHRINK});
@@ -118,10 +124,13 @@ void ItemCell::interact(int idx, GameModel &model) {
       cell.content.data.item.id = rule->result;
       cell.content.data.item.count = rule->resultCount;
       model.emitEvent(CellEventType::REACTION, idx, rule->result);
+      model.addHeat(idx, 18);
+      model.addHeat(nIdx, 12);
       return;
     }
   }
   cell.content.data.item.id = (cell.content.data.item.id + 1) % model._numItems;
+  model.addHeat(idx, 6);
 }
 
 void ItemCell::tick(int, GameModel &) {

@@ -32,6 +32,7 @@ class GameModel {
   int dragSrcIndex() const { return _dragSrcIndex; }
   int dragItemId() const { return _dragItemId; }
   int dragAmount() const { return _dragAmount; }
+  uint8_t dragHeat() const { return _dragHeat; }
 
   int dragRow() const {
     if (_dragSrcIndex < 0)
@@ -68,6 +69,12 @@ class GameModel {
   void drainEvents(std::vector<CellEvent> &out);
   int totalNodes() const { return (int)_nodes.size(); }
   std::size_t allocatedBytes() const { return _nodes.capacity() * sizeof(Cell); }
+
+  // Heat API — only non-GRID cells carry meaningful heat (uint8_t 0..255)
+  uint8_t heatAt(int idx) const;
+  void setHeat(int idx, uint8_t h);
+  void addHeat(int idx, int delta); // clamped 0..255, no-op for GRID
+  void setHeatBulk(const std::vector<std::pair<int,uint8_t>> &pairs);
 
   struct TickProfile {
     double sweepMs = 0.0;
@@ -106,6 +113,7 @@ class GameModel {
   int _dragSrcIndex = -1;
   int _dragAmount = 0;
   int _dragItemId = -1;
+  uint8_t _dragHeat = 0;
   InteractConfig _interactCfg;
   TickProfile _tprof;
   unsigned _prngSeed = 0;

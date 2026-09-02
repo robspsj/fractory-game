@@ -151,9 +151,11 @@ void GameModel::pickUp(int nodeIndex, int amount) {
   _dragSrcIndex = nodeIndex;
   _dragItemId = _nodes[nodeIndex].content.data.item.id;
   _dragAmount = std::min(amount, _nodes[nodeIndex].content.data.item.count);
+  _dragHeat = _nodes[nodeIndex].heat;
   _nodes[nodeIndex].content.data.item.count -= _dragAmount;
   if (_nodes[nodeIndex].content.data.item.count <= 0) {
     _nodes[nodeIndex].content.type = CellType::EMPTY;
+    _nodes[nodeIndex].content.byteSize = calcByteSize(CellType::EMPTY);
   }
 }
 
@@ -165,20 +167,28 @@ void GameModel::drop(int nodeIndex) {
   dragCell.type = CellType::ITEM;
   dragCell.data.item.id = _dragItemId;
   dragCell.data.item.count = _dragAmount;
+  dragCell.byteSize = calcByteSize(CellType::ITEM);
 
   if (nodeIndex > 0 && nodeIndex < (int)_nodes.size()) {
     if (_nodes[nodeIndex].content.type == CellType::ITEM &&
         _nodes[nodeIndex].content.data.item.id == _dragItemId) {
       _nodes[nodeIndex].content.data.item.count += _dragAmount;
+      addHeat(nodeIndex, (int)_dragHeat / 4);
     } else if (_nodes[nodeIndex].content.type == CellType::EMPTY) {
       _nodes[nodeIndex].content = dragCell;
+      // transfer heat with the item
+      _nodes[nodeIndex].heat = _dragHeat;
     } else if (_nodes[nodeIndex].content.type == CellType::ITEM) {
       CellContent temp = _nodes[nodeIndex].content;
+      uint8_t targetHeat = _nodes[nodeIndex].heat;
       _nodes[nodeIndex].content = dragCell;
+      _nodes[nodeIndex].heat = _dragHeat;
       _nodes[_dragSrcIndex].content = temp;
+      _nodes[_dragSrcIndex].heat = targetHeat;
       _dragSrcIndex = -1;
       _dragAmount = 0;
       _dragItemId = -1;
+      _dragHeat = 0;
       return;
     } else {
       cancelDrag();
@@ -186,11 +196,13 @@ void GameModel::drop(int nodeIndex) {
     }
   } else {
     _nodes[_dragSrcIndex].content = dragCell;
+    _nodes[_dragSrcIndex].content.byteSize = calcByteSize(CellType::ITEM);
   }
 
   _dragSrcIndex = -1;
   _dragAmount = 0;
   _dragItemId = -1;
+  _dragHeat = 0;
 }
 
 void GameModel::cancelDrag() {
@@ -200,10 +212,13 @@ void GameModel::cancelDrag() {
   c.type = CellType::ITEM;
   c.data.item.id = _dragItemId;
   c.data.item.count = _dragAmount;
+  c.byteSize = calcByteSize(CellType::ITEM);
   _nodes[_dragSrcIndex].content = c;
+  // heat stays with cell, dragged heat is just visual; no need to restore
   _dragSrcIndex = -1;
   _dragAmount = 0;
   _dragItemId = -1;
+  _dragHeat = 0;
 }
 
 void GameModel::drainEvents(std::vector<CellEvent> &out) {
@@ -307,6 +322,13 @@ void GameModel::tick() {
       else
         cl.content.data.item.count = m.count;
       emitEvent(m.ev, m.idx, m.item);
+      // heat feedback from item activity
+      if (cl.content.type != CellType::GRID) {
+        int dh = 2 + (cl.heat >> 6); // a bit more when already hot
+        int nh = (int)cl.heat + dh;
+        if (nh > 255) nh = 255;
+        cl.heat = (uint8_t)nh;
+      }
     }
     for (const PlSpill &sp : buf.spills) {
       if (!spillClaimed.insert(sp.tgt).second) continue;
@@ -315,8 +337,47 @@ void GameModel::tick() {
       _nodes[sp.tgt].content.data.item.count = 3;
       _nodes[sp.src].content.data.item.count = 3;
       emitEvent(CellEventType::SPILL, sp.src, sp.item);
+      // spill heats both cells a little
+      addHeat(sp.src, 6);
+      addHeat(sp.tgt, 6);
     }
     for (int si : buf.stations) tickStation(si);
+  }
+
+  // Heat decay & slight diffusion — keep cheap, run sequentially.
+  // Decay: ~8% chance per tick per hot non-GRID cell to cool by 1.
+  // Diffusion: ~3% chance to bleed 1 heat to a random sibling/neighbor empty/item/reserved cell.
+  for (int i = 1; i < n; i++) {
+    Cell &c = _nodes[i];
+    if (c.content.type == CellType::GRID) continue;
+    if (c.heat == 0) continue;
+    uint32_t r = prng(i, 0x9e37 + _tickCounter);
+    if ((r % 100) < 8) {
+      if (c.heat > 0) c.heat--;
+    }
+    if ((r % 100) < 3 && c.heat > 1) {
+      int tgt = findSpillTarget(i);
+      // fallback: random sibling if spill target not found
+      if (tgt < 0) {
+        int p = c.parentId;
+        if (p >= 0 && _nodes[p].content.type == CellType::GRID) {
+          int dim = _nodes[p].content.data.grid.gridDimension;
+          int first = _nodes[p].content.data.grid.firstChild;
+          int cnt = dim * dim;
+          int tries = 0;
+          while (tries < 4) {
+            int cand = first + (int)(prng(i + tries, 0x1234) % (uint32_t)cnt);
+            if (cand != i && _nodes[cand].content.type != CellType::GRID) { tgt = cand; break; }
+            tries++;
+          }
+        }
+      }
+      if (tgt >= 0 && tgt < n && _nodes[tgt].content.type != CellType::GRID) {
+        c.heat--;
+        uint8_t &th = _nodes[tgt].heat;
+        if (th < 255) th++;
+      }
+    }
   }
 
   _tprof.sweepMs =
@@ -438,4 +499,27 @@ bool GameModel::placeStation(int gridIndex, int recipeId) {
 
 void GameModel::removeStation(int anchorIndex) {
   StationCell::remove(anchorIndex, *this);
+}
+
+uint8_t GameModel::heatAt(int idx) const {
+  if (idx < 0 || idx >= (int)_nodes.size()) return 0;
+  if (_nodes[idx].content.type == CellType::GRID) return 0;
+  return _nodes[idx].heat;
+}
+void GameModel::setHeat(int idx, uint8_t h) {
+  if (idx < 0 || idx >= (int)_nodes.size()) return;
+  if (_nodes[idx].content.type == CellType::GRID) return;
+  _nodes[idx].heat = h;
+}
+void GameModel::addHeat(int idx, int delta) {
+  if (idx < 0 || idx >= (int)_nodes.size()) return;
+  Cell &c = _nodes[idx];
+  if (c.content.type == CellType::GRID) return;
+  int nh = (int)c.heat + delta;
+  if (nh < 0) nh = 0;
+  if (nh > 255) nh = 255;
+  c.heat = (uint8_t)nh;
+}
+void GameModel::setHeatBulk(const std::vector<std::pair<int,uint8_t>> &pairs) {
+  for (auto &p : pairs) setHeat(p.first, p.second);
 }

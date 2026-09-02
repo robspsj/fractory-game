@@ -18,6 +18,23 @@ void CellRenderer::addQuad(GameView &view, Rect r, const float color[3], float a
   view._canvas->drawRect(SkRect::MakeXYWH(r.ox, r.oy, r.w, r.h), view._quadPaint);
 }
 
+void CellRenderer::drawHeatOverlay(GameView &view, Rect r, unsigned char heat) {
+  if (heat == 0) return;
+  if (r.outsideClip() || r.w < 0.002f || r.h < 0.002f) return;
+  if (!view._canvas) return;
+  float t = (float)heat / 255.0f;
+  float alpha = t * 0.32f + t * t * 0.10f; // 0..0.42
+  static const float warm[3] = {0.96f, 0.32f, 0.14f};
+  SkScalar radX = (SkScalar)(r.w * (10.0f / 64.0f));
+  SkScalar radY = (SkScalar)(r.h * (10.0f / 64.0f));
+  SkRRect rr;
+  rr.setRectXY(SkRect::MakeXYWH((SkScalar)r.ox, (SkScalar)r.oy, (SkScalar)r.w, (SkScalar)r.h), radX, radY);
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setColor(IconRenderer::rgba(warm, alpha));
+  view._canvas->drawRRect(rr, p);
+}
+
 void CellRenderer::renderEmpty(GameView &view, Rect r, const float bgColor[3]) {
   const float *col = bgColor ? bgColor : view._grey;
   addQuad(view, r, col);
@@ -33,6 +50,10 @@ void CellRenderer::renderItem(GameView &view, Rect r, int itemId, int count, flo
   {
     const float *bgCol = bgColor ? bgColor : view._grey;
     addQuad(view, r, bgCol);
+  }
+  if (nodeIndex >= 0) {
+    uint8_t heat = view._model.node(nodeIndex).heat;
+    drawHeatOverlay(view, r, heat);
   }
   const GameView::ItemRenderInfo *info = nullptr;
   auto it = view._itemRenderInfo.find(itemId);
@@ -93,16 +114,19 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
   const Cell &cell = view._model.node(nodeIndex);
   const bool isAnchor = view._showAnchor && nodeIndex == view._anchorIndex;
   switch (cell.content.type) {
-  case CellType::EMPTY:
+  case CellType::EMPTY: {
 #if !defined(__EMSCRIPTEN__)
+    bool drewTile = false;
     if (view._ui) {
       int vi = std::clamp(LayoutEngine::variationOf(view, nodeIndex) - 1, 0, UiLib::kFamilies - 1);
-      if (view._ui->cell[vi]) renderTile(view._canvas, view._ui->cell[vi], r);
-      else renderEmpty(view, r, isAnchor ? view._gridBg : nullptr);
-    } else
+      if (view._ui->cell[vi]) { renderTile(view._canvas, view._ui->cell[vi], r); drewTile = true; }
+    }
+    if (!drewTile)
 #endif
     renderEmpty(view, r, isAnchor ? view._gridBg : nullptr);
+    drawHeatOverlay(view, r, cell.heat);
     break;
+  }
   case CellType::ITEM:
   { float scale = r.w / (view._zoom * view._cellSize);
     renderItem(view, r, cell.content.data.item.id, cell.content.data.item.count, scale, isAnchor ? view._gridBg : nullptr, LayoutEngine::variationOf(view, nodeIndex), nodeIndex);
@@ -111,9 +135,11 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
   case CellType::GRID:
     renderGrid(view, nodeIndex, r, depth);
     break;
-  case CellType::STATION:
+  case CellType::STATION: {
     addQuad(view, r, view._stationColor);
+    drawHeatOverlay(view, r, cell.heat);
     break;
+  }
   case CellType::RESERVED: {
     const ReservedData &rd = cell.content.data.reserved;
     const float *col = view._grey;
@@ -124,6 +150,7 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
       default: break;
     }
     addQuad(view, r, col);
+    drawHeatOverlay(view, r, cell.heat);
     if (rd.itemId >= 0) {
       const float *elemCol = (rd.itemId >= 0 && rd.itemId < GameModel::ELEMS) ? view._elemColors[rd.itemId] : view._white;
       IconRenderer::renderCellItems(view, r.cx(), r.cy(), rd.itemCount, elemCol, 1.0f, rd.itemId, nodeIndex);

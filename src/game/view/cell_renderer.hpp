@@ -11,4 +11,6 @@ class CellRenderer {
   static void renderGrid(GameView &view, int nodeIndex, Rect r, int depth, int excludeChild = -1);
   static void renderCell(GameView &view, int nodeIndex, Rect r, int depth);
   static void renderAnchor(GameView &view, int anchorIndex, Rect r, int depth, int excludeChild = -1);
+ private:
+  static void drawHeatOverlay(GameView &view, Rect r, unsigned char heat);
 };

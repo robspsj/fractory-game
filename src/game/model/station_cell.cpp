@@ -12,7 +12,13 @@ void StationCell::tick(int idx, GameModel &model) {
   StationData &st = cell.content.data.station;
   if (st.progress <= 0) return;
 
-  st.progress--;
+  int heat = cell.heat;
+  int steps = 1 + (heat / 64); // 1..5 at max heat
+  if (steps < 1) steps = 1;
+  if (steps > st.progress) steps = st.progress;
+  st.progress -= steps;
+  // a bit of self-heating while working
+  model.addHeat(idx, 1);
   if (st.progress == 0) {
     const StationRecipe *recipe = model._interactCfg.findStationRecipe(st.recipeIndex);
     if (!recipe) return;
@@ -124,6 +130,8 @@ void StationCell::interact(int idx, GameModel &model) {
           reserved.content.data.reserved.itemId == -1) {
         reserved.content.data.reserved.itemId = model._dragItemId;
         reserved.content.data.reserved.itemCount = model._dragAmount;
+        model.addHeat(cellIdx, 8);
+        model.addHeat(idx, 4);
         model._dragSrcIndex = -1;
         model._dragAmount = 0;
         model._dragItemId = -1;
