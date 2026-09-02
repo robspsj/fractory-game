@@ -22,11 +22,12 @@ static void printCell(std::ostream &os, int arrayIdx, const Cell &cell,
                       int idxWidth, int subgridLetterIdx) {
   int contentWidth = 3;
   switch (cell.content.type) {
-  case CellType::ITEM:
-    os << "["
-       << _itemColors[cell.content.data.item.id] << cell.content.data.item.id << "\033[0m"
-       << ":" << cell.content.data.item.count << "]";
+  case CellType::ITEM: {
+    int id = cell.content.data.item.id;
+    const char *col = (id >= 0 && id < GameModel::ELEMS) ? _itemColors[id] : "\033[1;37m";
+    os << "[" << col << id << "\033[0m" << ":" << cell.content.data.item.count << "]";
     break;
+  }
   case CellType::GRID: {
     os << "{" << "\033[1m#\033[0m:" << subgridLetterIdx << "}";
     break;

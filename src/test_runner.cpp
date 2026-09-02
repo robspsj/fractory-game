@@ -155,6 +155,10 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
 
 void ModelTestRunner::loadState(GameModel &model, const std::string &stateStr) {
   int gridData[GameModel::GRID * GameModel::GRID * 2];
+  for (int k = 0; k < GameModel::GRID * GameModel::GRID; k++) {
+    gridData[k * 2] = -1;
+    gridData[k * 2 + 1] = 0;
+  }
   std::stringstream ss(stateStr);
   std::string segment;
   int i = 0;

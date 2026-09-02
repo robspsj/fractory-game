@@ -31,7 +31,12 @@ set(FRACTORY_SOURCES
     src/print_state.cpp
     src/game/game.cpp
     src/game/game_view.cpp
-    src/game/game_model.cpp
+    src/game/model/game_model.cpp
+    src/game/model/empty_cell.cpp
+    src/game/model/item_cell.cpp
+    src/game/model/grid_cell.cpp
+    src/game/model/station_cell.cpp
+    src/game/model/reserved_cell.cpp
     src/game/particle.cpp
     src/game/interact_config.cpp
 )
