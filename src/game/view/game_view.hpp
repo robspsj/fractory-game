@@ -21,6 +21,7 @@ class SkCanvas;
 struct PieceLib;
 struct UiLib;
 class ParticleSystem;
+struct PerPathSvg;
 
 // Forward helpers (friends)
 class LayoutEngine;
@@ -97,7 +98,9 @@ class GameView {
   };
   std::unordered_map<int, ItemRenderInfo> _itemRenderInfo;
   std::unordered_map<std::string, std::unique_ptr<class SkSVGDOM>> _svgCache;
+  std::unordered_map<std::string, std::unique_ptr<class PerPathSvg>> _perPathCache;
   class SkSVGDOM* getSvgDom(const std::string &path);
+  PerPathSvg* getPerPathSvg(const std::string &path);
 
   int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;
     int resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;

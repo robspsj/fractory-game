@@ -43,6 +43,7 @@ set(FRACTORY_SOURCES
     src/game/view/asset_manager.cpp
     src/game/view/piece_library.cpp
     src/game/view/ui_library.cpp
+    src/game/view/per_path_svg.cpp
     src/game/model/game_model.cpp
     src/game/model/empty_cell.cpp
     src/game/model/item_cell.cpp

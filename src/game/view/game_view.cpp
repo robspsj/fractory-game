@@ -11,6 +11,7 @@
 #include "asset_manager.hpp"
 #include "piece_library.hpp"
 #include "ui_library.hpp"
+#include "per_path_svg.hpp"
 #include <chrono>
 #include <algorithm>
 #include <cmath>
@@ -55,6 +56,15 @@ GameView::~GameView() {
 
 void GameView::loadItemConfig(const std::string &path) { AssetManager::loadItemConfig(*this, path); }
 SkSVGDOM* GameView::getSvgDom(const std::string &path) { return AssetManager::getSvgDom(*this, path); }
+PerPathSvg* GameView::getPerPathSvg(const std::string &path) {
+  auto it = _perPathCache.find(path);
+  if (it != _perPathCache.end()) return it->second.get();
+  auto p = PerPathSvg::Load(path);
+  if (!p) return nullptr;
+  PerPathSvg* raw = p.get();
+  _perPathCache[path] = std::move(p);
+  return raw;
+}
 #if !defined(__EMSCRIPTEN__)
 void GameView::loadChessAssets() { AssetManager::loadChessAssets(*this); }
 void GameView::loadUiAssets() { AssetManager::loadUiAssets(*this); }

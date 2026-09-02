@@ -1,6 +1,7 @@
 #include "icon_renderer.hpp"
 #include "game_view.hpp"
 #include "asset_manager.hpp"
+#include "per_path_svg.hpp"
 #include "../../font.hpp"
 #include <algorithm>
 #include <chrono>
@@ -99,6 +100,21 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
     auto cfgIt = view._itemRenderInfo.find(icon);
     if (cfgIt != view._itemRenderInfo.end()) itemInfo = &cfgIt->second;
     if (itemInfo && !itemInfo->svgPath.empty()) {
+      // Per-path sway: each <path> in the SVG moves with its own frequency/phase
+      // so the lilypad's leaves, Cochonnet's shading etc. sway independently.
+      if (PerPathSvg *pp = view.getPerPathSvg(itemInfo->svgPath)) {
+        if (!pp->paths.empty()) {
+          float baseAngle = getRotationAngle(cx, cy, icon % GameModel::ELEMS, instance, animSeconds());
+          uint64_t t = nowUs();
+          // seed desyncs instances at different positions
+          int seed = icon * 100 + instance * 17 + (int)(cx*1000) + (int)(cy*1000);
+          pp->render(view._canvas, (float)px, (float)py, (float)rPx, baseAngle, animSeconds(), seed);
+          view._bench.svgMs += (double)(nowUs() - t) / 1000.0;
+          view._bench.svgN++;
+          return;
+        }
+      }
+      // Fallback: whole-SVG DOM (single global rotation) for single-path or parse fail
       SkSVGDOM *itemDom = AssetManager::getSvgDom(view, itemInfo->svgPath);
       if (itemDom) {
         view._canvas->save();
