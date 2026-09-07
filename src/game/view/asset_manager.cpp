@@ -11,6 +11,11 @@
 
 void AssetManager::loadItemConfig(GameView &view, const std::string &path) {
   view._itemRenderInfo.clear();
+#if defined(__EMSCRIPTEN__)
+  (void)path;
+  loadEmbeddedItemConfig(view);
+  return;
+#endif
   std::string tryPath = path;
   if (!std::filesystem::exists(tryPath)) tryPath = "../" + path;
   std::ifstream in(tryPath);
@@ -62,6 +67,7 @@ void AssetManager::loadItemConfig(GameView &view, const std::string &path) {
   std::cout << "[GameView] Loaded " << view._itemRenderInfo.size() << " item configs from \"" << tryPath << "\"" << std::endl;
 }
 
+#if !defined(__EMSCRIPTEN__)
 SkSVGDOM *AssetManager::getSvgDom(GameView &view, const std::string &path) {
   if (path.empty()) return nullptr;
   auto it = view._svgCache.find(path);
@@ -80,7 +86,6 @@ SkSVGDOM *AssetManager::getSvgDom(GameView &view, const std::string &path) {
   return raw;
 }
 
-#if !defined(__EMSCRIPTEN__)
 void AssetManager::loadChessAssets(GameView &view) {
   delete view._pieces;
   view._pieces = new PieceLib();

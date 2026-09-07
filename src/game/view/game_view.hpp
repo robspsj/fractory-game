@@ -101,9 +101,13 @@ class GameView {
     SwayMode sway = SwayMode::Static;
   };
   std::unordered_map<int, ItemRenderInfo> _itemRenderInfo;
+#if !defined(__EMSCRIPTEN__)
   std::unordered_map<std::string, std::unique_ptr<class SkSVGDOM>> _svgCache;
+#endif
   std::unordered_map<std::string, std::unique_ptr<class PerPathSvg>> _perPathCache;
+#if !defined(__EMSCRIPTEN__)
   class SkSVGDOM* getSvgDom(const std::string &path);
+#endif
   PerPathSvg* getPerPathSvg(const std::string &path);
 
   int resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const;

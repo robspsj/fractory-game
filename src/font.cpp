@@ -11,7 +11,9 @@
 #include "include/core/SkTypeface.h"
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkFontMgr.h"
+#if !defined(__EMSCRIPTEN__)
 #include "include/ports/SkFontMgr_mac_ct.h"
+#endif
 
 // Per-frame text-stage timing: font.cpp writes into a Framebench (declared in
 // font.hpp → game/framebench.hpp) when the caller passes one.

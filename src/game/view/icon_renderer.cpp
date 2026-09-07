@@ -108,7 +108,6 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
   } else if (view._model.hasDrag()) {
     heat = view._model.dragHeat();
   }
-#if !defined(__EMSCRIPTEN__)
   {
     const GameView::ItemRenderInfo *itemInfo = nullptr;
     auto cfgIt = view._itemRenderInfo.find(icon);
@@ -116,7 +115,14 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
     if (itemInfo && !itemInfo->svgPath.empty()) {
       // Data-driven sway: perPath = each <path> moves with its own frequency,
       // static = whole icon rotates as one. Selected via items.csv sway column.
-      if (itemInfo->sway == GameView::SwayMode::PerPath) {
+      // On wasm there is no SkSVGDOM, so static-sway icons render from the
+      // embedded path data too, with per-path sway disabled.
+      const bool perPath = itemInfo->sway == GameView::SwayMode::PerPath;
+#if !defined(__EMSCRIPTEN__)
+      if (perPath) {
+#else
+      {
+#endif
         if (PerPathSvg *pp = view.getPerPathSvg(itemInfo->svgPath)) {
           if (!pp->paths.empty()) {
             float baseAngle = getRotationAngle(nodeIndex, icon % GameModel::ELEMS, instance, animSeconds(), isHovered, heat);
@@ -124,13 +130,14 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
             int base = (nodeIndex >= 0) ? nodeIndex * 7919 : 999983;
             int hoverOff = isHovered ? 104729 : 0;
             int seed = icon * 100 + instance * 17 + base + hoverOff;
-            pp->render(view._canvas, (float)px, (float)py, (float)rPx, baseAngle, animSeconds(), seed, heat);
+            pp->render(view._canvas, (float)px, (float)py, (float)rPx, baseAngle, animSeconds(), seed, heat, perPath);
             view._bench.svgMs += (double)(nowUs() - t) / 1000.0;
             view._bench.svgN++;
             return;
           }
         }
       }
+#if !defined(__EMSCRIPTEN__)
       // Fallback: whole-SVG DOM (single global rotation) for single-path or parse fail
       SkSVGDOM *itemDom = AssetManager::getSvgDom(view, itemInfo->svgPath);
       if (itemDom) {
@@ -148,9 +155,9 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
         view._canvas->restore();
         return;
       }
+#endif
     }
   }
-#endif
   const GameView::IconStyle &st = view._icons[icon % GameModel::ELEMS];
   view._canvas->save();
   view._canvas->resetMatrix();

@@ -55,11 +55,17 @@ GameView::~GameView() {
 }
 
 void GameView::loadItemConfig(const std::string &path) { AssetManager::loadItemConfig(*this, path); }
+#if !defined(__EMSCRIPTEN__)
 SkSVGDOM* GameView::getSvgDom(const std::string &path) { return AssetManager::getSvgDom(*this, path); }
+#endif
 PerPathSvg* GameView::getPerPathSvg(const std::string &path) {
   auto it = _perPathCache.find(path);
   if (it != _perPathCache.end()) return it->second.get();
+#if defined(__EMSCRIPTEN__)
+  auto p = AssetManager::loadEmbeddedSvg(path);
+#else
   auto p = PerPathSvg::Load(path);
+#endif
   if (!p) return nullptr;
   PerPathSvg* raw = p.get();
   _perPathCache[path] = std::move(p);

@@ -17,7 +17,7 @@ struct PerPathSvg {
   std::vector<PathInfo> paths;
 
   static std::unique_ptr<PerPathSvg> Load(const std::string &filePath);
-  void render(SkCanvas *canvas, float px, float py, float rPx, float baseAngle, double tSec, int seed, uint8_t heat = 0) const;
+  void render(SkCanvas *canvas, float px, float py, float rPx, float baseAngle, double tSec, int seed, uint8_t heat = 0, bool perPathSway = true) const;
 };
 
 // Global per-path sway angle for path i (different frequency per path)

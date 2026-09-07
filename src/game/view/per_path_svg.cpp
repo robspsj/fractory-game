@@ -247,7 +247,7 @@ float perPathSwayAngle(int pathIdx, int totalPaths, double tSec, int seed, uint8
   return (float)(amp * std::sin(2.0 * 3.141592653589793 * baseFreq * tSec + phase));
 }
 
-void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float baseAngle, double tSec, int seed, uint8_t heat) const {
+void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float baseAngle, double tSec, int seed, uint8_t heat, bool perPathSway) const {
   if (!canvas || paths.empty()) return;
   // Map viewBox (e.g., 64) to pixel size side = 2*rPx
   float side = 2.0f * (float)rPx;
@@ -267,6 +267,7 @@ void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float b
   double heatF = (double)heat / 255.0;
   for (int i = 0; i < n; i++) {
     const auto &pi = paths[i];
+    if (!perPathSway) { canvas->drawPath(pi.path, pi.paint); continue; }
     // Per-path sway: each path rotates around its own center with distinct frequency
     float ang = perPathSwayAngle(i, n, tSec, seed, heat);
     float transAmp = 1.5f * (float)(1.0 + heatF * Heat::Visual::TRANS_AMP_SCALE);

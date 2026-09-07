@@ -41,6 +41,7 @@ set(FRACTORY_SOURCES
     src/game/view/badge_renderer.cpp
     src/game/view/background_renderer.cpp
     src/game/view/asset_manager.cpp
+    src/game/view/embedded_svg.cpp
     src/game/view/piece_library.cpp
     src/game/view/ui_library.cpp
     src/game/view/per_path_svg.cpp
@@ -78,7 +79,24 @@ endfunction()
 
 # --- Web (Emscripten) ---
 if(EMSCRIPTEN)
+  # No SkSVGDOM (expat-less) and no filesystem on web: bake the item icons
+  # referenced by assets/items.csv into a compact generated header. The
+  # generator normalizes every shape to absolute M/L/C/Q path data at build
+  # time, so the wasm runtime only needs SkParsePath (present in libskia.wasm.a).
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  file(GLOB_RECURSE FRACTORY_ICON_SVGS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/assets/*.svg")
+  set(FRACTORY_SVG_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/wasm_svg_assets.h")
+  add_custom_command(OUTPUT "${FRACTORY_SVG_HEADER}"
+      COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tools/gen_wasm_svg_assets.py"
+              "${CMAKE_SOURCE_DIR}" "${FRACTORY_SVG_HEADER}"
+      DEPENDS "${CMAKE_SOURCE_DIR}/assets/items.csv"
+              "${CMAKE_SOURCE_DIR}/tools/gen_wasm_svg_assets.py"
+              ${FRACTORY_ICON_SVGS}
+      COMMENT "Generating embedded SVG icon data (wasm)")
+  add_custom_target(gen_wasm_svg_assets DEPENDS "${FRACTORY_SVG_HEADER}")
   add_executable(fractory ${FRACTORY_SOURCES})
+  add_dependencies(fractory gen_wasm_svg_assets)
+  target_include_directories(fractory PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
   target_compile_definitions(fractory PRIVATE FRACTORY_VERSION="${FRACTORY_VERSION}")
   set_target_properties(fractory PROPERTIES OUTPUT_NAME "index")
   set(CMAKE_EXECUTABLE_SUFFIX ".html")
