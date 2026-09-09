@@ -54,8 +54,14 @@ bool Game::step(int elapsedMs) {
   bool ticked = false;
   double tickSum = 0.0;
   int ticks = 0;
-  while (_tickAccumMs >= tickMs) {
+  // Never more than one tick per rendered frame, and never carry more than
+  // one tick's worth of debt: when a tick cannot fit the frame budget (huge
+  // board, single-threaded wasm tick) the simulation falls behind wall-clock
+  // instead of spiralling — unbounded catch-up makes each slow frame run more
+  // ticks, which makes the next frame slower, down to 1-2 fps.
+  if (_tickAccumMs >= tickMs) {
     _tickAccumMs -= tickMs;
+    if (_tickAccumMs > tickMs) _tickAccumMs = tickMs;  // drop unreachable catch-up
     auto s = clk::now();
     _model->tick();
     tickSum += std::chrono::duration<double, std::milli>(clk::now() - s).count();
