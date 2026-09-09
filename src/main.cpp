@@ -356,10 +356,14 @@ static void frame() {
     else if (e.type == SDL_EVENT_MOUSE_WHEEL)
       s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
     else if (e.type == SDL_EVENT_KEY_DOWN) {
-      Key k = Key::UNKNOWN;
-      if (e.key.key == SDLK_F1) k = Key::F1;
-      bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
-      s_game->keyDown(k, shift, winW, winH);
+      if (e.key.key == SDLK_F3) {
+        s_profilerOn = !s_profilerOn;   // live on-screen frame profiler (same as native)
+      } else {
+        Key k = Key::UNKNOWN;
+        if (e.key.key == SDLK_F1) k = Key::F1;
+        bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
+        s_game->keyDown(k, shift, winW, winH);
+      }
     }
   }
 
