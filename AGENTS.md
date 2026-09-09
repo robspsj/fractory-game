@@ -17,7 +17,8 @@ After confirming a change works and the app compiles cleanly, commit the changes
 - Tests: `./test.sh` — headless CSV model suite, runs `build-native/fractory --test tests/*.csv`. Single test: `./build-native/fractory --test tests/test_furnace.csv`.
   - Some `test_*.csv` scenario tests fail on pre-existing stale model expectations — a FAIL is not necessarily your regression; check whether it fails on HEAD too.
   - Non-`test_*.csv` files in `tests/` (reactions/spawns/station_recipes) are data inputs, not scenarios.
-- Web build+serve: `./serve.sh [port]` → `build-wasm2/` (emcmake; script forces Homebrew `python@3.14` onto PATH because Emscripten otherwise picks Xcode's 3.9).
+- Web build+serve: `./serve.sh [port]` → `build-wasm2/` (emcmake; script forces Homebrew `python@3.14` onto PATH because Emscripten otherwise picks Xcode's 3.9). If `../skia/out/wasm` was rebuilt (args.gn has `skia_enable_ganesh = true`), re-run `ninja -C ../skia/out/wasm skia` before linking.
+- Web visual check without a real browser (headless Chrome uses SwiftShader software GL — fine for correctness, not fps; the isolated `--user-data-dir` is required or it hangs on an existing profile): `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --user-data-dir=/tmp/chrome_hl_iso --enable-unsafe-swiftshader --window-size=900,650 --timeout=20000 --screenshot=/tmp/w.png http://127.0.0.1:8080/`. Force the CPU present path with `?cpu=1` in the URL.
 - Deploy: `tools/deploy_itch.sh [osx|html5 ...] [--dry-run]` (requires `butler login`).
 - Verification without a window: `--headless out.ppm [W H]` renders one deterministic frame offscreen; `--bench [W H] [frames]` for render perf; `--tick <N>` (+ `FRACTORY_TICK_THREADS`) for model-tick micro-bench; `--cpu` forces the CPU present path (default is Metal).
 
@@ -25,7 +26,7 @@ After confirming a change works and the app compiles cleanly, commit the changes
 
 - `src/game/model/` is render-free game logic (cells: EMPTY/ITEM/GRID/STATION/RESERVED; flat `std::vector<Cell>` node array, root = index 0) and is what the CSV `--test` harness drives. Keep it free of Skia/SDL includes.
 - `src/game/view/` is split per renderer (cell_renderer, icon_renderer, badge_renderer, background_renderer, camera_controller, picking_engine, …); `game.cpp` is the controller.
-- Native presentation: Metal GPU path (`src/metal_gpu.cpp` + `src/metal_glue.mm`, compiled with `-fobjc-arc`) or CPU fallback. WASM presents via canvas. `main.cpp` owns the loop and flags.
+- Native presentation: Metal GPU path (`src/metal_gpu.cpp` + `src/metal_glue.mm`, compiled with `-fobjc-arc`) or CPU fallback. WASM presents via **Ganesh/WebGL2** (`src/webgl_gpu.cpp`; the `../skia` wasm build has `skia_enable_ganesh = true` and links with `-sMAX_WEBGL_VERSION=2`), with the old CPU-raster + `putImageData` path as fallback (`?cpu=1` URL param forces it). `main.cpp` owns the loop and flags.
 - Heat is a per-cell `uint8_t` on non-GRID cells (docs/heat.md); balancing constants live in `src/game/heat_constants.hpp`.
 
 ## Assets & codegen

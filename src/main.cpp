@@ -311,6 +311,15 @@ static void drawHud(SkCanvas *canvas) {
 
 #if defined(__EMSCRIPTEN__)
 static SDL_Window *s_window;
+static bool s_gpuWeb = false;  // Ganesh/WebGL present path active
+extern "C" {
+bool frct_webgl_init(void);
+bool frct_webgl_frame(void (*render)(void*, SkCanvas*, int, int), void* ctx, int w, int h);
+}
+static void gpuWebRenderCb(void*, SkCanvas* canvas, int w, int h) {
+  s_game->renderTo(canvas, w, h);
+  drawHud(canvas);
+}
 
 EM_JS(void, jsPresent, (int w, int h, const uint8_t *ptr), {
   var ctx = Module._canvasCtx;
@@ -359,6 +368,18 @@ static void frame() {
   s_lastFrameMs = now;
 
   uint64_t f0 = perfNow();
+  if (s_gpuWeb) {
+    if (frct_webgl_frame(gpuWebRenderCb, nullptr, s_rgbaW, s_rgbaH)) {
+      uint64_t f3 = perfNow();
+      s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
+      s_msRender  = ema(s_msRender,  (float)perfMs(f0, f3));
+      s_msCopy    = ema(s_msCopy,    0.0f);
+      s_msPresent = ema(s_msPresent, 0.0f);
+      return;
+    }
+    // WebGL frame failed (e.g. context lost); the canvas is GL-bound so the
+    // CPU 2D present is no longer possible — retry the GL path next frame.
+  }
   SkImageInfo info = SkImageInfo::Make(s_rgbaW, s_rgbaH, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
   sk_sp<SkSurface> surf = SkSurfaces::WrapPixels(info, s_rgba.data(), (size_t)s_rgbaW * 4);
   if (!surf)
@@ -392,9 +413,16 @@ int main() {
   s_rgba.resize((size_t)w * h * 4);
   emscripten_set_canvas_element_size("#canvas", winW, winH);
 
-  EM_ASM({
-    Module._canvasCtx = document.querySelector('#canvas').getContext('2d');
-  });
+  // Prefer Ganesh/WebGL; ?cpu=1 forces the old raster→putImageData path.
+  int forceCpu = 0;
+  EM_ASM({ forceCpu = new URLSearchParams(window.location.search).has('cpu') ? 1 : 0; });
+  if (!forceCpu)
+    s_gpuWeb = frct_webgl_init();
+  if (!s_gpuWeb) {
+    EM_ASM({
+      Module._canvasCtx = document.querySelector('#canvas').getContext('2d');
+    });
+  }
 
   s_game = std::make_unique<Game>(Config{});
 #if !defined(__EMSCRIPTEN__)

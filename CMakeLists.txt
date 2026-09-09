@@ -94,7 +94,7 @@ if(EMSCRIPTEN)
               ${FRACTORY_ICON_SVGS}
       COMMENT "Generating embedded SVG icon data (wasm)")
   add_custom_target(gen_wasm_svg_assets DEPENDS "${FRACTORY_SVG_HEADER}")
-  add_executable(fractory ${FRACTORY_SOURCES})
+  add_executable(fractory ${FRACTORY_SOURCES} src/webgl_gpu.cpp)
   add_dependencies(fractory gen_wasm_svg_assets)
   target_include_directories(fractory PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
   target_compile_definitions(fractory PRIVATE FRACTORY_VERSION="${FRACTORY_VERSION}")
@@ -103,6 +103,8 @@ if(EMSCRIPTEN)
   target_compile_options(fractory PRIVATE -O2 -Wno-experimental)
   target_link_options(fractory PRIVATE
       -sUSE_SDL=3
+      -sMIN_WEBGL_VERSION=1
+      -sMAX_WEBGL_VERSION=2
       --shell-file ${CMAKE_SOURCE_DIR}/web/index.html
       -sALLOW_MEMORY_GROWTH=1
       -sFILESYSTEM=0
