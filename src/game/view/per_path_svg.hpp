@@ -4,6 +4,9 @@
 #include <memory>
 #include "include/core/SkPath.h"
 #include "include/core/SkPaint.h"
+#if defined(__EMSCRIPTEN__)
+#include "include/core/SkImage.h"
+#endif
 class SkCanvas;
 
 struct PerPathSvg {
@@ -11,6 +14,13 @@ struct PerPathSvg {
     SkPath path;
     SkPaint paint;
     SkRect bounds; // viewBox bounds for pivot
+#if defined(__EMSCRIPTEN__)
+    // Wasm has no GPU: re-scanline-AA of the curve set every frame dominates.
+    // Each path is rasterized once per pow2 zoom bucket into this sprite and
+    // then blitted (sway transforms still applied as canvas transforms).
+    mutable sk_sp<SkImage> sprite;
+    mutable float spriteScale = 0.0f; // px/viewBox-unit the sprite was built at
+#endif
   };
   float viewBoxW = 64.0f;
   float viewBoxH = 64.0f;

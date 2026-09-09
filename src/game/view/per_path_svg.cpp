@@ -10,6 +10,48 @@
 #include "include/core/SkRRect.h"
 #include "include/utils/SkParsePath.h"
 #include "include/core/SkColor.h"
+#if defined(__EMSCRIPTEN__)
+#include "include/core/SkImage.h"
+#include "include/core/SkSurface.h"
+#endif
+
+#if defined(__EMSCRIPTEN__)
+// CPU-raster only: blit a pre-rasterized sprite instead of re-running the
+// anti-aliased curve scanline pass every frame. Resolution is bucketed to
+// powers of two so zooming rebuilds at most once per octave.
+static void drawPathOrSprite(SkCanvas *canvas, const PerPathSvg::PathInfo &pi, float s) {
+  if (!(s > 0.001f)) return;
+  SkRect bb = pi.bounds;
+  if (pi.paint.getStyle() != SkPaint::kFill_Style) {
+    float sw = std::max(pi.paint.getStrokeWidth(), 1.0f);
+    bb.outset(sw, sw);
+  }
+  if (bb.isEmpty()) return;
+  const float maxSide = std::max(bb.width(), bb.height());
+  if (maxSide * s > 4096.0f) { canvas->drawPath(pi.path, pi.paint); return; }
+  float q = std::exp2f(std::floorf(std::log2f(s)));
+  if (!pi.sprite || pi.spriteScale < q) {
+    q = std::min(q, 2048.0f / maxSide);
+    int iw = std::max(1, (int)std::ceil(bb.width()  * q));
+    int ih = std::max(1, (int)std::ceil(bb.height() * q));
+    auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(iw, ih));
+    if (!surf) { canvas->drawPath(pi.path, pi.paint); return; }
+    SkCanvas *pc = surf->getCanvas();
+    pc->scale(q, q);
+    pc->translate(-bb.left(), -bb.top());
+    pc->drawPath(pi.path, pi.paint);
+    pi.sprite = surf->makeImageSnapshot();
+    pi.spriteScale = q;
+  }
+  canvas->drawImageRect(pi.sprite.get(),
+      SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()),
+      SkFilterMode::kLinear);
+}
+#else
+static inline void drawPathOrSprite(SkCanvas *canvas, const PerPathSvg::PathInfo &pi, float) {
+  canvas->drawPath(pi.path, pi.paint);
+}
+#endif
 
 static SkColor parseHexFill(const std::string &s, SkColor fallback = SK_ColorBLACK) {
   if (s.empty() || s == "none") return SK_ColorTRANSPARENT;
@@ -267,7 +309,7 @@ void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float b
   double heatF = (double)heat / 255.0;
   for (int i = 0; i < n; i++) {
     const auto &pi = paths[i];
-    if (!perPathSway) { canvas->drawPath(pi.path, pi.paint); continue; }
+    if (!perPathSway) { drawPathOrSprite(canvas, pi, s); continue; }
     // Per-path sway: each path rotates around its own center with distinct frequency
     float ang = perPathSwayAngle(i, n, tSec, seed, heat);
     float transAmp = 1.5f * (float)(1.0 + heatF * Heat::Visual::TRANS_AMP_SCALE);
@@ -281,7 +323,7 @@ void PerPathSvg::render(SkCanvas *canvas, float px, float py, float rPx, float b
     canvas->rotate((SkScalar)ang);
     canvas->translate((SkScalar)tx, 0);
     canvas->translate(-c.x(), -c.y());
-    canvas->drawPath(pi.path, pi.paint);
+    drawPathOrSprite(canvas, pi, s);
     canvas->restore();
   }
   canvas->restore();
