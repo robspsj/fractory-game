@@ -25,6 +25,7 @@ After confirming a change works and the app compiles cleanly, commit the changes
 ## Architecture
 
 - `src/game/model/` is render-free game logic (cells: EMPTY/ITEM/GRID/STATION/RESERVED; flat `std::vector<Cell>` node array, root = index 0) and is what the CSV `--test` harness drives. Keep it free of Skia/SDL includes.
+- Spatial neighbour lookups go through `GameModel::_adj`: a `std::vector<Adjacency>` parallel to `_nodes` holding, per leaf cell, the deepest world-space neighbour in each of the 4 `ADJ_*` directions (may cross subgrid boundaries; -1 off-world). Rebuilt by `rebuildAdjacency()` in `init()` and `setFullState()` — **any new topology mutator (adding/removing nodes, reparenting grids) must call it**, content-only mutations (drop/merge/spill/station) do not.
 - `src/game/view/` is split per renderer (cell_renderer, icon_renderer, badge_renderer, background_renderer, camera_controller, picking_engine, …); `game.cpp` is the controller.
 - Native presentation: Metal GPU path (`src/metal_gpu.cpp` + `src/metal_glue.mm`, compiled with `-fobjc-arc`) or CPU fallback. WASM presents via **Ganesh/WebGL2** (`src/webgl_gpu.cpp`; the `../skia` wasm build has `skia_enable_ganesh = true` and links with `-sMAX_WEBGL_VERSION=2`), with the old CPU-raster + `putImageData` path as fallback (`?cpu=1` URL param forces it). `main.cpp` owns the loop and flags.
 - Heat is a per-cell `uint8_t` on non-GRID cells (docs/heat.md); balancing constants live in `src/game/heat_constants.hpp`.

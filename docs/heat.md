@@ -49,7 +49,7 @@ flowchart TB
     end
     Sources --> H{Cell.heat 0..255}
     H --> I[Decay<br/>-1 every 32 ticks<br/>all hot non-GRID]
-    H --> J[Diffusion<br/>~1/128 hot cells every 64 ticks<br/>-1 here +1 random sibling]
+    H --> J[Diffusion<br/>~1/128 hot cells every 64 ticks<br/>-1 here +1 random neighbour (4-dir)]
     I --> H
     J --> H
 ```
@@ -70,7 +70,7 @@ sequenceDiagram
 ```
 
 * **Decay** was O(n) with heavy `prng()`+`findSpillTarget()` → ~1000× slowdown, replaced with cheap sampled sibling-only loops.
-* Diffusion uses cheap LCG: `r = i*1103515245 + tick*134775813`, target `first + r % cnt`.
+* Diffusion uses cheap LCG: `r = i*1103515245 + tick*134775813`, target = the precomputed adjacency neighbour in direction `r & 3` (`_adj` table, may cross subgrid boundaries).
 
 ---
 

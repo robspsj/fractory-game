@@ -32,6 +32,7 @@ void GameModel::init(const Config &cfg) {
   } else {
     initRandomGrid(cfg);
   }
+  rebuildAdjacency();
 
   _dragSrcIndex = -1;
   _dragAmount = 0;
@@ -147,6 +148,87 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
 
 void GameModel::populateWithSubgrid(int cellIndex, int size) {
   GridCell::populateWithSubgrid(cellIndex, size, _nodes);
+}
+
+// Full rebuild of the adjacency table. Only topology changes (init,
+// setFullState) need it — drop/station/heat/spill mutate content in place,
+// never geometry, so indices and rects stay valid.
+void GameModel::rebuildAdjacency() {
+  _adj.assign(_nodes.size(), Adjacency{});
+  if (_nodes.empty() || _nodes[0].content.type != CellType::GRID) return;
+  const double R = _nodes[0].content.data.grid.gridDimension;  // root spans [0,R)²
+
+  // Deepest cell containing world point (px,py), or -1. Iterative descend.
+  auto leafAt = [&](double px, double py) -> int {
+    int g = 0;
+    double x = 0.0, y = 0.0, w = R, h = R;
+    for (;;) {
+      if (!(px >= x && px < x + w && py >= y && py < y + h)) return -1;
+      const Cell &gn = _nodes[g];
+      if (gn.content.type != CellType::GRID) return g;
+      const int d = gn.content.data.grid.gridDimension;
+      const int f = gn.content.data.grid.firstChild;
+      const double cw = w / d, ch = h / d;
+      int c = (int)((px - x) / cw);
+      int r = (int)((py - y) / ch);
+      c = std::clamp(c, 0, d - 1);  // guard fp noise at edges
+      r = std::clamp(r, 0, d - 1);
+      g = f + r * d + c;
+      x += c * cw; y += r * ch; w = cw; h = ch;
+    }
+  };
+
+  // Fast path: same-grid sibling that is itself a leaf (the common case)
+  // avoids a descend; anything crossing hierarchy or landing on a GRID
+  // container falls through to leafAt().
+  auto side = [&](int leafCell, int dir, double px, double py) -> int {
+    const int g = _nodes[leafCell].parentId;
+    if (g < 0 || _nodes[g].content.type != CellType::GRID) return leafAt(px, py);
+    const Cell &gn = _nodes[g];
+    const int d = gn.content.data.grid.gridDimension;
+    const int f = gn.content.data.grid.firstChild;
+    const int local = leafCell - f;
+    const int r = local / d, c = local % d;
+    int sib = -1;
+    switch (dir) {
+      case ADJ_UP:    if (r > 0)     sib = f + (r - 1) * d + c; break;
+      case ADJ_DOWN:  if (r < d - 1) sib = f + (r + 1) * d + c; break;
+      case ADJ_LEFT:  if (c > 0)     sib = f + r * d + (c - 1); break;
+      case ADJ_RIGHT: if (c < d - 1) sib = f + r * d + (c + 1); break;
+    }
+    if (sib >= 0 && _nodes[sib].content.type != CellType::GRID) return sib;
+    return leafAt(px, py);
+  };
+
+  struct Frame { int cell; double x, y, w, h; };  // cell = its GRID node
+  std::vector<Frame> stack{{0, 0.0, 0.0, R, R}};
+  while (!stack.empty()) {
+    Frame fr = stack.back();
+    stack.pop_back();
+    const Cell &gn = _nodes[fr.cell];
+    if (gn.content.type != CellType::GRID) continue;
+    const int d = gn.content.data.grid.gridDimension;
+    const int f = gn.content.data.grid.firstChild;
+    const double cw = fr.w / d, ch = fr.h / d;
+    const double eps = 1e-3 * std::min(cw, ch);
+    for (int r = 0; r < d; r++) {
+      for (int c = 0; c < d; c++) {
+        const int child = f + r * d + c;
+        const double x = fr.x + c * cw, y = fr.y + r * ch;
+        if (_nodes[child].content.type == CellType::GRID) {
+          stack.push_back({child, x, y, cw, ch});
+          continue;
+        }
+        const double mx = x + cw * 0.5, my = y + ch * 0.5;
+        Adjacency &a = _adj[child];
+        a[ADJ_UP]    = side(child, ADJ_UP,    mx, y - eps);
+        a[ADJ_DOWN]  = side(child, ADJ_DOWN,  mx, y + ch + eps);
+        a[ADJ_LEFT]  = side(child, ADJ_LEFT,  x - eps, my);
+        a[ADJ_RIGHT] = side(child, ADJ_RIGHT, x + cw + eps, my);
+        for (int32_t &e : a.n) if (e == child) e = -1;  // fp safety
+      }
+    }
+  }
 }
 
 void GameModel::pickUp(int nodeIndex, int amount) {
@@ -362,14 +444,11 @@ void GameModel::tick() {
       if (c.content.type == CellType::GRID) continue;
       if (c.heat <= 1) continue;
       if (( (uint32_t)i * 2654435761u + (uint32_t)_tickCounter) & Heat::DIFFUSION_SPARSE_MASK) continue;
-      int p = c.parentId;
-      if (p < 0 || _nodes[p].content.type != CellType::GRID) continue;
-      int dim = _nodes[p].content.data.grid.gridDimension;
-      int first = _nodes[p].content.data.grid.firstChild;
-      int cnt = dim * dim;
+      // Spatial diffusion: pass heat to one random world-space neighbour
+      // (precomputed adjacency, possibly across subgrid boundaries).
+      const Adjacency &a = _adj[i];
       uint32_t r = (uint32_t)i * 1103515245u + (uint32_t)_tickCounter * 134775813u;
-      int tgt = first + (int)(r % (uint32_t)cnt);
-      if (tgt == i) continue;
+      int tgt = a.n[(int)(r & 3u)];
       if (tgt < 0 || tgt >= n) continue;
       if (_nodes[tgt].content.type == CellType::GRID) continue;
       c.heat--;
@@ -430,6 +509,7 @@ void GameModel::setFullState(int *inData) {
       _nodes[idx].content.data.item.count = count;
     }
   }
+  rebuildAdjacency();
 }
 
 void GameModel::getFullState(int *outData) const {

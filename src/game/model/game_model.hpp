@@ -4,6 +4,22 @@
 #include "cell.hpp"
 #include <vector>
 
+// Spatial adjacency directions (order matters: up,down,left,right — matches
+// the legacy neighbor-iteration order in ItemCell).
+enum AdjDir : int { ADJ_UP = 0, ADJ_DOWN = 1, ADJ_LEFT = 2, ADJ_RIGHT = 3 };
+
+// Precomputed world-space neighbours, parallel to the node array. Each entry
+// is the DEEPEST cell whose rectangle shares the midpoint of that edge (may
+// cross into/out of a nested subgrid), or -1 at the world border. Entries
+// always point at leaf cells (never GRID containers). GRID nodes themselves
+// have no entries. Rebuilt whenever the topology changes — see
+// GameModel::rebuildAdjacency.
+struct Adjacency {
+  int32_t n[4] = {-1, -1, -1, -1};
+  int32_t &operator[](int dir) { return n[dir]; }
+  int32_t operator[](int dir) const { return n[dir]; }
+};
+
 // Forward declarations for per-type behavior classes (friend access).
 class EmptyCell;
 class ItemCell;
@@ -68,7 +84,12 @@ class GameModel {
   void getDragState(int &outId, int &outCount);
   void drainEvents(std::vector<CellEvent> &out);
   int totalNodes() const { return (int)_nodes.size(); }
-  std::size_t allocatedBytes() const { return _nodes.capacity() * sizeof(Cell); }
+  std::size_t allocatedBytes() const {
+    return _nodes.capacity() * sizeof(Cell) + _adj.capacity() * sizeof(Adjacency);
+  }
+
+  // World-space neighbour of a leaf cell in direction d (ADJ_*), or -1.
+  int neighbor(int idx, int dir) const { return _adj[idx][dir]; }
 
   // Heat API — only non-GRID cells carry meaningful heat (uint8_t 0..255)
   uint8_t heatAt(int idx) const;
@@ -108,7 +129,10 @@ class GameModel {
 
   uint32_t prng(int idx, int salt) const;
 
+  void rebuildAdjacency();
+
   std::vector<Cell> _nodes;
+  std::vector<Adjacency> _adj;  // parallel to _nodes (see Adjacency above)
   std::vector<CellEvent> _events;
   int _dragSrcIndex = -1;
   int _dragAmount = 0;

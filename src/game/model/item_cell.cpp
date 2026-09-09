@@ -7,57 +7,17 @@
 
 int ItemCell::findSpillTarget(int idx, GameModel &model) {
   std::vector<int> candidates;
-
-  int p = model._nodes[idx].parentId;
-  if (p < 0) return -1;
-
-  int parentFirst = model._nodes[p].content.data.grid.firstChild;
-  int parentDim = model._nodes[p].content.data.grid.gridDimension;
-  int localIdx = idx - parentFirst;
-  int row = localIdx / parentDim;
-  int col = localIdx % parentDim;
-
-  auto addIfEmpty = [&](int ni) {
+  // Precomputed world-space adjacency (one deepest-leaf neighbour per
+  // direction, crossing subgrid boundaries where the layout touches).
+  // Iteration order up,down,left,right matches the legacy candidate order.
+  const Adjacency &a = model._adj[idx];
+  const int dirs[4] = {a.n[ADJ_UP], a.n[ADJ_DOWN], a.n[ADJ_LEFT], a.n[ADJ_RIGHT]};
+  for (int ni : dirs) {
     if (ni >= 0 && ni < (int)model._nodes.size() &&
         model._nodes[ni].content.type == CellType::EMPTY) {
       candidates.push_back(ni);
     }
-  };
-
-  if (row > 0) addIfEmpty(parentFirst + (row - 1) * parentDim + col);
-  if (row < parentDim - 1) addIfEmpty(parentFirst + (row + 1) * parentDim + col);
-  if (col > 0) addIfEmpty(parentFirst + row * parentDim + (col - 1));
-  if (col < parentDim - 1) addIfEmpty(parentFirst + row * parentDim + (col + 1));
-
-  int gp = model._nodes[p].parentId;
-  if (gp >= 0) {
-    int gpFirst = model._nodes[gp].content.data.grid.firstChild;
-    int gpDim = model._nodes[gp].content.data.grid.gridDimension;
-    int parentLocal = p - gpFirst;
-    int parentRow = parentLocal / gpDim;
-    int parentCol = parentLocal % gpDim;
-
-    auto checkGp = [&](int dr, int dc, int bRow, int bCol) {
-      int gr = parentRow + dr, gc = parentCol + dc;
-      if (gr < 0 || gr >= gpDim || gc < 0 || gc >= gpDim) return;
-      int gi = gpFirst + gr * gpDim + gc;
-      if (model._nodes[gi].content.type == CellType::EMPTY) {
-        candidates.push_back(gi);
-      } else if (model._nodes[gi].content.type == CellType::GRID) {
-        int nf = model._nodes[gi].content.data.grid.firstChild;
-        int nd = model._nodes[gi].content.data.grid.gridDimension;
-        int r = std::min(bRow, nd - 1);
-        int c = std::min(bCol, nd - 1);
-        if (r >= 0 && c >= 0) addIfEmpty(nf + r * nd + c);
-      }
-    };
-
-    if (row == 0) checkGp(-1, 0, parentDim - 1, col);
-    if (row == parentDim - 1) checkGp(1, 0, 0, col);
-    if (col == 0) checkGp(0, -1, row, parentDim - 1);
-    if (col == parentDim - 1) checkGp(0, 1, row, 0);
   }
-
   if (candidates.empty()) return -1;
   return candidates[(int)(model.prng(idx, 2) % (uint32_t)candidates.size())];
 }
@@ -93,24 +53,14 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
 
 void ItemCell::interact(int idx, GameModel &model) {
   Cell &cell = model._nodes[idx];
-  int parent = cell.parentId;
-  if (parent < 0) return;
-  const Cell &parentCell = model._nodes[parent];
-  if (parentCell.content.type != CellType::GRID) return;
+  // Precomputed adjacency: same order as the legacy {up,down,left,right}
+  // scan, but neighbours may live inside an adjacent subgrid (the old
+  // same-grid-only lookup could not target cells across hierarchy edges).
+  const Adjacency &a = model._adj[idx];
+  const int dirs[4] = {a.n[ADJ_UP], a.n[ADJ_DOWN], a.n[ADJ_LEFT], a.n[ADJ_RIGHT]};
 
-  int dim = parentCell.content.data.grid.gridDimension;
-  int first = parentCell.content.data.grid.firstChild;
-  int localIdx = idx - first;
-  int row = localIdx / dim;
-  int col = localIdx % dim;
-
-  struct { int dr, dc; } dirs[4] = {{-1,0},{1,0},{0,-1},{0,1}};
-
-  for (auto &d : dirs) {
-    int nr = row + d.dr;
-    int nc = col + d.dc;
-    if (nr < 0 || nr >= dim || nc < 0 || nc >= dim) continue;
-    int nIdx = first + nr * dim + nc;
+  for (int nIdx : dirs) {
+    if (nIdx < 0) continue;
     const Cell &neighbor = model._nodes[nIdx];
     if (neighbor.content.type != CellType::ITEM) continue;
 
