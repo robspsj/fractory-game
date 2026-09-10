@@ -368,7 +368,9 @@ static void frame() {
   }
 
   uint64_t now = SDL_GetTicks();
+  uint64_t st0 = perfNow();
   s_game->step((int)(now - s_lastFrameMs));
+  s_msStep = ema(s_msStep, (float)perfMs(st0, perfNow()));
   s_lastFrameMs = now;
 
   uint64_t f0 = perfNow();
