@@ -391,6 +391,7 @@ void GameModel::tick() {
     for (int t = 0; t < nThreads; t++) threads.emplace_back(worker, t);
     for (auto &th : threads) th.join();
   }
+  _tprof.planMs = std::chrono::duration<double, std::milli>(clk::now() - wall).count();
 
   for (const auto &buf : bufs) {
     _tprof.items   += (int)buf.items;
@@ -398,6 +399,7 @@ void GameModel::tick() {
     _tprof.spillMs += buf.spillMs;
   }
 
+  auto tApply = clk::now();
   std::unordered_set<int> spillClaimed;
   spillClaimed.reserve((size_t)_tprof.spills);
   for (auto &buf : bufs) {
@@ -426,10 +428,16 @@ void GameModel::tick() {
       addHeat(sp.src, Heat::SPILL_HEAT_SRC);
       addHeat(sp.tgt, Heat::SPILL_HEAT_TGT);
     }
-    for (int si : buf.stations) tickStation(si);
   }
+  _tprof.applyMs = std::chrono::duration<double, std::milli>(clk::now() - tApply).count();
+
+  auto tSt = clk::now();
+  for (auto &buf : bufs)
+    for (int si : buf.stations) tickStation(si);
+  _tprof.stationMs = std::chrono::duration<double, std::milli>(clk::now() - tSt).count();
 
   // Heat decay & diffusion — see Heat::DECAY_* / DIFFUSION_* in heat_constants.hpp
+  auto tDecay = clk::now();
   if ((_tickCounter & Heat::DECAY_PERIOD_MASK) == 0) {
     for (int i = 1; i < n; i++) {
       Cell &c = _nodes[i];
@@ -438,6 +446,8 @@ void GameModel::tick() {
       c.heat--;
     }
   }
+  _tprof.decayMs = std::chrono::duration<double, std::milli>(clk::now() - tDecay).count();
+  auto tDiff = clk::now();
   if ((_tickCounter & Heat::DIFFUSION_PERIOD_MASK) == 0) {
     for (int i = 1; i < n; i++) {
       Cell &c = _nodes[i];
@@ -456,9 +466,24 @@ void GameModel::tick() {
       if (th < 255) th++;
     }
   }
+  _tprof.diffuseMs = std::chrono::duration<double, std::milli>(clk::now() - tDiff).count();
 
   _tprof.sweepMs =
       std::chrono::duration<double, std::milli>(clk::now() - wall).count();
+
+  // Running totals across all ticks (for --tick phase reports).
+  _taccum.sweepMs   += _tprof.sweepMs;
+  _taccum.planMs    += _tprof.planMs;
+  _taccum.applyMs   += _tprof.applyMs;
+  _taccum.stationMs += _tprof.stationMs;
+  _taccum.decayMs   += _tprof.decayMs;
+  _taccum.diffuseMs += _tprof.diffuseMs;
+  _taccum.spillMs   += _tprof.spillMs;
+  _taccum.emitMs    += _tprof.emitMs;
+  _taccum.events    += _tprof.events;
+  _taccum.spills    += _tprof.spills;
+  _taccum.items     += _tprof.items;
+  _taccum.nodes      = n;
 }
 
 void GameModel::tickEmpty(int idx) {

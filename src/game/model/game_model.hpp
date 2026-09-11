@@ -99,6 +99,11 @@ class GameModel {
 
   struct TickProfile {
     double sweepMs = 0.0;
+    double planMs = 0.0;     // phase-1 linear node scan (item/station planning)
+    double applyMs = 0.0;    // phase-2 mutations + spill first-wins claims
+    double stationMs = 0.0;  // phase-2 tickStation() loop
+    double decayMs = 0.0;    // heat decay full scan (periodic)
+    double diffuseMs = 0.0;  // heat diffusion full scan (periodic)
     double spillMs = 0.0;
     double emitMs = 0.0;
     int nodes = 0;
@@ -107,6 +112,7 @@ class GameModel {
     int spills = 0;
   };
   TickProfile tickProfile() const { return _tprof; }
+  TickProfile tickAccum() const { return _taccum; }  // sums over all ticks
 
   void setRngOverride(int v) { _rngOverride = v; }
 
@@ -140,6 +146,7 @@ class GameModel {
   uint8_t _dragHeat = 0;
   InteractConfig _interactCfg;
   TickProfile _tprof;
+  TickProfile _taccum{};
   unsigned _prngSeed = 0;
   int _tickCounter = 0;
   int _rngOverride = -1;

@@ -562,6 +562,15 @@ int main(int argc, char *argv[]) {
     double ms = g.benchModelTicks(tickCount);
     fprintf(stderr, "[tick] avg=%.3f ms/tick  nodes=%d  (%d ticks)\n",
             ms, g.modelNodeCount(), tickCount);
+    {
+      const GameModel::TickProfile &ta = g.model().tickAccum();
+      const double k = 1.0 / (double)tickCount;
+      fprintf(stderr,
+              "[tick] ms/tick: plan=%.2f apply=%.2f stations=%.2f "
+              "decay=%.3f diffuse=%.3f  (spillTarget=%.2f)  events/tick=%.0f\n",
+              ta.planMs * k, ta.applyMs * k, ta.stationMs * k,
+              ta.decayMs * k, ta.diffuseMs * k, ta.spillMs * k, ta.events * k);
+    }
     // One-shot node-type histogram: what are the 11.5M nodes actually?
     {
       const auto &m = g.model();
