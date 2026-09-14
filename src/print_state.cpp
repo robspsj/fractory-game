@@ -18,10 +18,10 @@ static int digitWidth(int n) {
 static const char *_itemColors[GameModel::ELEMS] = {
     "\033[1;34m", "\033[1;31m", "\033[1;32m", "\033[1;33m", "\033[1;35m"};
 
-static void printCell(std::ostream &os, int arrayIdx, const Cell &cell,
+static void printCell(std::ostream &os, int arrayIdx, const Cell &cell, CellType type,
                       int idxWidth, int subgridLetterIdx) {
   int contentWidth = 3;
-  switch (cell.content.type) {
+  switch (type) {
   case CellType::ITEM: {
     int id = cell.content.data.item.id;
     const char *col = (id >= 0 && id < GameModel::ELEMS) ? _itemColors[id] : "\033[1;37m";
@@ -68,7 +68,7 @@ void printState(const GameModel &model) {
 
   for (int i = 0; i < total; i++) {
     const Cell &gridCell = model.node(i);
-    if (gridCell.content.type == CellType::GRID) {
+    if (model.typeOf(i) == CellType::GRID) {
         subgridCount++;
         int subSize = gridCell.content.data.grid.gridDimension;
         int subFirst = gridCell.content.data.grid.firstChild;
@@ -79,10 +79,10 @@ void printState(const GameModel &model) {
           for (int k = 0; k < subSize; ++k) {
             int idx = subFirst + j*subSize + k;
             const Cell &cell = model.node(idx);
-            if (cell.content.type == CellType::GRID)
+            if (model.typeOf(idx) == CellType::GRID)
               subSubCount ++;
 
-            printCell(std::cout, idx , cell, idxWidth, subSubCount);
+            printCell(std::cout, idx, cell, model.typeOf(idx), idxWidth, subSubCount);
             std::cout << " ";
           }
           std::cout << std::endl;

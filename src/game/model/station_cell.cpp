@@ -26,7 +26,7 @@ void StationCell::tick(int idx, GameModel &model) {
     int parent = model._nodes[idx].parentId;
     if (parent < 0) return;
     const Cell &parentCell = model._nodes[parent];
-    if (parentCell.content.type != CellType::GRID) return;
+    if (model.typeOf(parent) != CellType::GRID) return;
 
     int dim = parentCell.content.data.grid.gridDimension;
     int first = parentCell.content.data.grid.firstChild;
@@ -38,7 +38,7 @@ void StationCell::tick(int idx, GameModel &model) {
       for (int c = 0; c < st.sizeC; c++) {
         int cellIdx = first + (startRow + r) * dim + (startCol + c);
         Cell &reserved = model._nodes[cellIdx];
-        if (reserved.content.type == CellType::RESERVED &&
+        if (model.typeOf(cellIdx) == CellType::RESERVED &&
             reserved.content.data.reserved.role == ReserveRole::OUTPUT) {
           reserved.content.data.reserved.itemId = recipe->output;
           reserved.content.data.reserved.itemCount = recipe->outputCount;
@@ -52,7 +52,7 @@ void StationCell::tick(int idx, GameModel &model) {
 
 void StationCell::tryStart(int anchorIdx, GameModel &model) {
   Cell &anchor = model._nodes[anchorIdx];
-  if (anchor.content.type != CellType::STATION) return;
+  if (model.typeOf(anchorIdx) != CellType::STATION) return;
   StationData &st = anchor.content.data.station;
   if (st.progress > 0) return;
 
@@ -62,7 +62,7 @@ void StationCell::tryStart(int anchorIdx, GameModel &model) {
   int parent = model._nodes[anchorIdx].parentId;
   if (parent < 0) return;
   const Cell &parentCell = model._nodes[parent];
-  if (parentCell.content.type != CellType::GRID) return;
+  if (model.typeOf(parent) != CellType::GRID) return;
 
   int dim = parentCell.content.data.grid.gridDimension;
   int first = parentCell.content.data.grid.firstChild;
@@ -75,7 +75,7 @@ void StationCell::tryStart(int anchorIdx, GameModel &model) {
     for (int c = 0; c < st.sizeC; c++) {
       int cellIdx = first + (startRow + r) * dim + (startCol + c);
       const Cell &reserved = model._nodes[cellIdx];
-      if (reserved.content.type == CellType::RESERVED &&
+      if (model.typeOf(cellIdx) == CellType::RESERVED &&
           reserved.content.data.reserved.role == ReserveRole::INPUT &&
           reserved.content.data.reserved.itemId != -1) {
         inputsFound++;
@@ -92,7 +92,7 @@ void StationCell::tryStart(int anchorIdx, GameModel &model) {
       for (int c = 0; c < st.sizeC; c++) {
         int cellIdx = first + (startRow + r) * dim + (startCol + c);
         Cell &reserved = model._nodes[cellIdx];
-        if (reserved.content.type == CellType::RESERVED &&
+        if (model.typeOf(cellIdx) == CellType::RESERVED &&
             reserved.content.data.reserved.role == ReserveRole::INPUT &&
             reserved.content.data.reserved.itemId != -1) {
           reserved.content.data.reserved.itemId = -1;
@@ -113,7 +113,7 @@ void StationCell::interact(int idx, GameModel &model) {
   int parent = model._nodes[idx].parentId;
   if (parent < 0) return;
   const Cell &parentCell = model._nodes[parent];
-  if (parentCell.content.type != CellType::GRID) return;
+  if (model.typeOf(parent) != CellType::GRID) return;
 
   int dim = parentCell.content.data.grid.gridDimension;
   int first = parentCell.content.data.grid.firstChild;
@@ -125,7 +125,7 @@ void StationCell::interact(int idx, GameModel &model) {
     for (int c = 0; c < st.sizeC; c++) {
       int cellIdx = first + (startRow + r) * dim + (startCol + c);
       Cell &reserved = model._nodes[cellIdx];
-      if (reserved.content.type == CellType::RESERVED &&
+      if (model.typeOf(cellIdx) == CellType::RESERVED &&
           reserved.content.data.reserved.role == ReserveRole::INPUT &&
           reserved.content.data.reserved.itemId == -1) {
         reserved.content.data.reserved.itemId = model._dragItemId;
@@ -155,7 +155,7 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
   if (anchorCell.parentId < 0) return false;
 
   const Cell &parentCell = model._nodes[anchorCell.parentId];
-  if (parentCell.content.type != CellType::GRID) return false;
+  if (model.typeOf(anchorCell.parentId) != CellType::GRID) return false;
 
   int parentDim = parentCell.content.data.grid.gridDimension;
   int parentFirst = parentCell.content.data.grid.firstChild;
@@ -172,15 +172,14 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
         return false;
       }
       int idx = parentFirst + row * parentDim + col;
-      if (model._nodes[idx].content.type != CellType::EMPTY) {
-        fprintf(stderr, "DEBUG: cell [%d,%d] idx=%d not empty (type=%d)\n", row, col, idx, (int)model._nodes[idx].content.type);
+      if (model.typeOf(idx) != CellType::EMPTY) {
+        fprintf(stderr, "DEBUG: cell [%d,%d] idx=%d not empty (type=%d)\n", row, col, idx, (int)model.typeOf(idx));
         return false;
       }
     }
   }
 
   model.setType(gridIndex, CellType::STATION);
-  anchorCell.content.byteSize = calcByteSize(CellType::STATION);
   anchorCell.content.data.station = {recipeId, 0, recipe->sizeR, recipe->sizeC};
 
   for (int r = 0; r < recipe->sizeR; r++) {
@@ -191,7 +190,6 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
       if (idx == gridIndex) continue;
       int layoutIdx = r * recipe->sizeC + c;
       model.setType(idx, CellType::RESERVED);
-      model._nodes[idx].content.byteSize = calcByteSize(CellType::RESERVED);
       model._nodes[idx].content.data.reserved = {
         gridIndex,
         recipe->layout[layoutIdx],
@@ -206,7 +204,7 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
 void StationCell::remove(int anchorIndex, GameModel &model) {
   if (anchorIndex <= 0 || anchorIndex >= (int)model._nodes.size()) return;
   Cell &anchor = model._nodes[anchorIndex];
-  if (anchor.content.type != CellType::STATION) return;
+  if (model.typeOf(anchorIndex) != CellType::STATION) return;
 
   int sizeR = anchor.content.data.station.sizeR;
   int sizeC = anchor.content.data.station.sizeC;
@@ -214,7 +212,7 @@ void StationCell::remove(int anchorIndex, GameModel &model) {
   int parent = anchor.parentId;
   if (parent < 0) return;
   const Cell &parentCell = model._nodes[parent];
-  if (parentCell.content.type != CellType::GRID) return;
+  if (model.typeOf(parent) != CellType::GRID) return;
 
   int dim = parentCell.content.data.grid.gridDimension;
   int first = parentCell.content.data.grid.firstChild;
@@ -225,8 +223,7 @@ void StationCell::remove(int anchorIndex, GameModel &model) {
   for (int r = 0; r < sizeR; r++) {
     for (int c = 0; c < sizeC; c++) {
       int idx = first + (startRow + r) * dim + (startCol + c);
-      model.setContent(idx, CellContent{});
-      model._nodes[idx].content.byteSize = calcByteSize(CellType::EMPTY);
+      model.putContent(idx, CellType::EMPTY, CellContent{});
     }
   }
 }

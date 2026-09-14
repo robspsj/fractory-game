@@ -39,16 +39,16 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       const auto &n = model.node(idx);
       int actualId;
       int actualCount;
-      if (n.content.type == CellType::ITEM) {
+      if (model.typeOf(idx) == CellType::ITEM) {
         actualId = n.content.data.item.id;
         actualCount = n.content.data.item.count;
-      } else if (n.content.type == CellType::GRID) {
+      } else if (model.typeOf(idx) == CellType::GRID) {
         actualId = -2;
         actualCount = -1;
-      } else if (n.content.type == CellType::STATION) {
+      } else if (model.typeOf(idx) == CellType::STATION) {
         actualId = -3;
         actualCount = 0;
-      } else if (n.content.type == CellType::RESERVED) {
+      } else if (model.typeOf(idx) == CellType::RESERVED) {
         actualId = -4;
         actualCount = 0;
       } else {
@@ -83,7 +83,7 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       std::cout << "Action: pick up from [" << step.row << "," << step.col
                 << "]" << std::endl;
       int idx = model.rootChild(step.row, step.col);
-      if (model.node(idx).content.type == CellType::ITEM) {
+      if (model.typeOf(idx) == CellType::ITEM) {
         model.pickUp(idx, model.node(idx).content.data.item.count);
       }
       printState(model);
@@ -119,7 +119,7 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
     } else if (step.type == "add_input") {
       int idx = model.rootChild(step.row, step.col);
       Cell &cell = model.node(idx);
-      if (cell.content.type == CellType::RESERVED) {
+      if (model.typeOf(idx) == CellType::RESERVED) {
         cell.content.data.reserved.itemId = step.expectedId;
         cell.content.data.reserved.itemCount = step.expectedCount;
         // Trigger station start check
@@ -130,7 +130,7 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
     } else if (step.type == "expect_reserved") {
       int idx = model.rootChild(step.row, step.col);
       const Cell &n = model.node(idx);
-      if (n.content.type == CellType::RESERVED) {
+      if (model.typeOf(idx) == CellType::RESERVED) {
         int actualId = n.content.data.reserved.itemId;
         int actualCount = n.content.data.reserved.itemCount;
         if (actualId != step.expectedId || actualCount != step.expectedCount) {
@@ -144,7 +144,7 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
         }
       } else {
         std::cerr << "Expectation FAILED: Cell [" << step.row << "," << step.col
-                  << "] is not RESERVED (type=" << (int)n.content.type << ")" << std::endl;
+                  << "] is not RESERVED (type=" << (int)model.typeOf(idx) << ")" << std::endl;
         return false;
       }
     }

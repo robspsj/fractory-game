@@ -4,7 +4,6 @@
 void GridCell::populateWithSubgrid(int cellIndex, int size, std::vector<Cell> &nodes,
                                    std::vector<uint8_t> &types) {
   auto &cell = nodes[cellIndex];
-  cell.content.type = CellType::GRID;
   types[cellIndex] = (uint8_t)CellType::GRID;
   cell.content.data.grid.gridDimension = size;
   cell.content.data.grid.firstChild = (int)nodes.size();
@@ -12,7 +11,6 @@ void GridCell::populateWithSubgrid(int cellIndex, int size, std::vector<Cell> &n
   for (int j = 0; j < size * size; j++) {
     Cell child;
     child.parentId = cellIndex;
-    child.content.type = CellType::EMPTY;
     nodes.push_back(child);
     types.push_back((uint8_t)CellType::EMPTY);
   }

@@ -13,7 +13,7 @@ void AnchorManager::focusTransform(GameView &view, int targetIdx) {
   const Cell &cell = view._model.node(targetIdx);
   view._anchorIndex = targetIdx;
   view._anchorSize =
-      (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
+      (view._model.typeOf(targetIdx) == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
   view._anchorDepth = 0;
   for (int i = view._anchorIndex; view._model.node(i).parentId >= 0; i = view._model.node(i).parentId)
     view._anchorDepth++;
@@ -28,7 +28,7 @@ void AnchorManager::resetView(GameView &view) {
   view._anchorIndex = 0;
   const Cell &cell = view._model.node(0);
   view._anchorSize =
-      (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
+      (view._model.typeOf(0) == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
   view._anchorDepth = 0;
   view._zoom = view._fitZoom;
   view._panX = 0.0f;
@@ -60,7 +60,7 @@ bool AnchorManager::unfocusOneLevel(GameView &view) {
   if (parentIdx < 0) return false;
 
   const Cell &parent = view._model.node(parentIdx);
-  if (parent.content.type != CellType::GRID) return false;
+  if (view._model.typeOf(parentIdx) != CellType::GRID) return false;
 
   int gridDim = parent.content.data.grid.gridDimension;
   int firstChild = parent.content.data.grid.firstChild;

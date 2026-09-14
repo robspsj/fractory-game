@@ -25,7 +25,7 @@ Rect LayoutEngine::cellWorldCenter(const GameView &view, int targetIdx) {
 
   while (nodeIdx != targetIdx) {
     const Cell& node = view._model.node(nodeIdx);
-    if (node.content.type != CellType::GRID) break;
+    if (view._model.typeOf(nodeIdx) != CellType::GRID) break;
 
     int gridDim = node.content.data.grid.gridDimension;
     int firstChild = node.content.data.grid.firstChild;
@@ -79,7 +79,7 @@ bool LayoutEngine::cellCenterNDC(const GameView &view, int nodeIndex, float &nx,
     const int p = view._model.node(child).parentId;
     if (p < 0) return false;
     const Cell &pc = view._model.node(p);
-    if (pc.content.type != CellType::GRID) return false;
+    if (view._model.typeOf(p) != CellType::GRID) return false;
     int dim = pc.content.data.grid.gridDimension;
     int first = pc.content.data.grid.firstChild;
     int off = child - first;
@@ -116,7 +116,7 @@ bool LayoutEngine::cellCenterNDC(const GameView &view, int nodeIndex, float &nx,
 int LayoutEngine::variationOf(const GameView &view, int nodeIndex) {
   if (nodeIndex < 0 || nodeIndex >= view._model.totalNodes()) return 0;
   const int p = view._model.node(nodeIndex).parentId;
-  if (p >= 0 && view._model.node(p).content.type == CellType::GRID)
+  if (p >= 0 && view._model.typeOf(p) == CellType::GRID)
     return view._model.node(p).content.data.grid.variation;
   return 0;
 }

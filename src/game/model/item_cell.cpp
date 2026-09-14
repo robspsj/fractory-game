@@ -14,7 +14,7 @@ int ItemCell::findSpillTarget(int idx, GameModel &model) {
   const int dirs[4] = {a.n[ADJ_UP], a.n[ADJ_DOWN], a.n[ADJ_LEFT], a.n[ADJ_RIGHT]};
   for (int ni : dirs) {
     if (ni >= 0 && ni < (int)model._nodes.size() &&
-        model._nodes[ni].content.type == CellType::EMPTY) {
+        model.typeOf(ni) == CellType::EMPTY) {
       candidates.push_back(ni);
     }
   }
@@ -62,7 +62,7 @@ void ItemCell::interact(int idx, GameModel &model) {
   for (int nIdx : dirs) {
     if (nIdx < 0) continue;
     const Cell &neighbor = model._nodes[nIdx];
-    if (neighbor.content.type != CellType::ITEM) continue;
+    if (model.typeOf(nIdx) != CellType::ITEM) continue;
 
     const ReactionRule *rule =
         model._interactCfg.findReaction(cell.content.data.item.id, neighbor.content.data.item.id);

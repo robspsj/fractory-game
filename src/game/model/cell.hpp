@@ -36,9 +36,10 @@ struct ReservedData {
   int itemCount;
 };
 
+// Type is tracked separately (GameModel::_type, parallel to the node array)
+// and byteSize was fully derivable from the type, so CellContent is now just
+// the payload union. 24-byte cells instead of 32.
 struct CellContent {
-  CellType type = CellType::EMPTY;
-  int byteSize = 0;
   union {
     ItemData item;
     GridData grid;
@@ -46,24 +47,11 @@ struct CellContent {
     ReservedData reserved;
   } data;
 
-  CellContent() : type(CellType::EMPTY), byteSize(0) {
-    data.item = {-1, 0};
-  }
+  CellContent() { data.item = {-1, 0}; }
 };
 
 struct Cell {
   int parentId = -1;
   CellContent content;
-  uint8_t heat = 0; // 0-255, only meaningful when content.type != GRID (composite)
+  uint8_t heat = 0; // 0-255, only meaningful when GameModel::typeOf() != GRID
 };
-
-inline int calcByteSize(CellType type) {
-  switch (type) {
-    case CellType::EMPTY:    return 10; // +1 heat
-    case CellType::ITEM:     return 14;
-    case CellType::GRID:     return 13; // composite: no heat
-    case CellType::STATION:  return 18;
-    case CellType::RESERVED: return 19;
-  }
-  return 0;
-}

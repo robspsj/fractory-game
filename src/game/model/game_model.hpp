@@ -38,6 +38,7 @@ class GameModel {
 
   const Cell &node(int index) const { return _nodes[index]; }
   Cell &node(int index) { return _nodes[index]; }
+  CellType typeOf(int index) const { return (CellType)_type[index]; }
 
   int rootChild(int row, int col) const {
     return _nodes[0].content.data.grid.firstChild + row * _nodes[0].content.data.grid.gridDimension +
@@ -137,15 +138,12 @@ class GameModel {
   uint32_t prng(int idx, int salt) const;
 
   // Single choke-point for node type/content changes: keeps the compact
-  // parallel _type map in sync (the tick plan phase prescans _type without
-  // touching Cell cache lines). Never write content.type directly.
-  void setType(int idx, CellType t) {
-    _nodes[idx].content.type = t;
-    _type[idx] = (uint8_t)t;
-  }
-  void setContent(int idx, const CellContent &c) {
+  // parallel _type map authoritative (the tick plan phase prescans it without
+  // touching Cell cache lines). Never write _type or content directly here.
+  void setType(int idx, CellType t) { _type[idx] = (uint8_t)t; }
+  void putContent(int idx, CellType t, const CellContent &c) {
     _nodes[idx].content = c;
-    _type[idx] = (uint8_t)c.type;
+    _type[idx] = (uint8_t)t;
   }
 
   void rebuildAdjacency();

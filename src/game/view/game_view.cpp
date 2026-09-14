@@ -41,7 +41,7 @@ static uint64_t nowMs() {
 GameView::GameView(GameModel &model, const Config &cfg) : _model(model), _showAnchor(cfg.showAnchor) {
   AssetManager::loadItemConfig(*this);
   const Cell &cell = _model.node(_anchorIndex);
-  _anchorSize = (cell.content.type == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
+  _anchorSize = (_model.typeOf(_anchorIndex) == CellType::GRID) ? cell.content.data.grid.gridDimension : GameModel::GRID;
   _anchorDepth = 0;
   for (int i = _anchorIndex; _model.node(i).parentId >= 0; i = _model.node(i).parentId) _anchorDepth++;
   for (int i = 0; i < GameModel::ELEMS; i++) IconRenderer::buildIcon(*this, i, _elemColors[i]);

@@ -116,7 +116,7 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
   view.setNdc(nodeIndex, r.cx(), r.cy(), r.halfW());
   const Cell &cell = view._model.node(nodeIndex);
   const bool isAnchor = view._showAnchor && nodeIndex == view._anchorIndex;
-  switch (cell.content.type) {
+  switch (view._model.typeOf(nodeIndex)) {
   case CellType::EMPTY: {
 #if !defined(__EMSCRIPTEN__)
     bool drewTile = false;
@@ -177,7 +177,7 @@ void CellRenderer::renderAnchor(GameView &view, int anchorIndex, Rect r, int dep
   bool coversScreen = r.ox <= -1.0f && r.oy <= -1.0f && r.ox + r.w >= 1.0f && r.oy + r.h >= 1.0f;
   if (!coversScreen && cell.parentId >= 0) {
     const Cell &parent = view._model.node(cell.parentId);
-    if (parent.content.type == CellType::GRID) {
+    if (view._model.typeOf(cell.parentId) == CellType::GRID) {
       int parentDim = parent.content.data.grid.gridDimension;
       int firstChild = parent.content.data.grid.firstChild;
       int offset = anchorIndex - firstChild;
@@ -197,6 +197,6 @@ void CellRenderer::renderAnchor(GameView &view, int anchorIndex, Rect r, int dep
   // Mark anchor node itself as visible and cache NDC
   view.setVisible(anchorIndex);
   view.setNdc(anchorIndex, r.cx(), r.cy(), r.halfW());
-  if (cell.content.type == CellType::GRID) renderGrid(view, anchorIndex, r, depth, excludeChild);
+  if (view._model.typeOf(anchorIndex) == CellType::GRID) renderGrid(view, anchorIndex, r, depth, excludeChild);
   else renderCell(view, anchorIndex, r, depth);
 }

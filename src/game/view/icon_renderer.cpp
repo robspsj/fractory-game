@@ -104,7 +104,7 @@ void IconRenderer::drawIcon(GameView &view, float cx, float cy, int icon, const 
   uint8_t heat = 0;
   if (nodeIndex >= 0 && nodeIndex < view._model.totalNodes()) {
     const Cell &hc = view._model.node(nodeIndex);
-    if (hc.content.type != CellType::GRID) heat = hc.heat;
+    if (view._model.typeOf(nodeIndex) != CellType::GRID) heat = hc.heat;
   } else if (view._model.hasDrag()) {
     heat = view._model.dragHeat();
   }

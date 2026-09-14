@@ -577,13 +577,13 @@ int main(int argc, char *argv[]) {
       long cnt[5] = {0, 0, 0, 0, 0}; // EMPTY,ITEM,GRID,STATION,RESERVED
       int maxDepth = 0;
       for (int i = 0; i < m.totalNodes(); i++) {
-        int t = (int)m.node(i).content.type;
+        int t = (int)m.typeOf(i);
         if (t >= 0 && t < 5) cnt[t]++;
         // depth = number of GRID ancestors (walk parentId chain, cheap-ish)
-        if (m.node(i).content.type == CellType::GRID) {
+        if (m.typeOf(i) == CellType::GRID) {
           int d = 0, p = m.node(i).parentId;
           while (p > 0) {
-            if (m.node(p).content.type == CellType::GRID) d++;
+            if (m.typeOf(p) == CellType::GRID) d++;
             p = m.node(p).parentId;
           }
           if (d > maxDepth) maxDepth = d;

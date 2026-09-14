@@ -29,7 +29,7 @@ void GameModel::init(const Config &cfg) {
 
   Cell root;
   _nodes.push_back(root);
-  _type.push_back((uint8_t)root.content.type);
+  _type.push_back((uint8_t)CellType::EMPTY);
 
   if (cfg.emptyGrid) {
     initEmptyGrid(cfg.initialGridSize);
@@ -90,7 +90,7 @@ void GameModel::initRandomGrid(const Config &cfg) {
   }
   // Seed visible heat for demo — see Heat::INIT_* in heat_constants.hpp
   for (int j = 1; j < (int)_nodes.size(); j++) {
-    if (_nodes[j].content.type == CellType::GRID) continue;
+    if (typeOf(j) == CellType::GRID) continue;
     if ((std::rand() % 100) < Heat::INIT_WARM_CHANCE_PCT)
       _nodes[j].heat = (uint8_t)(Heat::INIT_WARM_MIN + std::rand() % (Heat::INIT_WARM_MAX - Heat::INIT_WARM_MIN + 1));
   }
@@ -102,10 +102,10 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
 
   Cell &cell = _nodes[gridIndex];
   if (cell.parentId < 0) return false;
-  if (cell.content.type != CellType::EMPTY) return false;
+  if (typeOf(gridIndex) != CellType::EMPTY) return false;
 
   const Cell &parentCell = _nodes[cell.parentId];
-  if (parentCell.content.type != CellType::GRID) return false;
+  if (typeOf(cell.parentId) != CellType::GRID) return false;
 
   int parentDim = parentCell.content.data.grid.gridDimension;
   int parentFirst = parentCell.content.data.grid.firstChild;
@@ -122,12 +122,11 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
   for (int r = 0; r < recipe.sizeR; r++) {
     for (int c = 0; c < recipe.sizeC; c++) {
       int idx = parentFirst + (startRow + r) * parentDim + (startCol + c);
-      if (_nodes[idx].content.type != CellType::EMPTY) return false;
+      if (typeOf(idx) != CellType::EMPTY) return false;
     }
   }
 
   setType(gridIndex, CellType::STATION);
-  cell.content.byteSize = calcByteSize(CellType::STATION);
   cell.content.data.station = {recipe.id, 0, recipe.sizeR, recipe.sizeC};
 
   for (int r = 0; r < recipe.sizeR; r++) {
@@ -138,7 +137,6 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
       if (idx == gridIndex) continue;
       int layoutIdx = r * recipe.sizeC + c;
       setType(idx, CellType::RESERVED);
-      _nodes[idx].content.byteSize = calcByteSize(CellType::RESERVED);
       _nodes[idx].content.data.reserved = {
         gridIndex,
         recipe.layout[layoutIdx],
@@ -160,7 +158,7 @@ void GameModel::populateWithSubgrid(int cellIndex, int size) {
 void GameModel::rebuildAdjacency() {
   assert(_type.size() == _nodes.size());
   _adj.assign(_nodes.size(), Adjacency{});
-  if (_nodes.empty() || _nodes[0].content.type != CellType::GRID) return;
+  if (_nodes.empty() || typeOf(0) != CellType::GRID) return;
   const double R = _nodes[0].content.data.grid.gridDimension;  // root spans [0,R)²
 
   // Deepest cell containing world point (px,py), or -1. Iterative descend.
@@ -170,7 +168,7 @@ void GameModel::rebuildAdjacency() {
     for (;;) {
       if (!(px >= x && px < x + w && py >= y && py < y + h)) return -1;
       const Cell &gn = _nodes[g];
-      if (gn.content.type != CellType::GRID) return g;
+      if (_type[g] != (uint8_t)CellType::GRID) return g;
       const int d = gn.content.data.grid.gridDimension;
       const int f = gn.content.data.grid.firstChild;
       const double cw = w / d, ch = h / d;
@@ -188,7 +186,7 @@ void GameModel::rebuildAdjacency() {
   // container falls through to leafAt().
   auto side = [&](int leafCell, int dir, double px, double py) -> int {
     const int g = _nodes[leafCell].parentId;
-    if (g < 0 || _nodes[g].content.type != CellType::GRID) return leafAt(px, py);
+    if (g < 0 || _type[g] != (uint8_t)CellType::GRID) return leafAt(px, py);
     const Cell &gn = _nodes[g];
     const int d = gn.content.data.grid.gridDimension;
     const int f = gn.content.data.grid.firstChild;
@@ -201,7 +199,7 @@ void GameModel::rebuildAdjacency() {
       case ADJ_LEFT:  if (c > 0)     sib = f + r * d + (c - 1); break;
       case ADJ_RIGHT: if (c < d - 1) sib = f + r * d + (c + 1); break;
     }
-    if (sib >= 0 && _nodes[sib].content.type != CellType::GRID) return sib;
+    if (sib >= 0 && _type[sib] != (uint8_t)CellType::GRID) return sib;
     return leafAt(px, py);
   };
 
@@ -211,7 +209,7 @@ void GameModel::rebuildAdjacency() {
     Frame fr = stack.back();
     stack.pop_back();
     const Cell &gn = _nodes[fr.cell];
-    if (gn.content.type != CellType::GRID) continue;
+    if (_type[fr.cell] != (uint8_t)CellType::GRID) continue;
     const int d = gn.content.data.grid.gridDimension;
     const int f = gn.content.data.grid.firstChild;
     const double cw = fr.w / d, ch = fr.h / d;
@@ -220,7 +218,7 @@ void GameModel::rebuildAdjacency() {
       for (int c = 0; c < d; c++) {
         const int child = f + r * d + c;
         const double x = fr.x + c * cw, y = fr.y + r * ch;
-        if (_nodes[child].content.type == CellType::GRID) {
+        if (_type[child] == (uint8_t)CellType::GRID) {
           stack.push_back({child, x, y, cw, ch});
           continue;
         }
@@ -239,7 +237,7 @@ void GameModel::rebuildAdjacency() {
 void GameModel::pickUp(int nodeIndex, int amount) {
   if (nodeIndex <= 0 || nodeIndex >= (int)_nodes.size())
     return;
-  if (_nodes[nodeIndex].content.type != CellType::ITEM)
+  if (typeOf(nodeIndex) != CellType::ITEM)
     return;
 
   _dragSrcIndex = nodeIndex;
@@ -249,7 +247,6 @@ void GameModel::pickUp(int nodeIndex, int amount) {
   _nodes[nodeIndex].content.data.item.count -= _dragAmount;
   if (_nodes[nodeIndex].content.data.item.count <= 0) {
     setType(nodeIndex, CellType::EMPTY);
-    _nodes[nodeIndex].content.byteSize = calcByteSize(CellType::EMPTY);
   }
 }
 
@@ -258,23 +255,22 @@ void GameModel::drop(int nodeIndex) {
     return;
 
   CellContent dragCell;
-  dragCell.type = CellType::ITEM;
   dragCell.data.item.id = _dragItemId;
   dragCell.data.item.count = _dragAmount;
-  dragCell.byteSize = calcByteSize(CellType::ITEM);
 
   if (nodeIndex > 0 && nodeIndex < (int)_nodes.size()) {
-    if (_nodes[nodeIndex].content.type == CellType::ITEM &&
+    const CellType tgtType = typeOf(nodeIndex);
+    if (tgtType == CellType::ITEM &&
         _nodes[nodeIndex].content.data.item.id == _dragItemId) {
       _nodes[nodeIndex].content.data.item.count += _dragAmount;
       // keep heat with cell, not item — no heat change on merge
-    } else if (_nodes[nodeIndex].content.type == CellType::EMPTY) {
-      setContent(nodeIndex, dragCell);
+    } else if (tgtType == CellType::EMPTY) {
+      putContent(nodeIndex, CellType::ITEM, dragCell);
       // keep target's heat (cell-local), don't transfer item heat
-    } else if (_nodes[nodeIndex].content.type == CellType::ITEM) {
+    } else if (tgtType == CellType::ITEM) {
       CellContent temp = _nodes[nodeIndex].content;
-      setContent(nodeIndex, dragCell);
-      setContent(_dragSrcIndex, temp);
+      putContent(nodeIndex, CellType::ITEM, dragCell);
+      putContent(_dragSrcIndex, CellType::ITEM, temp);
       // heats stay with cells
       _dragSrcIndex = -1;
       _dragAmount = 0;
@@ -286,8 +282,7 @@ void GameModel::drop(int nodeIndex) {
       return;
     }
   } else {
-    setContent(_dragSrcIndex, dragCell);
-    _nodes[_dragSrcIndex].content.byteSize = calcByteSize(CellType::ITEM);
+    putContent(_dragSrcIndex, CellType::ITEM, dragCell);
   }
 
   _dragSrcIndex = -1;
@@ -300,11 +295,9 @@ void GameModel::cancelDrag() {
   if (!hasDrag())
     return;
   CellContent c;
-  c.type = CellType::ITEM;
   c.data.item.id = _dragItemId;
   c.data.item.count = _dragAmount;
-  c.byteSize = calcByteSize(CellType::ITEM);
-  setContent(_dragSrcIndex, c);
+  putContent(_dragSrcIndex, CellType::ITEM, c);
   // heat stays with cell, dragged heat is just visual; no need to restore
   _dragSrcIndex = -1;
   _dragAmount = 0;
@@ -321,7 +314,7 @@ void GameModel::drainEvents(std::vector<CellEvent> &out) {
 void GameModel::interact(int idx) {
   if (idx <= 0 || idx >= (int)_nodes.size()) return;
 
-  CellType t = _nodes[idx].content.type;
+  CellType t = typeOf(idx);
   switch (t) {
     case CellType::EMPTY: EmptyCell::interact(idx, *this); break;
     case CellType::ITEM: ItemCell::interact(idx, *this); break;
@@ -417,7 +410,7 @@ void GameModel::tick() {
         cl.content.data.item.count = m.count;
       emitEvent(m.ev, m.idx, m.item);
       // heat feedback from item activity — see Heat::ITEM_MUT_* / SPILL_*
-      if (cl.content.type != CellType::GRID) {
+      if (typeOf(m.idx) != CellType::GRID) {
         int dh = Heat::ITEM_MUT_BASE + (cl.heat >> Heat::ITEM_MUT_SCALE_SHIFT);
         int nh = (int)cl.heat + dh;
         if (nh > 255) nh = 255;
@@ -447,7 +440,7 @@ void GameModel::tick() {
   if ((_tickCounter & Heat::DECAY_PERIOD_MASK) == 0) {
     for (int i = 1; i < n; i++) {
       Cell &c = _nodes[i];
-      if (c.content.type == CellType::GRID) continue;
+      if (_type[i] == (uint8_t)CellType::GRID) continue;
       if (c.heat == 0) continue;
       c.heat--;
     }
@@ -457,7 +450,7 @@ void GameModel::tick() {
   if ((_tickCounter & Heat::DIFFUSION_PERIOD_MASK) == 0) {
     for (int i = 1; i < n; i++) {
       Cell &c = _nodes[i];
-      if (c.content.type == CellType::GRID) continue;
+      if (_type[i] == (uint8_t)CellType::GRID) continue;
       if (c.heat <= 1) continue;
       if (( (uint32_t)i * 2654435761u + (uint32_t)_tickCounter) & Heat::DIFFUSION_SPARSE_MASK) continue;
       // Spatial diffusion: pass heat to one random world-space neighbour
@@ -466,7 +459,7 @@ void GameModel::tick() {
       uint32_t r = (uint32_t)i * 1103515245u + (uint32_t)_tickCounter * 134775813u;
       int tgt = a.n[(int)(r & 3u)];
       if (tgt < 0 || tgt >= n) continue;
-      if (_nodes[tgt].content.type == CellType::GRID) continue;
+      if (_type[tgt] == (uint8_t)CellType::GRID) continue;
       c.heat--;
       uint8_t &th = _nodes[tgt].heat;
       if (th < 255) th++;
@@ -492,14 +485,12 @@ void GameModel::tick() {
   _taccum.nodes      = n;
 
 #ifdef FRACTORY_TYPECHECK
-  // Dev build (-DFRACTORY_TYPECHECK=1): the plan phase trusts _type blindly;
-  // catch any site that changed content.type without setType()/setContent().
-  for (int i = 0; i < n; i++) {
-    if (_type[i] != (uint8_t)_nodes[i].content.type) {
-      fprintf(stderr, "TYPEMAP DESYNC @%d: map=%u cell=%u\n", i,
-              (unsigned)_type[i], (unsigned)_nodes[i].content.type);
-      abort();
-    }
+  // Dev build (-DFRACTORY_TYPECHECK=1): type lives ONLY in _type now, so a
+  // desync is unrepresentable — the residual risk is length skew from a node
+  // push that forgot to mirror into _type (the view would read garbage).
+  if ((int)_type.size() != n) {
+    fprintf(stderr, "TYPEMAP LENGTH SKEW: nodes=%d types=%zu\n", n, _type.size());
+    abort();
   }
 #endif
 }
@@ -532,7 +523,7 @@ void GameModel::setFullState(int *inData) {
     int id = inData[i * 2];
     int count = inData[i * 2 + 1];
     if (id == -2) {
-      if (_nodes[idx].content.type != CellType::GRID) {
+      if (typeOf(idx) != CellType::GRID) {
         setType(idx, CellType::GRID);
         _nodes[idx].content.data.grid.firstChild = (int)_nodes.size();
         _nodes[idx].content.data.grid.gridDimension = 3;
@@ -540,7 +531,6 @@ void GameModel::setFullState(int *inData) {
         for (int j = 0; j < 9; j++) {
           Cell child;
           child.parentId = idx;
-          child.content.type = CellType::EMPTY;
           _nodes.push_back(child);
           _type.push_back((uint8_t)CellType::EMPTY);
         }
@@ -562,10 +552,10 @@ void GameModel::getFullState(int *outData) const {
   int subgridIdx = 0;
   for (int i = 0; i < n; i++) {
     int idx = first + i;
-    if (_nodes[idx].content.type == CellType::ITEM) {
+    if (typeOf(idx) == CellType::ITEM) {
       outData[i * 2] = _nodes[idx].content.data.item.id;
       outData[i * 2 + 1] = _nodes[idx].content.data.item.count;
-    } else if (_nodes[idx].content.type == CellType::GRID) {
+    } else if (typeOf(idx) == CellType::GRID) {
       outData[i * 2] = -2;
       outData[i * 2 + 1] = subgridIdx++;
     } else {
@@ -582,7 +572,7 @@ int GameModel::getSubgridState(int subgridSeqIndex, int *outData,
   int subgridIdx = 0;
   for (int i = 0; i < n; i++) {
     int idx = first + i;
-    if (_nodes[idx].content.type == CellType::GRID) {
+    if (typeOf(idx) == CellType::GRID) {
       if (subgridIdx == subgridSeqIndex) {
         int childFirst = _nodes[idx].content.data.grid.firstChild;
         int childSize = _nodes[idx].content.data.grid.gridDimension;
@@ -590,10 +580,10 @@ int GameModel::getSubgridState(int subgridSeqIndex, int *outData,
         int childCount = childSize * childSize;
         for (int ci = 0; ci < childCount; ci++) {
           int cidx = childFirst + ci;
-          if (_nodes[cidx].content.type == CellType::ITEM) {
+          if (typeOf(cidx) == CellType::ITEM) {
             outData[ci * 2] = _nodes[cidx].content.data.item.id;
             outData[ci * 2 + 1] = _nodes[cidx].content.data.item.count;
-          } else if (_nodes[cidx].content.type == CellType::GRID) {
+          } else if (typeOf(cidx) == CellType::GRID) {
             outData[ci * 2] = -2;
             outData[ci * 2 + 1] = -1;
           } else {
@@ -625,18 +615,18 @@ void GameModel::removeStation(int anchorIndex) {
 
 uint8_t GameModel::heatAt(int idx) const {
   if (idx < 0 || idx >= (int)_nodes.size()) return 0;
-  if (_nodes[idx].content.type == CellType::GRID) return 0;
+  if (typeOf(idx) == CellType::GRID) return 0;
   return _nodes[idx].heat;
 }
 void GameModel::setHeat(int idx, uint8_t h) {
   if (idx < 0 || idx >= (int)_nodes.size()) return;
-  if (_nodes[idx].content.type == CellType::GRID) return;
+  if (typeOf(idx) == CellType::GRID) return;
   _nodes[idx].heat = h;
 }
 void GameModel::addHeat(int idx, int delta) {
   if (idx < 0 || idx >= (int)_nodes.size()) return;
   Cell &c = _nodes[idx];
-  if (c.content.type == CellType::GRID) return;
+  if (typeOf(idx) == CellType::GRID) return;
   int nh = (int)c.heat + delta;
   if (nh < 0) nh = 0;
   if (nh > 255) nh = 255;

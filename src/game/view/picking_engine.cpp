@@ -25,7 +25,7 @@ int PickingEngine::resolveCellAt(const GameView &view, float worldX, float world
   int childIdx = view._model.node(nodeIndex).content.data.grid.firstChild + row * gridDim + col;
   const Cell &child = view._model.node(childIdx);
 
-  if (child.content.type == CellType::GRID) {
+  if (view._model.typeOf(childIdx) == CellType::GRID) {
     int childDim = child.content.data.grid.gridDimension;
     return resolveCellAt(view, worldX, worldY, childIdx, childDim,
                          {centerX - half, centerY - half, childCellSize, childCellSize});
@@ -37,7 +37,7 @@ int PickingEngine::resolveCellAt(const GameView &view, float worldX, float world
 int PickingEngine::resolveCellAtWithSizeCheck(const GameView &view, float worldX, float worldY,
                                               int nodeIndex, int gridDim, Rect r) {
   const Cell &cell = view._model.node(nodeIndex);
-  if (cell.content.type != CellType::GRID) return nodeIndex;
+  if (view._model.typeOf(nodeIndex) != CellType::GRID) return nodeIndex;
 
   float childCellSize = r.w / (gridDim + (gridDim - 1) * view._gapRatio);
 
@@ -64,7 +64,7 @@ int PickingEngine::resolveCellAtWithSizeCheck(const GameView &view, float worldX
   int childIdx = cell.content.data.grid.firstChild + row * gridDim + col;
   const Cell &child = view._model.node(childIdx);
 
-  if (child.content.type == CellType::GRID) {
+  if (view._model.typeOf(childIdx) == CellType::GRID) {
     return resolveCellAtWithSizeCheck(view, worldX, worldY, childIdx,
                                       child.content.data.grid.gridDimension,
                                       {centerX - half, centerY - half, childCellSize, childCellSize});
@@ -78,7 +78,7 @@ int PickingEngine::resolveCenterCell(const GameView &view, float worldX, float w
 
   if (anchorR.contains(worldX, worldY)) {
     const Cell &anchor = view._model.node(view._anchorIndex);
-    if (anchor.content.type != CellType::GRID) return view._anchorIndex;
+    if (view._model.typeOf(view._anchorIndex) != CellType::GRID) return view._anchorIndex;
     return resolveCellAtWithSizeCheck(view, worldX, worldY, view._anchorIndex, view._anchorSize, anchorR);
   }
 
@@ -86,7 +86,7 @@ int PickingEngine::resolveCenterCell(const GameView &view, float worldX, float w
   if (parentIdx < 0) return view._anchorIndex;
 
   const Cell &parent = view._model.node(parentIdx);
-  if (parent.content.type != CellType::GRID) return view._anchorIndex;
+  if (view._model.typeOf(parentIdx) != CellType::GRID) return view._anchorIndex;
 
   int parentDim = parent.content.data.grid.gridDimension;
   int firstChild = parent.content.data.grid.firstChild;
@@ -114,7 +114,7 @@ int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float wor
 
   if (r.contains(worldX, worldY)) {
     const Cell &anchor = view._model.node(view._anchorIndex);
-    if (anchor.content.type != CellType::GRID) leafIdx = view._anchorIndex;
+    if (view._model.typeOf(view._anchorIndex) != CellType::GRID) leafIdx = view._anchorIndex;
     else leafIdx = resolveCellAt(view, worldX, worldY, view._anchorIndex, view._anchorSize, r);
   } else {
     int currIdx = view._anchorIndex;
@@ -125,7 +125,7 @@ int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float wor
       if (parentIdx < 0) break;
 
       const Cell &parent = view._model.node(parentIdx);
-      if (parent.content.type != CellType::GRID) break;
+      if (view._model.typeOf(parentIdx) != CellType::GRID) break;
 
       int parentDim = parent.content.data.grid.gridDimension;
       int firstChild = parent.content.data.grid.firstChild;
@@ -154,7 +154,7 @@ int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float wor
     }
   }
 
-  if (leafIdx >= 0 && view._model.node(leafIdx).content.type == CellType::RESERVED) {
+  if (leafIdx >= 0 && view._model.typeOf(leafIdx) == CellType::RESERVED) {
     return view._model.node(leafIdx).content.data.reserved.anchorIndex;
   }
 

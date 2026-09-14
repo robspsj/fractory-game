@@ -1,25 +1,10 @@
 # Heat — Design & Behaviour
 
-> Single `unsigned char` (0-255) per **non-composite** cell (`EMPTY`, `ITEM`, `STATION`, `RESERVED`). `GRID` is composite and carries no heat. Costs exactly 1 byte of the limited `CellContent::byteSize` budget.
+> Single `unsigned char` (0-255) per **non-composite** cell (`EMPTY`, `ITEM`, `STATION`, `RESERVED`). `GRID` is composite and carries no heat.
 
 ## 1. Storage
 
-| `CellType` | `calcByteSize` before | after | `Cell::heat` |
-|---|---|---|---|
-| `EMPTY` | 9 | **10** | `heat` |
-| `ITEM` | 13 | **14** | `heat` |
-| `GRID` | 13 | 13 | — (ignored) |
-| `STATION` | 17 | **18** | `heat` |
-| `RESERVED` | 18 | **19** | `heat` |
-
-```cpp
-// src/game/model/cell.hpp:53
-struct Cell {
-  int parentId = -1;
-  CellContent content; // discriminated union
-  uint8_t heat = 0;   // 0..255, cell-local
-};
-```
+`heat` is a `uint8_t` member of `Cell`; `sizeof(Cell)` is 24 bytes (the payload union plus `parentId`/`heat`). The cell's type is **not** stored in the cell — it lives in the parallel `GameModel::_type` byte map that the tick plan phase prescans (see `AGENTS.md`). `GRID` entries ignore `heat` (padding).
 
 API in `GameModel` (`src/game/model/game_model.hpp:74` / `.cpp:504`):
 

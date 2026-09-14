@@ -138,7 +138,7 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
   if (leafIdx >= 0) {
     int rootRow, rootCol;
     _view->screenToGrid(mousePx, mousePy, winW, winH, rootRow, rootCol);
-    CellType leafType = _model->node(leafIdx).content.type;
+    CellType leafType = _model->typeOf(leafIdx);
     if (leafType == CellType::GRID) {
       if (_mouseState != MouseState::HOVERING_GRID_FOR_FOCUS) {
         _mouseState = MouseState::HOVERING_GRID_FOR_FOCUS;
@@ -194,7 +194,7 @@ void Game::handleTap(int mousePx, int mousePy, int winW, int winH, int mod) {
 
   // No drag: try to pick up an ITEM under the tap.
   int idx = _view->resolveLeafCell(wx, wy);
-  if (idx >= 0 && _model->node(idx).content.type == CellType::ITEM) {
+  if (idx >= 0 && _model->typeOf(idx) == CellType::ITEM) {
     _model->pickUp(idx, _model->node(idx).content.data.item.count);
     _view->screenToNdc(mousePx, mousePy, winW, winH, _dragNX, _dragNY);
     _view->setDragScreenNdc(_dragNX, _dragNY);

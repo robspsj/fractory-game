@@ -9,7 +9,6 @@ void EmptyCell::interact(int idx, GameModel &model) {
     model.setType(idx, CellType::ITEM);
     cell.content.data.item.id = rule->spawnItemId;
     cell.content.data.item.count = rule->spawnCount;
-    cell.content.byteSize = calcByteSize(CellType::ITEM);
     model.emitEvent(CellEventType::SPAWN, idx, rule->spawnItemId);
     model.addHeat(idx, Heat::EMPTY_SPAWN_HEAT);
   }
