@@ -24,22 +24,28 @@ struct GridData {
 };
 
 struct StationData {
-  int32_t progress;       // ticks remaining (declared first: packs with no padding)
+  uint16_t progress;      // ticks remaining (recipe duration clamped on store)
   uint16_t recipeIndex;
-  uint8_t sizeR, sizeC;   // footprint from the recipe (<=7 today)
+  uint8_t sizeR, sizeC;   // footprint from the recipe
 };
 
+// Sentinel for 'no item' in the uint16 item-id fields (ids can then use
+// the full 0..65534 range).
+inline constexpr uint16_t NO_ITEM = 0xFFFF;
+
 struct ReservedData {
-  int32_t anchorIndex;    // the STATION cell it belongs to
+  // The footprint always lies in the same grid as the anchor, below-right of
+  // it, so a 16-bit delta is provably enough: cell - anchor < dim*dim <= 255².
+  uint16_t anchorDelta;   // cellIndex - anchorIndex  (anchor = cellIndex - delta)
   ReserveRole role;
-  int16_t itemId;         // -1 == empty (hence signed)
+  uint16_t itemId;        // NO_ITEM == empty
   uint16_t itemCount;
 };
 
 // Type is tracked separately (GameModel::_type, parallel to the node array)
 // and byteSize was fully derivable from the type, so CellContent is just the
-// payload union: largest variant 12 bytes (ReservedData) -> Cell = 4+12+1 ->
-// 20 bytes with tail padding.
+// payload union: largest variant 8 bytes (Grid/Reserved), 4-aligned ->
+// Cell = 4+8+1 -> 16 bytes.
 struct CellContent {
   union {
     ItemData item;

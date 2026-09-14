@@ -138,9 +138,9 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
       int layoutIdx = r * recipe.sizeC + c;
       setType(idx, CellType::RESERVED);
       _nodes[idx].content.data.reserved = {
-        gridIndex,
+        (uint16_t)(idx - gridIndex),
         recipe.layout[layoutIdx],
-        -1, 0
+        NO_ITEM, 0
       };
     }
   }

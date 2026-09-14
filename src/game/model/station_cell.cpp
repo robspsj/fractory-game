@@ -11,7 +11,7 @@ void StationCell::collectTickPlan(int idx, GameModel &model, std::vector<int> &s
 void StationCell::tick(int idx, GameModel &model) {
   Cell &cell = model._nodes[idx];
   StationData &st = cell.content.data.station;
-  if (st.progress <= 0) return;
+  if (st.progress == 0) return;
 
   int heat = cell.heat;
   int steps = 1 + (heat / Heat::STATION_STEP_DIV);
@@ -40,8 +40,8 @@ void StationCell::tick(int idx, GameModel &model) {
         Cell &reserved = model._nodes[cellIdx];
         if (model.typeOf(cellIdx) == CellType::RESERVED &&
             reserved.content.data.reserved.role == ReserveRole::OUTPUT) {
-          reserved.content.data.reserved.itemId = recipe->output;
-          reserved.content.data.reserved.itemCount = recipe->outputCount;
+          reserved.content.data.reserved.itemId = (uint16_t)recipe->output;
+          reserved.content.data.reserved.itemCount = (uint16_t)recipe->outputCount;
           model.emitEvent(CellEventType::STATION_OUTPUT, idx, recipe->output);
           return;
         }
@@ -77,7 +77,7 @@ void StationCell::tryStart(int anchorIdx, GameModel &model) {
       const Cell &reserved = model._nodes[cellIdx];
       if (model.typeOf(cellIdx) == CellType::RESERVED &&
           reserved.content.data.reserved.role == ReserveRole::INPUT &&
-          reserved.content.data.reserved.itemId != -1) {
+          reserved.content.data.reserved.itemId != NO_ITEM) {
         inputsFound++;
       }
     }
@@ -94,8 +94,8 @@ void StationCell::tryStart(int anchorIdx, GameModel &model) {
         Cell &reserved = model._nodes[cellIdx];
         if (model.typeOf(cellIdx) == CellType::RESERVED &&
             reserved.content.data.reserved.role == ReserveRole::INPUT &&
-            reserved.content.data.reserved.itemId != -1) {
-          reserved.content.data.reserved.itemId = -1;
+            reserved.content.data.reserved.itemId != NO_ITEM) {
+          reserved.content.data.reserved.itemId = NO_ITEM;
           reserved.content.data.reserved.itemCount = 0;
           required--;
           if (required <= 0) break;
@@ -103,7 +103,8 @@ void StationCell::tryStart(int anchorIdx, GameModel &model) {
       }
       if (required <= 0) break;
     }
-    st.progress = recipe->duration;
+    st.progress = (uint16_t)(recipe->duration < 0 ? 0
+          : recipe->duration > 65535 ? 65535 : recipe->duration);
   }
 }
 
@@ -127,7 +128,7 @@ void StationCell::interact(int idx, GameModel &model) {
       Cell &reserved = model._nodes[cellIdx];
       if (model.typeOf(cellIdx) == CellType::RESERVED &&
           reserved.content.data.reserved.role == ReserveRole::INPUT &&
-          reserved.content.data.reserved.itemId == -1) {
+          reserved.content.data.reserved.itemId == NO_ITEM) {
         reserved.content.data.reserved.itemId = model._dragItemId;
         reserved.content.data.reserved.itemCount = model._dragAmount;
         model.addHeat(cellIdx, Heat::STATION_INPUT_HEAT);
@@ -191,9 +192,9 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
       int layoutIdx = r * recipe->sizeC + c;
       model.setType(idx, CellType::RESERVED);
       model._nodes[idx].content.data.reserved = {
-        gridIndex,
+        (uint16_t)(idx - gridIndex),
         recipe->layout[layoutIdx],
-        -1, 0
+        NO_ITEM, 0
       };
     }
   }

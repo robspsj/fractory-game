@@ -155,7 +155,7 @@ int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float wor
   }
 
   if (leafIdx >= 0 && view._model.typeOf(leafIdx) == CellType::RESERVED) {
-    return view._model.node(leafIdx).content.data.reserved.anchorIndex;
+    return leafIdx - view._model.node(leafIdx).content.data.reserved.anchorDelta;
   }
 
   return leafIdx;

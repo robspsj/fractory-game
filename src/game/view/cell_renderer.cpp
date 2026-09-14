@@ -154,8 +154,8 @@ void CellRenderer::renderCell(GameView &view, int nodeIndex, Rect r, int depth) 
     }
     addQuad(view, r, col);
     drawHeatOverlay(view, r, cell.heat);
-    if (rd.itemId >= 0) {
-      const float *elemCol = (rd.itemId >= 0 && rd.itemId < GameModel::ELEMS) ? view._elemColors[rd.itemId] : view._white;
+    if (rd.itemId != NO_ITEM) {
+      const float *elemCol = rd.itemId < GameModel::ELEMS ? view._elemColors[rd.itemId] : view._white;
       IconRenderer::renderCellItems(view, r.cx(), r.cy(), rd.itemCount, elemCol, 1.0f, rd.itemId, nodeIndex);
     }
     break;

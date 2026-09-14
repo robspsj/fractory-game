@@ -120,10 +120,10 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       int idx = model.rootChild(step.row, step.col);
       Cell &cell = model.node(idx);
       if (model.typeOf(idx) == CellType::RESERVED) {
-        cell.content.data.reserved.itemId = step.expectedId;
+        cell.content.data.reserved.itemId = (uint16_t)step.expectedId;
         cell.content.data.reserved.itemCount = step.expectedCount;
         // Trigger station start check
-        model.tryStartStation(cell.content.data.reserved.anchorIndex);
+        model.tryStartStation(idx - cell.content.data.reserved.anchorDelta);
       }
       std::cout << "Action: add_input at [" << step.row << "," << step.col
                 << "] item=" << step.expectedId << " count=" << step.expectedCount << std::endl;
