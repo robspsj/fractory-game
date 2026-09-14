@@ -180,7 +180,7 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
   }
 
   model.setType(gridIndex, CellType::STATION);
-  anchorCell.content.data.station = {recipeId, 0, recipe->sizeR, recipe->sizeC};
+  anchorCell.content.data.station = {0, (uint16_t)recipeId, (uint8_t)recipe->sizeR, (uint8_t)recipe->sizeC};
 
   for (int r = 0; r < recipe->sizeR; r++) {
     for (int c = 0; c < recipe->sizeC; c++) {

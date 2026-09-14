@@ -4,7 +4,7 @@
 
 ## 1. Storage
 
-`heat` is a `uint8_t` member of `Cell`; `sizeof(Cell)` is 24 bytes (the payload union plus `parentId`/`heat`). The cell's type is **not** stored in the cell — it lives in the parallel `GameModel::_type` byte map that the tick plan phase prescans (see `AGENTS.md`). `GRID` entries ignore `heat` (padding).
+`heat` is a `uint8_t` member of `Cell`; `sizeof(Cell)` is 20 bytes (12-byte payload union plus `parentId`/`heat`, tail padding included). The cell's type is **not** stored in the cell — it lives in the parallel `GameModel::_type` byte map that the tick plan phase prescans (see `AGENTS.md`). `GRID` entries ignore `heat` (padding).
 
 API in `GameModel` (`src/game/model/game_model.hpp:74` / `.cpp:504`):
 

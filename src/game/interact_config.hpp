@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-enum class ReserveRole { NONE, INPUT, OUTPUT, BUFFER };
+enum class ReserveRole : uint8_t { NONE, INPUT, OUTPUT, BUFFER };
 
 struct ReactionRule {
   int itemA;

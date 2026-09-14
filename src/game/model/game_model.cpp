@@ -127,7 +127,7 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
   }
 
   setType(gridIndex, CellType::STATION);
-  cell.content.data.station = {recipe.id, 0, recipe.sizeR, recipe.sizeC};
+  cell.content.data.station = {0, (uint16_t)recipe.id, (uint8_t)recipe.sizeR, (uint8_t)recipe.sizeC};
 
   for (int r = 0; r < recipe.sizeR; r++) {
     for (int c = 0; c < recipe.sizeC; c++) {
@@ -242,10 +242,11 @@ void GameModel::pickUp(int nodeIndex, int amount) {
 
   _dragSrcIndex = nodeIndex;
   _dragItemId = _nodes[nodeIndex].content.data.item.id;
-  _dragAmount = std::min(amount, _nodes[nodeIndex].content.data.item.count);
+  _dragAmount = std::min(amount, (int)_nodes[nodeIndex].content.data.item.count);
   _dragHeat = _nodes[nodeIndex].heat;
-  _nodes[nodeIndex].content.data.item.count -= _dragAmount;
-  if (_nodes[nodeIndex].content.data.item.count <= 0) {
+  int left = (int)_nodes[nodeIndex].content.data.item.count - _dragAmount;
+  _nodes[nodeIndex].content.data.item.count = (uint16_t)(left > 0 ? left : 0);
+  if (left <= 0) {
     setType(nodeIndex, CellType::EMPTY);
   }
 }
@@ -262,7 +263,8 @@ void GameModel::drop(int nodeIndex) {
     const CellType tgtType = typeOf(nodeIndex);
     if (tgtType == CellType::ITEM &&
         _nodes[nodeIndex].content.data.item.id == _dragItemId) {
-      _nodes[nodeIndex].content.data.item.count += _dragAmount;
+      int nc = (int)_nodes[nodeIndex].content.data.item.count + _dragAmount;
+      _nodes[nodeIndex].content.data.item.count = (uint16_t)(nc > 65535 ? 65535 : nc);
       // keep heat with cell, not item — no heat change on merge
     } else if (tgtType == CellType::EMPTY) {
       putContent(nodeIndex, CellType::ITEM, dragCell);
