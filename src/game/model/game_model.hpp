@@ -2,6 +2,8 @@
 #include "../config.hpp"
 #include "../interact_config.hpp"
 #include "cell.hpp"
+#include "tick_plan.hpp"
+#include <unordered_set>
 #include <vector>
 
 // Spatial adjacency directions (order matters: up,down,left,right — matches
@@ -84,6 +86,13 @@ class GameModel {
   int getSubgridState(int subgridSeqIndex, int *outData, int &outSize) const;
   void getDragState(int &outId, int &outCount);
   void drainEvents(std::vector<CellEvent> &out);
+  bool hasEvents() const { return _evHead != _evTail; }
+  // Consume every pending event in place (no copies, no clear pass).
+  template <typename F> void consumeEvents(F &&f) {
+    for (; _evHead != _evTail; ++_evHead)
+      f(_events[_evHead & EVENT_MASK]);
+  }
+  uint32_t eventDrops() const { return _eventDrops; }
   int totalNodes() const { return (int)_nodes.size(); }
   std::size_t allocatedBytes() const {
     return _nodes.capacity() * sizeof(Cell) + _adj.capacity() * sizeof(Adjacency) +
@@ -130,9 +139,20 @@ class GameModel {
   bool tryPlaceRandomStation(int gridIndex);
   void populateWithSubgrid(int cellIndex, int size);
   int findSpillTarget(int idx);
+  // Ring buffer of cell events: monotonic head/tail cursors, power-of-two
+  // capacity (mask wrap), buffer allocated once in init(). emit/drain do zero
+  // allocation AND no clear()/copy pass over the list — consumeEvents() reads
+  // slots in place between the cursors. If the ring fills within one frame
+  // (only possible in extreme spikes) new events drop rather than growing.
+  static constexpr uint32_t EVENT_CAP  = 1u << 18;          // 262144 (~3 MB)
+  static constexpr uint32_t EVENT_MASK = EVENT_CAP - 1;
   void emitEvent(CellEventType t, int idx, int itemId) {
-    _events.push_back({idx, itemId, t});
-    ++_tprof.events;
+    if (_evTail - _evHead < EVENT_CAP) {
+      _events[_evTail++ & EVENT_MASK] = CellEvent{idx, itemId, t};
+      ++_tprof.events;
+    } else {
+      ++_eventDrops;
+    }
   }
 
   uint32_t prng(int idx, int salt) const;
@@ -148,10 +168,25 @@ class GameModel {
 
   void rebuildAdjacency();
 
-  std::vector<Cell> _nodes;
+   std::vector<Cell> _nodes;
   std::vector<uint8_t> _type;  // parallel to _nodes: (uint8_t)CellType
   std::vector<Adjacency> _adj;  // parallel to _nodes (see Adjacency above)
-  std::vector<CellEvent> _events;
+
+  // Per-tick scratch, persistent so steady-state tick does no allocation
+  // (thread-local plan buffers + the spill first-wins claim set).
+  struct ThreadBuf {
+    std::vector<PlMut> muts;
+    std::vector<PlSpill> spills;
+    std::vector<int> stations;
+    long items = 0;
+    double spillMs = 0.0;
+  };
+  std::vector<ThreadBuf> _tickBufs;
+  std::unordered_set<int> _spillClaimed;
+  std::vector<CellEvent> _events;  // ring storage, fixed size EVENT_CAP after init()
+  uint32_t _evHead = 0;            // monotonic read cursor
+  uint32_t _evTail = 0;            // monotonic write cursor
+  uint32_t _eventDrops = 0;
   int _dragSrcIndex = -1;
   int _dragAmount = 0;
   int _dragItemId = -1;

@@ -6,20 +6,20 @@
 #include <chrono>
 
 int ItemCell::findSpillTarget(int idx, GameModel &model) {
-  std::vector<int> candidates;
-  // Precomputed world-space adjacency (one deepest-leaf neighbour per
-  // direction, crossing subgrid boundaries where the layout touches).
-  // Iteration order up,down,left,right matches the legacy candidate order.
+  // At most one candidate per direction (precomputed adjacency) — stack
+  // array, no heap (this runs on the plan path thousands of times/tick).
+  int cand[4];
+  int nc = 0;
   const Adjacency &a = model._adj[idx];
   const int dirs[4] = {a.n[ADJ_UP], a.n[ADJ_DOWN], a.n[ADJ_LEFT], a.n[ADJ_RIGHT]};
   for (int ni : dirs) {
     if (ni >= 0 && ni < (int)model._nodes.size() &&
         model.typeOf(ni) == CellType::EMPTY) {
-      candidates.push_back(ni);
+      cand[nc++] = ni;
     }
   }
-  if (candidates.empty()) return -1;
-  return candidates[(int)(model.prng(idx, 2) % (uint32_t)candidates.size())];
+  if (nc == 0) return -1;
+  return cand[(int)(model.prng(idx, 2) % (uint32_t)nc)];
 }
 
 void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,

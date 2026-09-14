@@ -293,13 +293,10 @@ std::size_t Game::allocatedMemory() const {
 }
 
 void Game::applyEffects() {
-  static std::vector<CellEvent> events;
-  events.clear();
-  _model->drainEvents(events);
-  if (events.empty())
-    return;
   float c[3];
-  for (const CellEvent &e : events) {
+  // Consume the event ring in place: no copy into a side vector, no clear
+  // pass (GameModel::consumeEvents just walks head -> tail).
+  _model->consumeEvents([&](const CellEvent &e) {
     EffectKind kind;
     switch (e.type) {
       case CellEventType::REACTION:      kind = EffectKind::INTERACT_REACTION; break;
@@ -309,9 +306,9 @@ void Game::applyEffects() {
       case CellEventType::STATION_OUTPUT:kind = EffectKind::STATION_OUTPUT;    break;
       case CellEventType::GROW:          kind = EffectKind::GROW;             break;
       case CellEventType::SHRINK:        kind = EffectKind::SHRINK;           break;
-      default: continue;
+      default: return;
     }
     _view->elementColor(e.itemId, c);
     _particles->spawn(e.nodeIndex, c, kind, e.itemId); // node -> NDC at render
-  }
+  });
 }

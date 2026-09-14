@@ -41,7 +41,8 @@ void GameModel::init(const Config &cfg) {
   _dragSrcIndex = -1;
   _dragAmount = 0;
   _dragItemId = -1;
-  _events.clear();
+  if (_events.size() < EVENT_CAP) _events.resize(EVENT_CAP);  // one-time alloc
+  _evHead = _evTail = _eventDrops = 0;
 
   initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
                      cfg.stationRecipesCsvPath);
@@ -308,9 +309,10 @@ void GameModel::cancelDrag() {
 }
 
 void GameModel::drainEvents(std::vector<CellEvent> &out) {
-  if (_events.empty()) return;
-  out.insert(out.end(), _events.begin(), _events.end());
-  _events.clear();
+  // Copy path kept for the test/bench harnesses; the game uses consumeEvents()
+  // (in-place, no copy).
+  for (; _evHead != _evTail; ++_evHead)
+    out.push_back(_events[_evHead & EVENT_MASK]);
 }
 
 void GameModel::interact(int idx) {
@@ -359,14 +361,13 @@ void GameModel::tick() {
   if (n < 16384 && nThreads > 1) nThreads = 1;
   nThreads = std::min(nThreads, std::max(1, n));
 
-  struct ThreadBuf {
-    std::vector<PlMut> muts;
-    std::vector<PlSpill> spills;
-    std::vector<int> stations;
-    long items = 0;
-    double spillMs = 0.0;
-  };
-  std::vector<ThreadBuf> bufs(nThreads);
+  if (_tickBufs.size() < (size_t)nThreads) _tickBufs.resize((size_t)nThreads);
+  for (int t = 0; t < nThreads; t++) {
+    ThreadBuf &b = _tickBufs[t];
+    b.muts.clear(); b.spills.clear(); b.stations.clear();
+    b.items = 0; b.spillMs = 0.0;
+  }
+  auto &bufs = _tickBufs;
   const int64_t bigN = n;
   auto worker = [&](int tid) {
     const int b = (int)((int64_t)tid * bigN / nThreads);
@@ -394,16 +395,19 @@ void GameModel::tick() {
   }
   _tprof.planMs = std::chrono::duration<double, std::milli>(clk::now() - wall).count();
 
-  for (const auto &buf : bufs) {
+  for (int t = 0; t < nThreads; t++) {
+    const ThreadBuf &buf = bufs[t];
     _tprof.items   += (int)buf.items;
     _tprof.spills  += (int)buf.spills.size();
     _tprof.spillMs += buf.spillMs;
   }
 
   auto tApply = clk::now();
-  std::unordered_set<int> spillClaimed;
-  spillClaimed.reserve((size_t)_tprof.spills);
-  for (auto &buf : bufs) {
+  // First-wins spill claims; persistent set so no per-tick bucket allocation
+  // (clear() keeps the bucket array).
+  _spillClaimed.clear();
+  for (int t = 0; t < nThreads; t++) {
+    ThreadBuf &buf = bufs[t];
     for (const PlMut &m : buf.muts) {
       Cell &cl = _nodes[m.idx];
       if (m.ev == CellEventType::DESTROY)
@@ -420,7 +424,7 @@ void GameModel::tick() {
       }
     }
     for (const PlSpill &sp : buf.spills) {
-      if (!spillClaimed.insert(sp.tgt).second) continue;
+      if (!_spillClaimed.insert(sp.tgt).second) continue;
       setType(sp.tgt, CellType::ITEM);
       _nodes[sp.tgt].content.data.item.id  = sp.item;
       _nodes[sp.tgt].content.data.item.count = 3;
@@ -433,8 +437,8 @@ void GameModel::tick() {
   _tprof.applyMs = std::chrono::duration<double, std::milli>(clk::now() - tApply).count();
 
   auto tSt = clk::now();
-  for (auto &buf : bufs)
-    for (int si : buf.stations) tickStation(si);
+  for (int t = 0; t < nThreads; t++)
+    for (int si : bufs[t].stations) tickStation(si);
   _tprof.stationMs = std::chrono::duration<double, std::milli>(clk::now() - tSt).count();
 
   // Heat decay & diffusion — see Heat::DECAY_* / DIFFUSION_* in heat_constants.hpp

@@ -567,9 +567,11 @@ int main(int argc, char *argv[]) {
       const double k = 1.0 / (double)tickCount;
       fprintf(stderr,
               "[tick] ms/tick: plan=%.2f apply=%.2f stations=%.2f "
-              "decay=%.3f diffuse=%.3f  (spillTarget=%.2f)  events/tick=%.0f\n",
+              "decay=%.3f diffuse=%.3f  (spillTarget=%.2f)  events/tick=%.0f "
+              "eventDrops=%u\n",
               ta.planMs * k, ta.applyMs * k, ta.stationMs * k,
-              ta.decayMs * k, ta.diffuseMs * k, ta.spillMs * k, ta.events * k);
+              ta.decayMs * k, ta.diffuseMs * k, ta.spillMs * k, ta.events * k,
+              g.model().eventDrops());
     }
     // One-shot node-type histogram: what are the 11.5M nodes actually?
     {
