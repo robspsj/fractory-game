@@ -4,6 +4,7 @@
 #if defined(__EMSCRIPTEN__)
 #include <emscripten/html5_webgl.h>
 #include <cstdint>
+#include <cstdio>
 #include <webgl/webgl1.h>
 #include <webgl/webgl1_ext.h>
 #include <webgl/webgl2.h>
@@ -35,6 +36,16 @@ static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE s_glCtx = 0;
 static sk_sp<GrDirectContext> s_grCtx;
 static sk_sp<SkSurface> s_surface;
 static int s_surfW = 0, s_surfH = 0;
+static volatile bool s_lost = false;
+
+// Returning true == event.preventDefault(): WITHOUT this the browser never
+// fires webglcontextrestored, so a lost context (Safari is trigger-happy:
+// memory pressure, GPU process restarts) would be permanent.
+static bool onCtxLost(int, const void *, void *) {
+  s_lost = true;
+  s_surface.reset();
+  return true;
+}
 
 extern "C" bool frct_webgl_init(void) {
   EmscriptenWebGLContextAttributes attrs;
@@ -42,7 +53,9 @@ extern "C" bool frct_webgl_init(void) {
   attrs.majorVersion = 2;
   attrs.minorVersion = 0;
   attrs.alpha = 0;
-  attrs.depth = 0;
+  // WebKit dislikes stencil-without-depth (silently lost contexts); Skia
+  // wants stencil for AA clips. Request both.
+  attrs.depth = 1;
   attrs.stencil = 1;
   attrs.antialias = 0;              // Skia does its own AA
   attrs.premultipliedAlpha = 1;
@@ -52,6 +65,8 @@ extern "C" bool frct_webgl_init(void) {
   s_glCtx = emscripten_webgl_create_context("#canvas", &attrs);
   if ((intptr_t)s_glCtx <= 0) return false;
   if (emscripten_webgl_make_context_current(s_glCtx) != EMSCRIPTEN_RESULT_SUCCESS) return false;
+  emscripten_set_webglcontextlost_callback("#canvas", nullptr, false, onCtxLost);
+  s_lost = false;
   auto iface = GrGLInterfaces::MakeWebGL();
   if (!iface) return false;
   s_grCtx = GrDirectContexts::MakeGL(iface);
@@ -60,6 +75,20 @@ extern "C" bool frct_webgl_init(void) {
 
 extern "C" bool frct_webgl_frame(FrctRenderFn render, void* ud, int w, int h) {
   if (!s_grCtx) return false;
+  if (s_lost) {
+    if (emscripten_is_webgl_context_lost(s_glCtx)) return false;  // wait for restore
+    // Restored: every GL object is dead. The old context must be abandoned
+    // (never flushed), then rebuilt around the (re-established) current ctx.
+    s_grCtx->abandonContext();
+    s_grCtx.reset();
+    emscripten_webgl_make_context_current(s_glCtx);
+    auto iface = GrGLInterfaces::MakeWebGL();
+    s_grCtx = iface ? GrDirectContexts::MakeGL(iface) : nullptr;
+    if (!s_grCtx) return false;
+    s_lost = false;
+    s_surface.reset();
+    fprintf(stderr, "[gl] context restored\n");
+  }
   if (!s_surface || s_surfW != w || s_surfH != h ||
       emscripten_webgl_get_current_context() != s_glCtx) {
     // Recreate the surface (and rebind after any context juggling).

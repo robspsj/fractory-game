@@ -343,6 +343,7 @@ static void drawHud(SkCanvas *canvas) {
 #if defined(__EMSCRIPTEN__)
 static SDL_Window *s_window;
 static bool s_gpuWeb = false;  // Ganesh/WebGL present path active
+static bool s_cpuShown = false; // CPU overlay currently veils #canvas
 extern "C" {
 bool frct_webgl_init(void);
 bool frct_webgl_frame(void (*render)(void*, SkCanvas*, int, int), void* ctx, int w, int h);
@@ -399,6 +400,15 @@ static void frame() {
   uint64_t f0 = perfNow();
   if (s_gpuWeb) {
     if (frct_webgl_frame(gpuWebRenderCb, nullptr, s_rgbaW, s_rgbaH)) {
+      if (s_cpuShown) {  // GL recovered from a lost context: un-veil #canvas
+        EM_ASM({
+          var cpu = document.getElementById('cpu_canvas');
+          if (cpu) cpu.style.display = 'none';
+          var g = document.getElementById('canvas');
+          if (g) g.style.display = 'block';
+        });
+        s_cpuShown = false;
+      }
       uint64_t f3 = perfNow();
       s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
       s_msRender  = ema(s_msRender,  (float)perfMs(f0, f3));
@@ -419,6 +429,7 @@ static void frame() {
   drawHud(canvas);
   uint64_t f2 = perfNow();
   jsPresent(s_rgbaW, s_rgbaH, s_rgba.data());
+  s_cpuShown = true;
   uint64_t f3 = perfNow();
 
   s_msFrame   = ema(s_msFrame,   (float)perfMs(f0, f3));
