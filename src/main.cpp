@@ -953,6 +953,11 @@ int main(int argc, char *argv[]) {
               "spills=%-6d (spillMs=%6.1f)\n",
               sp.tick.sweepMs, sp.tick.nodes, sp.tick.items, sp.tick.events,
               sp.tick.spills, sp.tick.spillMs);
+      fprintf(stderr,
+              "      phases: plan=%6.1f apply=%5.1f stations=%5.1f decay=%5.2f "
+              "diffuse=%5.2f\n",
+              sp.tick.planMs, sp.tick.applyMs, sp.tick.stationMs,
+              sp.tick.decayMs, sp.tick.diffuseMs);
     }
   }
 

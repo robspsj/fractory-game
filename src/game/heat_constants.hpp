@@ -18,9 +18,22 @@ namespace Heat {
  inline constexpr int ITEM_FREQ_RANGE     = 80;      // 100→20 as heat 0→255
  inline constexpr int ITEM_FREQ_MIN       = 20;
  inline constexpr int ITEM_FREQ_MAX       = 100;
- // heat added on GROW/SHRINK/DESTROY mut
+ // heat added on GROW/SHRINK/DESTROY mut. The bonus is INVERTED in heat
+ // (cold cells heat up fast, hot cells add little): with constant gain the
+ // activity↔heat loop had no fixed point (gain ≥ 0.2/tick always, decay
+ // −0.03) and the whole board ratcheted to 255 in minutes — that multiplied
+ // plan/apply/event work per tick and is what made fps decay over time.
+ inline constexpr int HEAT_MAX            = 255;
  inline constexpr int ITEM_MUT_BASE       = 12;
- inline constexpr int ITEM_MUT_SCALE_SHIFT = 4;      // + (heat>>4)  => 12..27
+ inline constexpr int ITEM_MUT_SCALE_SHIFT = 4;      // + ((255-heat)>>4) => 27..12
+
+ // ── Decay ──────────────────────────────────────────────────────────────
+ // Every DECAY_PERIOD_MASK+1 ticks a hot cell loses (heat >> SHIFT) + 1.
+ // Proportional (≈12.5%/pass) so loss scales with activity and meets the
+ // gain curve: steady heat under sustained activity settles ~60-80
+ // (≈1.3× cold action rate) instead of saturating at 255.
+ inline constexpr int DECAY_PERIOD_MASK         = 31;
+ inline constexpr int DECAY_PROPORTIONAL_SHIFT  = 3;
 
  // ── Spill ────────────────────────────────────────────────────────────
  inline constexpr int SPILL_HEAT_SRC = 18;
@@ -41,8 +54,8 @@ namespace Heat {
  inline constexpr int RESERVED_BUFFER_HEAT_OUT = 2;
 
  // ── Decay & diffusion (src/game/model/game_model.cpp) ───────────────
- // Power-of-two masks: interval = mask+1
- inline constexpr int DECAY_PERIOD_MASK      = 31; // every 32 ticks: -1 to all hot
+ // Power-of-two masks: interval = mask+1. Decay uses DECAY_PERIOD_MASK /
+ // DECAY_PROPORTIONAL_SHIFT (defined above with reactiveness).
  inline constexpr int DIFFUSION_PERIOD_MASK  = 63; // every 64 ticks
  inline constexpr int DIFFUSION_SPARSE_MASK  = 127; // ~1/128 hot cells per diffusion pass
 

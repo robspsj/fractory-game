@@ -18,6 +18,7 @@
 void GameModel::init(const Config &cfg) {
   _prngSeed = (cfg.seed != 0) ? (unsigned)cfg.seed : 0x9E3779B9u;
   _tickCounter = 0;
+  _decayCur = _diffCur = 1;
   _numItems = (cfg.numItems > 0) ? cfg.numItems : GameModel::ELEMS;
   if (cfg.seed != 0)
     std::srand(cfg.seed);
@@ -417,7 +418,7 @@ void GameModel::tick() {
       emitEvent(m.ev, m.idx, m.item);
       // heat feedback from item activity — see Heat::ITEM_MUT_* / SPILL_*
       if (typeOf(m.idx) != CellType::GRID) {
-        int dh = Heat::ITEM_MUT_BASE + (cl.heat >> Heat::ITEM_MUT_SCALE_SHIFT);
+        int dh = Heat::ITEM_MUT_BASE + ((Heat::HEAT_MAX - cl.heat) >> Heat::ITEM_MUT_SCALE_SHIFT);
         int nh = (int)cl.heat + dh;
         if (nh > 255) nh = 255;
         cl.heat = (uint8_t)nh;
@@ -442,19 +443,29 @@ void GameModel::tick() {
   _tprof.stationMs = std::chrono::duration<double, std::milli>(clk::now() - tSt).count();
 
   // Heat decay & diffusion — see Heat::DECAY_* / DIFFUSION_* in heat_constants.hpp
+  // Amortized: a slice of the array is processed every tick (per-cell period
+  // unchanged), instead of the whole array every 32nd/64th tick.
   auto tDecay = clk::now();
-  if ((_tickCounter & Heat::DECAY_PERIOD_MASK) == 0) {
-    for (int i = 1; i < n; i++) {
-      Cell &c = _nodes[i];
+  {
+    int begin = (_decayCur > n || _decayCur < 1) ? 1 : _decayCur;
+    int end = begin + n / (Heat::DECAY_PERIOD_MASK + 1) + 1;
+    if (end > n) end = n;
+    for (int i = begin; i < end; i++) {
       if (_type[i] == (uint8_t)CellType::GRID) continue;
+      Cell &c = _nodes[i];
       if (c.heat == 0) continue;
-      c.heat--;
+      int d = (c.heat >> Heat::DECAY_PROPORTIONAL_SHIFT) + 1;  // proportional loss
+      c.heat = (uint8_t)(c.heat > d ? c.heat - d : 0);
     }
+    _decayCur = (end >= n) ? 1 : end;
   }
   _tprof.decayMs = std::chrono::duration<double, std::milli>(clk::now() - tDecay).count();
   auto tDiff = clk::now();
-  if ((_tickCounter & Heat::DIFFUSION_PERIOD_MASK) == 0) {
-    for (int i = 1; i < n; i++) {
+  {
+    int begin = (_diffCur > n || _diffCur < 1) ? 1 : _diffCur;
+    int end = begin + n / (Heat::DIFFUSION_PERIOD_MASK + 1) + 1;
+    if (end > n) end = n;
+    for (int i = begin; i < end; i++) {
       Cell &c = _nodes[i];
       if (_type[i] == (uint8_t)CellType::GRID) continue;
       if (c.heat <= 1) continue;
@@ -470,6 +481,7 @@ void GameModel::tick() {
       uint8_t &th = _nodes[tgt].heat;
       if (th < 255) th++;
     }
+    _diffCur = (end >= n) ? 1 : end;
   }
   _tprof.diffuseMs = std::chrono::duration<double, std::milli>(clk::now() - tDiff).count();
 

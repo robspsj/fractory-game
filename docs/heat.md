@@ -25,7 +25,7 @@ Dragging preserves the source's heat in `GameModel::_dragHeat` for sway tint whi
 flowchart TB
     subgraph Sources["Heat sources (+Δ)"]
         A[Random warm seed<br/>2% cells 80..200<br/>initRandomGrid]
-        B[ITEM tick mut<br/>GROW/SHRINK/DESTROY<br/>+12 + heat>>4]
+        B[ITEM tick mut<br/>GROW/SHRINK/DESTROY<br/>+12 + (255-heat)>>4 self-limiting]
         C[Spill<br/>src+18 / tgt+18]
         D[Interact reaction<br/>a+18 / b+12<br/>fallback cycle +6]
         E[Empty spawn<br/>+10]
@@ -33,8 +33,8 @@ flowchart TB
         G[Station progress active<br/>+1 per tick]
     end
     Sources --> H{Cell.heat 0..255}
-    H --> I[Decay<br/>-1 every 32 ticks<br/>all hot non-GRID]
-    H --> J[Diffusion<br/>~1/128 hot cells every 64 ticks<br/>-1 here +1 random neighbour (4-dir)]
+    H --> I[Decay<br/>-(heat>>3 +1) every 32 ticks/cell<br/>1/32-array slice each tick]
+    H --> J[Diffusion<br/>~1/128 hot cells/64 ticks/cell<br/>1/64-array slice each tick<br/>-1 here +1 random neighbour (4-dir)]
     I --> H
     J --> H
 ```
@@ -50,8 +50,8 @@ sequenceDiagram
     SEQ->>SEQ: apply muts → add 12..27 heat
     SEQ->>SEQ: apply spills → +18/+18
     SEQ->>SEQ: tickStation → steps=1+heat/64, +1 heat
-    SEQ->>HEAT: if (tickCounter &31==0) decay -1
-    HEAT->>HEAT: if (tickCounter &63==0) diffuse 1/128
+    SEQ->>HEAT: decay slice (n/32 rotating)
+    HEAT->>HEAT: diffuse slice (n/64 rotating)
 ```
 
 * **Decay** was O(n) with heavy `prng()`+`findSpillTarget()` → ~1000× slowdown, replaced with cheap sampled sibling-only loops.
@@ -167,7 +167,12 @@ Pick/drop intentionally **heat-neutral** (cell-local invariant).
 
 * **Visibility**: overlay `0.14+0.45*sqrt(t)`, seeding 2% warm cells. Raise base or lower `sqrt` exponent for subtler effect.
 * **Reactivity**: change `80` in `100-80*t` or clamp `20` for aggressiveness; `heat/64` for station steps.
-* **Persistence**: decay period `31` (32 ticks) and diffusion `63` (64 ticks, 1/128). Shorten for rapid cooling, lengthen for heat waves.
+* **Persistence**: per-cell periods stay 32/64 ticks, but both passes run as rotating
+  array slices every tick (amortized — no full-array scan storm).
+* **Balance**: mut gain is *inverted* in heat (`+12 + (255-heat)>>4`) and decay is
+  proportional (`heat>>3 + 1`), so activity↔heat has a fixed point (~60-80 steady).
+  Constant gain + fixed −1 decay was a runaway: events/tick doubled in ~2 min on big
+  boards and fps decayed with them (2025-09 incident).
 * **Sway**: multipliers `0.7` (amp) / `0.9` (freq) — reduce for calmer hot items.
 
 See `PERF.md` for tick cost: diffusion now ~0.7M checks/tick avg vs. 11M heavy before.

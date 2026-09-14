@@ -196,6 +196,11 @@ class GameModel {
   TickProfile _taccum{};
   unsigned _prngSeed = 0;
   int _tickCounter = 0;
+  // Rotating cursors for the amortized decay/diffusion passes: each tick
+  // scans a 1/32 (resp. 1/64) slice so every cell is still visited once per
+  // period — but the write-storm spikes (~85+75 ms on big boards) become a
+  // flat few-ms/tick instead of a hitch every 32nd/64th tick.
+  int _decayCur = 1, _diffCur = 1;
   int _rngOverride = -1;
   int _numItems = 5;
 };
