@@ -6,7 +6,7 @@ void EmptyCell::interact(int idx, GameModel &model) {
   Cell &cell = model._nodes[idx];
   const SpawnRule *rule = model._interactCfg.pickSpawn(model._dragItemId);
   if (rule) {
-    cell.content.type = CellType::ITEM;
+    model.setType(idx, CellType::ITEM);
     cell.content.data.item.id = rule->spawnItemId;
     cell.content.data.item.count = rule->spawnCount;
     cell.content.byteSize = calcByteSize(CellType::ITEM);

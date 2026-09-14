@@ -67,9 +67,10 @@ void ItemCell::interact(int idx, GameModel &model) {
     const ReactionRule *rule =
         model._interactCfg.findReaction(cell.content.data.item.id, neighbor.content.data.item.id);
     if (rule) {
-      cell.content.type = CellType::EMPTY;
-      model._nodes[nIdx].content.type = CellType::EMPTY;
-      cell.content.type = CellType::ITEM;
+      // (Legacy wrote EMPTY then ITEM on idx as a dance; setType makes the
+      // final type atomic, so one write each is enough.)
+      model.setType(nIdx, CellType::EMPTY);
+      model.setType(idx, CellType::ITEM);
       cell.content.data.item.id = rule->result;
       cell.content.data.item.count = rule->resultCount;
       model.emitEvent(CellEventType::REACTION, idx, rule->result);

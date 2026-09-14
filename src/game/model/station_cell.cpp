@@ -179,7 +179,7 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
     }
   }
 
-  anchorCell.content.type = CellType::STATION;
+  model.setType(gridIndex, CellType::STATION);
   anchorCell.content.byteSize = calcByteSize(CellType::STATION);
   anchorCell.content.data.station = {recipeId, 0, recipe->sizeR, recipe->sizeC};
 
@@ -190,7 +190,7 @@ bool StationCell::place(int gridIndex, int recipeId, GameModel &model) {
       int idx = parentFirst + row * parentDim + col;
       if (idx == gridIndex) continue;
       int layoutIdx = r * recipe->sizeC + c;
-      model._nodes[idx].content.type = CellType::RESERVED;
+      model.setType(idx, CellType::RESERVED);
       model._nodes[idx].content.byteSize = calcByteSize(CellType::RESERVED);
       model._nodes[idx].content.data.reserved = {
         gridIndex,
@@ -225,7 +225,7 @@ void StationCell::remove(int anchorIndex, GameModel &model) {
   for (int r = 0; r < sizeR; r++) {
     for (int c = 0; c < sizeC; c++) {
       int idx = first + (startRow + r) * dim + (startCol + c);
-      model._nodes[idx].content = CellContent{};
+      model.setContent(idx, CellContent{});
       model._nodes[idx].content.byteSize = calcByteSize(CellType::EMPTY);
     }
   }

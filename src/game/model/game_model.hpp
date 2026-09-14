@@ -85,7 +85,8 @@ class GameModel {
   void drainEvents(std::vector<CellEvent> &out);
   int totalNodes() const { return (int)_nodes.size(); }
   std::size_t allocatedBytes() const {
-    return _nodes.capacity() * sizeof(Cell) + _adj.capacity() * sizeof(Adjacency);
+    return _nodes.capacity() * sizeof(Cell) + _adj.capacity() * sizeof(Adjacency) +
+           _type.capacity();
   }
 
   // World-space neighbour of a leaf cell in direction d (ADJ_*), or -1.
@@ -135,9 +136,22 @@ class GameModel {
 
   uint32_t prng(int idx, int salt) const;
 
+  // Single choke-point for node type/content changes: keeps the compact
+  // parallel _type map in sync (the tick plan phase prescans _type without
+  // touching Cell cache lines). Never write content.type directly.
+  void setType(int idx, CellType t) {
+    _nodes[idx].content.type = t;
+    _type[idx] = (uint8_t)t;
+  }
+  void setContent(int idx, const CellContent &c) {
+    _nodes[idx].content = c;
+    _type[idx] = (uint8_t)c.type;
+  }
+
   void rebuildAdjacency();
 
   std::vector<Cell> _nodes;
+  std::vector<uint8_t> _type;  // parallel to _nodes: (uint8_t)CellType
   std::vector<Adjacency> _adj;  // parallel to _nodes (see Adjacency above)
   std::vector<CellEvent> _events;
   int _dragSrcIndex = -1;

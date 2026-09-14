@@ -1,9 +1,11 @@
 #include "grid_cell.hpp"
 #include "game_model.hpp"
 
-void GridCell::populateWithSubgrid(int cellIndex, int size, std::vector<Cell> &nodes) {
+void GridCell::populateWithSubgrid(int cellIndex, int size, std::vector<Cell> &nodes,
+                                   std::vector<uint8_t> &types) {
   auto &cell = nodes[cellIndex];
   cell.content.type = CellType::GRID;
+  types[cellIndex] = (uint8_t)CellType::GRID;
   cell.content.data.grid.gridDimension = size;
   cell.content.data.grid.firstChild = (int)nodes.size();
   cell.content.data.grid.variation = size;
@@ -12,6 +14,7 @@ void GridCell::populateWithSubgrid(int cellIndex, int size, std::vector<Cell> &n
     child.parentId = cellIndex;
     child.content.type = CellType::EMPTY;
     nodes.push_back(child);
+    types.push_back((uint8_t)CellType::EMPTY);
   }
 }
 

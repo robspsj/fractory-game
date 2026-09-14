@@ -7,7 +7,9 @@
 #include "tick_plan.hpp"
 #include "../heat_constants.hpp"
 #include <algorithm>
+#include <cassert>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <thread>
@@ -23,9 +25,11 @@ void GameModel::init(const Config &cfg) {
     std::srand((unsigned)std::time(nullptr));
 
   _nodes.clear();
+  _type.clear();
 
   Cell root;
   _nodes.push_back(root);
+  _type.push_back((uint8_t)root.content.type);
 
   if (cfg.emptyGrid) {
     initEmptyGrid(cfg.initialGridSize);
@@ -64,9 +68,9 @@ void GameModel::initRandomGrid(const Config &cfg) {
 
     int randVal = std::rand() % 100;
     if (randVal < emptyChance) {
-      cell.content.type = CellType::EMPTY;
+      setType(i, CellType::EMPTY);
     } else if (randVal < emptyChance + itemChance || gridCount >= cfg.gridLimit) {
-      cell.content.type = CellType::ITEM;
+      setType(i, CellType::ITEM);
       cell.content.data.item.id = std::rand() % _numItems;
       cell.content.data.item.count = std::rand() % 4 + 1;
     } else if (randVal < emptyChance + itemChance + stationChance) {
@@ -74,10 +78,10 @@ void GameModel::initRandomGrid(const Config &cfg) {
         const StationData &st = _nodes[i].content.data.station;
         i += st.sizeR * st.sizeC - 1;
       } else {
-        cell.content.type = CellType::EMPTY;
+        setType(i, CellType::EMPTY);
       }
     } else {
-      cell.content.type = CellType::GRID;
+      setType(i, CellType::GRID);
       gridCount++;
       int subSize = std::rand() % 6 + 2;
       populateWithSubgrid(i, subSize);
@@ -122,7 +126,7 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
     }
   }
 
-  cell.content.type = CellType::STATION;
+  setType(gridIndex, CellType::STATION);
   cell.content.byteSize = calcByteSize(CellType::STATION);
   cell.content.data.station = {recipe.id, 0, recipe.sizeR, recipe.sizeC};
 
@@ -133,7 +137,7 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
       int idx = parentFirst + row * parentDim + col;
       if (idx == gridIndex) continue;
       int layoutIdx = r * recipe.sizeC + c;
-      _nodes[idx].content.type = CellType::RESERVED;
+      setType(idx, CellType::RESERVED);
       _nodes[idx].content.byteSize = calcByteSize(CellType::RESERVED);
       _nodes[idx].content.data.reserved = {
         gridIndex,
@@ -147,13 +151,14 @@ bool GameModel::tryPlaceRandomStation(int gridIndex) {
 }
 
 void GameModel::populateWithSubgrid(int cellIndex, int size) {
-  GridCell::populateWithSubgrid(cellIndex, size, _nodes);
+  GridCell::populateWithSubgrid(cellIndex, size, _nodes, _type);
 }
 
 // Full rebuild of the adjacency table. Only topology changes (init,
 // setFullState) need it — drop/station/heat/spill mutate content in place,
 // never geometry, so indices and rects stay valid.
 void GameModel::rebuildAdjacency() {
+  assert(_type.size() == _nodes.size());
   _adj.assign(_nodes.size(), Adjacency{});
   if (_nodes.empty() || _nodes[0].content.type != CellType::GRID) return;
   const double R = _nodes[0].content.data.grid.gridDimension;  // root spans [0,R)²
@@ -243,7 +248,7 @@ void GameModel::pickUp(int nodeIndex, int amount) {
   _dragHeat = _nodes[nodeIndex].heat;
   _nodes[nodeIndex].content.data.item.count -= _dragAmount;
   if (_nodes[nodeIndex].content.data.item.count <= 0) {
-    _nodes[nodeIndex].content.type = CellType::EMPTY;
+    setType(nodeIndex, CellType::EMPTY);
     _nodes[nodeIndex].content.byteSize = calcByteSize(CellType::EMPTY);
   }
 }
@@ -264,12 +269,12 @@ void GameModel::drop(int nodeIndex) {
       _nodes[nodeIndex].content.data.item.count += _dragAmount;
       // keep heat with cell, not item — no heat change on merge
     } else if (_nodes[nodeIndex].content.type == CellType::EMPTY) {
-      _nodes[nodeIndex].content = dragCell;
+      setContent(nodeIndex, dragCell);
       // keep target's heat (cell-local), don't transfer item heat
     } else if (_nodes[nodeIndex].content.type == CellType::ITEM) {
       CellContent temp = _nodes[nodeIndex].content;
-      _nodes[nodeIndex].content = dragCell;
-      _nodes[_dragSrcIndex].content = temp;
+      setContent(nodeIndex, dragCell);
+      setContent(_dragSrcIndex, temp);
       // heats stay with cells
       _dragSrcIndex = -1;
       _dragAmount = 0;
@@ -281,7 +286,7 @@ void GameModel::drop(int nodeIndex) {
       return;
     }
   } else {
-    _nodes[_dragSrcIndex].content = dragCell;
+    setContent(_dragSrcIndex, dragCell);
     _nodes[_dragSrcIndex].content.byteSize = calcByteSize(CellType::ITEM);
   }
 
@@ -299,7 +304,7 @@ void GameModel::cancelDrag() {
   c.data.item.id = _dragItemId;
   c.data.item.count = _dragAmount;
   c.byteSize = calcByteSize(CellType::ITEM);
-  _nodes[_dragSrcIndex].content = c;
+  setContent(_dragSrcIndex, c);
   // heat stays with cell, dragged heat is just visual; no need to restore
   _dragSrcIndex = -1;
   _dragAmount = 0;
@@ -373,11 +378,12 @@ void GameModel::tick() {
     const int e = (int)((int64_t)(tid + 1) * bigN / nThreads);
     ThreadBuf &buf = bufs[tid];
     for (int i = b; i < e; i++) {
-      const Cell &c = _nodes[i];
-      const CellType t = c.content.type;
-      if (t == CellType::ITEM) {
-        ItemCell::collectTickPlan(i, c, *this, buf.muts, buf.spills, buf.spillMs, buf.items);
-      } else if (t == CellType::STATION) {
+      // Prescan the 1-byte type map first: cells that cannot act (EMPTY,
+      // GRID) are skipped without touching their Cell cache lines.
+      const uint8_t t = _type[i];
+      if (t == (uint8_t)CellType::ITEM) {
+        ItemCell::collectTickPlan(i, _nodes[i], *this, buf.muts, buf.spills, buf.spillMs, buf.items);
+      } else if (t == (uint8_t)CellType::STATION) {
         StationCell::collectTickPlan(i, *this, buf.stations);
       }
     }
@@ -406,7 +412,7 @@ void GameModel::tick() {
     for (const PlMut &m : buf.muts) {
       Cell &cl = _nodes[m.idx];
       if (m.ev == CellEventType::DESTROY)
-        cl.content.type = CellType::EMPTY;
+        setType(m.idx, CellType::EMPTY);
       else
         cl.content.data.item.count = m.count;
       emitEvent(m.ev, m.idx, m.item);
@@ -420,7 +426,7 @@ void GameModel::tick() {
     }
     for (const PlSpill &sp : buf.spills) {
       if (!spillClaimed.insert(sp.tgt).second) continue;
-      _nodes[sp.tgt].content.type = CellType::ITEM;
+      setType(sp.tgt, CellType::ITEM);
       _nodes[sp.tgt].content.data.item.id  = sp.item;
       _nodes[sp.tgt].content.data.item.count = 3;
       _nodes[sp.src].content.data.item.count = 3;
@@ -484,6 +490,18 @@ void GameModel::tick() {
   _taccum.spills    += _tprof.spills;
   _taccum.items     += _tprof.items;
   _taccum.nodes      = n;
+
+#ifdef FRACTORY_TYPECHECK
+  // Dev build (-DFRACTORY_TYPECHECK=1): the plan phase trusts _type blindly;
+  // catch any site that changed content.type without setType()/setContent().
+  for (int i = 0; i < n; i++) {
+    if (_type[i] != (uint8_t)_nodes[i].content.type) {
+      fprintf(stderr, "TYPEMAP DESYNC @%d: map=%u cell=%u\n", i,
+              (unsigned)_type[i], (unsigned)_nodes[i].content.type);
+      abort();
+    }
+  }
+#endif
 }
 
 void GameModel::tickEmpty(int idx) {
@@ -515,7 +533,7 @@ void GameModel::setFullState(int *inData) {
     int count = inData[i * 2 + 1];
     if (id == -2) {
       if (_nodes[idx].content.type != CellType::GRID) {
-        _nodes[idx].content.type = CellType::GRID;
+        setType(idx, CellType::GRID);
         _nodes[idx].content.data.grid.firstChild = (int)_nodes.size();
         _nodes[idx].content.data.grid.gridDimension = 3;
         _nodes[idx].content.data.grid.variation = 3;
@@ -524,12 +542,13 @@ void GameModel::setFullState(int *inData) {
           child.parentId = idx;
           child.content.type = CellType::EMPTY;
           _nodes.push_back(child);
+          _type.push_back((uint8_t)CellType::EMPTY);
         }
       }
     } else if (id == -1) {
-      _nodes[idx].content.type = CellType::EMPTY;
+      setType(idx, CellType::EMPTY);
     } else {
-      _nodes[idx].content.type = CellType::ITEM;
+      setType(idx, CellType::ITEM);
       _nodes[idx].content.data.item.id = id;
       _nodes[idx].content.data.item.count = count;
     }
