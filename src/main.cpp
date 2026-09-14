@@ -126,10 +126,41 @@ static void gpuRenderCb(void*, SkCanvas* canvas, int w, int h) {
 static bool gpuFrame() { return frct_gpu_frame(gpuRenderCb, nullptr); }
 #endif
 
-// Web RGBA8888 backing buffer (presented via canvas putImageData). Native draws
-// straight into the SDL window surface, so this is only used by the web build.
+// Web RGBA8888 backing buffer + an INDEPENDENT 2D canvas for the CPU present
+// path. We do NOT draw into #canvas there: the SDL3 emscripten port binds a
+// WebGL context to #canvas at window creation, so getContext('2d') on it
+// returns null (black screen). Instead the CPU path hides #canvas and presents
+// onto its own fixed-position overlay canvas. Native draws straight into the
+// Web-only RGBA8888 backing buffer for the CPU present path.
+#if defined(__EMSCRIPTEN__)
 static std::vector<uint8_t> s_rgba;
 static int s_rgbaW = 0, s_rgbaH = 0;
+
+// CPU present path. We do NOT draw into #canvas: the SDL3 emscripten port
+// binds a WebGL context to #canvas at window creation, so getContext('2d')
+// on it returns null (black screen). The CPU path hides #canvas and presents
+// onto its own fixed-position overlay canvas.
+EM_JS(void, jsPresent, (int w, int h, const uint8_t *ptr), {
+  var c = Module._cpuCanvas;
+  if (!c) {
+    var glc = document.getElementById('canvas');
+    if (glc) glc.style.display = 'none';
+    c = document.createElement('canvas');
+    c.id = 'cpu_canvas';
+    c.style.position = 'fixed';
+    c.style.left = '0px';
+    c.style.top = '0px';
+    document.body.appendChild(c);
+    Module._cpuCanvas = c;
+    Module._cpuCtx = c.getContext('2d');
+  }
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  var ctx = Module._cpuCtx;
+  var img = ctx.createImageData(w, h);
+  img.data.set(HEAPU8.subarray(ptr, ptr + w * h * 4));
+  ctx.putImageData(img, 0, 0);
+});
+#endif
 
 static void updateFps() {
   s_frameCount++;
@@ -321,14 +352,6 @@ static void gpuWebRenderCb(void*, SkCanvas* canvas, int w, int h) {
   drawHud(canvas);
 }
 
-EM_JS(void, jsPresent, (int w, int h, const uint8_t *ptr), {
-  var ctx = Module._canvasCtx;
-  var img = ctx.createImageData(w, h);
-  var data = img.data;
-  data.set(HEAPU8.subarray(ptr, ptr + w * h * 4));
-  ctx.putImageData(img, 0, 0);
-});
-
 static void frame() {
   int w, h;
   SDL_GetWindowSize(s_window, &w, &h);
@@ -408,6 +431,17 @@ int main() {
   SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
   initFont();
 
+  // Decide the present path BEFORE SDL_CreateWindow: the SDL3 emscripten
+  // port binds its own (possibly WebGL1) context to #canvas when the window
+  // is created, and a canvas's context type is locked at first use — if we
+  // ask for WebGL2 afterwards the browser hands back SDL's context (or null).
+  // ?cpu=1 forces the CPU overlay path.
+  const int forceCpu = (int)EM_ASM_INT({
+    return new URLSearchParams(location.search).has('cpu') ? 1 : 0;
+  });
+  if (!forceCpu)
+    s_gpuWeb = frct_webgl_init();
+
   s_window = SDL_CreateWindow("fractory blend2d", 800, 600, SDL_WINDOW_RESIZABLE);
   if (!s_window)
     return 1;
@@ -418,17 +452,8 @@ int main() {
   s_rgbaW = w; s_rgbaH = h;
   s_rgba.resize((size_t)w * h * 4);
   emscripten_set_canvas_element_size("#canvas", winW, winH);
-
-  // Prefer Ganesh/WebGL; ?cpu=1 forces the old raster→putImageData path.
-  int forceCpu = 0;
-  EM_ASM({ forceCpu = new URLSearchParams(window.location.search).has('cpu') ? 1 : 0; });
-  if (!forceCpu)
-    s_gpuWeb = frct_webgl_init();
-  if (!s_gpuWeb) {
-    EM_ASM({
-      Module._canvasCtx = document.querySelector('#canvas').getContext('2d');
-    });
-  }
+  // (frct_webgl_frame re-binds our context whenever SDL's window creation
+  // made another one current, so no explicit rebind is needed here)
 
   s_game = std::make_unique<Game>(Config{});
 #if !defined(__EMSCRIPTEN__)
