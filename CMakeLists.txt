@@ -94,8 +94,19 @@ if(EMSCRIPTEN)
               ${FRACTORY_ICON_SVGS}
       COMMENT "Generating embedded SVG icon data (wasm)")
   add_custom_target(gen_wasm_svg_assets DEPENDS "${FRACTORY_SVG_HEADER}")
+  # Same story for the model's interaction data (station recipes): no
+  # filesystem on web, so the CSV is embedded verbatim as a string literal and
+  # parsed by the same loader the native build uses.
+  set(FRACTORY_INTERACT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/wasm_interact_data.h")
+  add_custom_command(OUTPUT "${FRACTORY_INTERACT_HEADER}"
+      COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tools/gen_wasm_interact_data.py"
+              "${CMAKE_SOURCE_DIR}" "${FRACTORY_INTERACT_HEADER}"
+      DEPENDS "${CMAKE_SOURCE_DIR}/assets/station_recipes.csv"
+              "${CMAKE_SOURCE_DIR}/tools/gen_wasm_interact_data.py"
+      COMMENT "Generating embedded interaction data (wasm)")
+  add_custom_target(gen_wasm_interact_data DEPENDS "${FRACTORY_INTERACT_HEADER}")
   add_executable(fractory ${FRACTORY_SOURCES} src/webgl_gpu.cpp)
-  add_dependencies(fractory gen_wasm_svg_assets)
+  add_dependencies(fractory gen_wasm_svg_assets gen_wasm_interact_data)
   target_include_directories(fractory PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
   target_compile_definitions(fractory PRIVATE FRACTORY_VERSION="${FRACTORY_VERSION}")
   set_target_properties(fractory PROPERTIES OUTPUT_NAME "index")

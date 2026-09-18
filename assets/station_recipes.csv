@@ -1,0 +1,20 @@
+# Station recipes — machine footprints that the random world generator scatters
+# (Config::stationChance / --station-chance) and that StationCell uses for the
+# footprint's role tiles.
+#
+# Columns: id,sizeR,sizeC,inputA,inputB,output,outputCount,duration,layout...
+#   layout is row-major over sizeR*sizeC cells.
+#   layout[0] is the anchor tile — the machine's own cell — and never gets a
+#   role (the anchor cell is the STATION, roles only apply to its RESERVED
+#   neighbours). Every non-negative inputA/inputB needs one INPUT tile in the
+#   layout or the recipe can never start; the anchor must be the footprint's
+#   top-left cell, so a sizeR x sizeC machine only fits a subgrid of at least
+#   that dimension.
+# Item ids come from assets/items.csv: 0=wood 1=stone 2=water.
+#
+# 2x2 kiln — stone + water -> wood
+0,2,2,1,2,0,1,10,BUFFER,INPUT,OUTPUT,INPUT
+# 1x3 still — water -> 2 water (fits any subgrid of dimension >= 3)
+1,1,3,2,-1,2,2,6,BUFFER,INPUT,OUTPUT
+# 2x3 foundry — wood + stone -> 2 stone
+2,2,3,0,1,1,2,14,BUFFER,INPUT,INPUT,OUTPUT,OUTPUT,INPUT

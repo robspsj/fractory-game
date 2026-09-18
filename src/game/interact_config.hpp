@@ -42,4 +42,5 @@ struct InteractConfig {
 void initInteractConfig(InteractConfig &cfg,
                         const std::string &reactionsPath,
                         const std::string &spawnPath = "",
-                        const std::string &stationRecipesPath = "");
+                        const std::string &stationRecipesPath = "",
+                        const std::string &stationRecipesCsv = "");

@@ -15,7 +15,13 @@ struct Config {
     bool emptyGrid = false;
     bool vsync = false;  // sync present to display refresh; off = unlocked FPS
     int initialGridSize = 3;
-    int stationChance = 10;
+    // Random generator: percent of cells whose roll lands in the board's
+    // "machine" share — they stay empty at that point, and the station pass then
+    // anchors a recipe footprint on a random subset of the cells left empty (see
+    // GameModel::initRandomGrid). Net effect at this default: roughly a third of
+    // the subgrids hold a machine. 0 disables stations entirely.
+    // Footprints come from assets/station_recipes.csv; this only sets density.
+    int stationChance = 20;
     // Number of distinct item types the simulation uses (drives random item-id
     // generation). Keep this in sync with the rows defined in assets/items.csv
     // (id 0..numItems-1). Defaults to 3: wood, stone, water.
@@ -23,6 +29,10 @@ struct Config {
     std::string reactionsCsvPath;
     std::string spawnCsvPath;
     std::string stationRecipesCsvPath;
+    // Inline station-recipe CSV, used instead of the path when there is no
+    // filesystem to read it from (wasm bakes assets/station_recipes.csv into the
+    // binary — see tools/gen_wasm_interact_data.py). Takes precedence if set.
+    std::string stationRecipesCsv;
 
     Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false), ticksPerSecond(20) {}
     Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000,

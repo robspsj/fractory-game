@@ -1,4 +1,5 @@
 #include "interact_config.hpp"
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -72,11 +73,10 @@ static void loadSpawnRules(const std::string &path,
   }
 }
 
-static void loadStationRecipes(const std::string &path,
+static void loadStationRecipes(std::istream &in,
                                std::vector<StationRecipe> &out) {
-  std::ifstream file(path);
   std::string line;
-  while (std::getline(file, line)) {
+  while (std::getline(in, line)) {
     if (line.empty() || line[0] == '#') continue;
     std::stringstream ss(line);
     std::string tok;
@@ -107,7 +107,8 @@ static void loadStationRecipes(const std::string &path,
 void initInteractConfig(InteractConfig &cfg,
                         const std::string &reactionsPath,
                         const std::string &spawnPath,
-                        const std::string &stationRecipesPath) {
+                        const std::string &stationRecipesPath,
+                        const std::string &stationRecipesCsv) {
   cfg.reactions.clear();
   cfg.spawnRules.clear();
   cfg.stationRecipes.clear();
@@ -115,6 +116,19 @@ void initInteractConfig(InteractConfig &cfg,
     loadReactions(reactionsPath, cfg.reactions);
   if (!spawnPath.empty())
     loadSpawnRules(spawnPath, cfg.spawnRules);
-  if (!stationRecipesPath.empty())
-    loadStationRecipes(stationRecipesPath, cfg.stationRecipes);
+  // Inline CSV wins over the path: it is how the wasm build feeds data in (no
+  // filesystem to read assets/ from). Both are parsed by the same loader.
+  if (!stationRecipesCsv.empty()) {
+    std::istringstream in(stationRecipesCsv);
+    loadStationRecipes(in, cfg.stationRecipes);
+  } else if (!stationRecipesPath.empty()) {
+    std::ifstream file(stationRecipesPath);
+    if (file)
+      loadStationRecipes(file, cfg.stationRecipes);
+  }
+  // One-line summary: with no recipe table the random generator cannot place a
+  // single machine, which is otherwise silent (web without the embedded CSV, a
+  // native run from a directory without assets/, a typo in the path).
+  fprintf(stderr, "[GameModel] interact config: %zu reactions, %zu spawn rules, %zu station recipes\n",
+          cfg.reactions.size(), cfg.spawnRules.size(), cfg.stationRecipes.size());
 }

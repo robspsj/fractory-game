@@ -28,6 +28,11 @@ void GameModel::init(const Config &cfg) {
   _nodes.clear();
   _type.clear();
 
+  // Data-driven interaction config must be in place BEFORE the generator runs:
+  // the random world scatters station footprints taken from the recipe table.
+  initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
+                     cfg.stationRecipesCsvPath, cfg.stationRecipesCsv);
+
   Cell root;
   _nodes.push_back(root);
   _type.push_back((uint8_t)CellType::EMPTY);
@@ -44,52 +49,81 @@ void GameModel::init(const Config &cfg) {
   _dragItemId = -1;
   if (_events.size() < EVENT_CAP) _events.resize(EVENT_CAP);  // one-time alloc
   _evHead = _evTail = _eventDrops = 0;
-
-  initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
-                     cfg.stationRecipesCsvPath);
 }
 
 void GameModel::initEmptyGrid(int size) {
   populateWithSubgrid(0, size);
 }
 
+// Random world generator. The (grid, item, empty) roll shares are the ones the
+// single-roll generator used, so a given seed still builds the same world shape;
+// what changed is that stations are planted for real:
+//
+//   pass 1  subgrids / items / empties  — one roll per cell, walking forward so
+//           that appended subgrid children are visited as they are created
+//   pass 2  stations — recipe footprints scattered over the cells pass 1 left
+//           empty, anchored top-left like the hand-placed path
+//
+// Every pass only writes cells that are still EMPTY, and a successful station
+// placement converts its whole footprint at once, so no pass can clobber a
+// footprint claimed before it. (The single-roll version had both defects: its
+// station branch was unreachable once the subgrid budget ran out, and it
+// skipped a footprint by advancing `sizeR*sizeC` cells linearly — which only
+// matches the row-major stride when sizeC equals the parent grid dimension, so
+// the rest of the footprint was re-rolled into items/empties. It also ran
+// before the recipe table was loaded, so it never placed anything at all.)
 void GameModel::initRandomGrid(const Config &cfg) {
-  int gridChance = cfg.gridChance;
-  int stationChance = cfg.stationChance;
+  const int gridChance = std::clamp(cfg.gridChance, 0, 100);
+  // Clamped against gridChance so the roll shares below can never go negative
+  // (a 100% station share plus the subgrid share is not a valid split).
+  const int stationChance = std::clamp(cfg.stationChance, 0, 100 - gridChance);
+  // Roll shares, unchanged from the single-roll generator: the station share is
+  // still "the cells earmarked for a machine", the rest splits evenly between
+  // items and empties.
+  const int remaining = 100 - gridChance - stationChance;
+  const int itemChance = remaining / 2;
+  const int emptyChance = remaining - itemChance;
 
   populateWithSubgrid(0, GRID);
   int gridCount = 1;
 
-  int remaining = 100 - gridChance - stationChance;
-  int itemChance = remaining / 2;
-  int emptyChance = remaining - itemChance;
-
-  int i = 1;
-  while (i < (int)_nodes.size()) {
-    auto &cell = _nodes[i];
-
-    int randVal = std::rand() % 100;
-    if (randVal < emptyChance) {
-      setType(i, CellType::EMPTY);
-    } else if (randVal < emptyChance + itemChance || gridCount >= cfg.gridLimit) {
+  // Phases 1-2: children appended by populateWithSubgrid land after the current
+  // index, so this same walk descends into nested subgrids as it reaches them.
+  for (int i = 1; i < (int)_nodes.size(); i++) {
+    if (typeOf(i) != CellType::EMPTY) continue;  // already a subgrid container
+    const int roll = std::rand() % 100;
+    if (roll < emptyChance) {
+      // stays empty
+    } else if (roll < emptyChance + itemChance) {
       setType(i, CellType::ITEM);
-      cell.content.data.item.id = std::rand() % _numItems;
-      cell.content.data.item.count = std::rand() % 4 + 1;
-    } else if (randVal < emptyChance + itemChance + stationChance) {
-      if (tryPlaceRandomStation(i)) {
-        const StationData &st = _nodes[i].content.data.station;
-        i += st.sizeR * st.sizeC - 1;
-      } else {
-        setType(i, CellType::EMPTY);
-      }
-    } else {
-      setType(i, CellType::GRID);
+      _nodes[i].content.data.item.id = (uint16_t)(std::rand() % _numItems);
+      _nodes[i].content.data.item.count = (uint16_t)(std::rand() % 4 + 1);
+    } else if (roll < emptyChance + itemChance + stationChance) {
+      // station share — left empty here, phase 3 anchors machines on it
+    } else if (gridCount < cfg.gridLimit) {
       gridCount++;
-      int subSize = std::rand() % 6 + 2;
-      populateWithSubgrid(i, subSize);
+      populateWithSubgrid(i, std::rand() % 6 + 2);
+    } else {
+      // Subgrid budget spent: what would have been a subgrid becomes an item,
+      // as in the single-roll generator.
+      setType(i, CellType::ITEM);
+      _nodes[i].content.data.item.id = (uint16_t)(std::rand() % _numItems);
+      _nodes[i].content.data.item.count = (uint16_t)(std::rand() % 4 + 1);
     }
-    i++;
   }
+
+  // Pass 2: stations. One anchor roll per surviving empty cell; a successful
+  // placement converts the whole footprint (STATION + RESERVED at once), so
+  // footprint cells are never candidates themselves and two machines can never
+  // overlap.
+  if (stationChance > 0 && !_interactCfg.stationRecipes.empty()) {
+    for (int i = 1; i < (int)_nodes.size(); i++) {
+      if (typeOf(i) != CellType::EMPTY) continue;
+      if (std::rand() % 100 >= stationChance) continue;
+      tryPlaceRandomStation(i);
+    }
+  }
+
   // Seed visible heat for demo — see Heat::INIT_* in heat_constants.hpp
   for (int j = 1; j < (int)_nodes.size(); j++) {
     if (typeOf(j) == CellType::GRID) continue;
@@ -98,56 +132,61 @@ void GameModel::initRandomGrid(const Config &cfg) {
   }
 }
 
-bool GameModel::tryPlaceRandomStation(int gridIndex) {
-  if (gridIndex <= 0 || gridIndex >= (int)_nodes.size()) return false;
+// Plant a station at `anchorIndex`, which must be the footprint's top-left cell
+// — that is what StationCell's layout math (and the hand-placed path) assumes.
+// Recipes are tried in a random rotation so a small machine still lands where
+// the big one has no room. Returns false when nothing fits.
+bool GameModel::tryPlaceRandomStation(int anchorIndex) {
+  if (anchorIndex <= 0 || anchorIndex >= (int)_nodes.size()) return false;
   if (_interactCfg.stationRecipes.empty()) return false;
+  if (typeOf(anchorIndex) != CellType::EMPTY) return false;
 
-  Cell &cell = _nodes[gridIndex];
-  if (cell.parentId < 0) return false;
-  if (typeOf(gridIndex) != CellType::EMPTY) return false;
+  Cell &anchor = _nodes[anchorIndex];
+  const int parentIndex = anchor.parentId;
+  if (parentIndex < 0 || typeOf(parentIndex) != CellType::GRID) return false;
 
-  const Cell &parentCell = _nodes[cell.parentId];
-  if (typeOf(cell.parentId) != CellType::GRID) return false;
+  const Cell &parent = _nodes[parentIndex];
+  const int dim = parent.content.data.grid.gridDimension;
+  const int first = parent.content.data.grid.firstChild;
+  const int local = anchorIndex - first;
+  const int startRow = local / dim;
+  const int startCol = local % dim;
 
-  int parentDim = parentCell.content.data.grid.gridDimension;
-  int parentFirst = parentCell.content.data.grid.firstChild;
-  int localIdx = gridIndex - parentFirst;
-  int startRow = localIdx / parentDim;
-  int startCol = localIdx % parentDim;
+  const int recipeCount = (int)_interactCfg.stationRecipes.size();
+  const int offset = std::rand() % recipeCount;
+  for (int k = 0; k < recipeCount; k++) {
+    const StationRecipe &recipe = _interactCfg.stationRecipes[(offset + k) % recipeCount];
+    if (recipe.sizeR <= 0 || recipe.sizeC <= 0) continue;
+    if (startRow + recipe.sizeR > dim) continue;
+    if (startCol + recipe.sizeC > dim) continue;
 
-  int recipeIdx = std::rand() % (int)_interactCfg.stationRecipes.size();
-  const StationRecipe &recipe = _interactCfg.stationRecipes[recipeIdx];
-
-  if (startRow + recipe.sizeR > parentDim) return false;
-  if (startCol + recipe.sizeC > parentDim) return false;
-
-  for (int r = 0; r < recipe.sizeR; r++) {
-    for (int c = 0; c < recipe.sizeC; c++) {
-      int idx = parentFirst + (startRow + r) * parentDim + (startCol + c);
-      if (typeOf(idx) != CellType::EMPTY) return false;
+    bool free = true;
+    for (int r = 0; r < recipe.sizeR && free; r++) {
+      for (int c = 0; c < recipe.sizeC; c++) {
+        const int idx = first + (startRow + r) * dim + (startCol + c);
+        if (idx != anchorIndex && typeOf(idx) != CellType::EMPTY) { free = false; break; }
+      }
     }
-  }
+    if (!free) continue;
 
-  setType(gridIndex, CellType::STATION);
-  cell.content.data.station = {0, (uint16_t)recipe.id, (uint8_t)recipe.sizeR, (uint8_t)recipe.sizeC};
+    setType(anchorIndex, CellType::STATION);
+    anchor.content.data.station = {0, (uint16_t)recipe.id, (uint8_t)recipe.sizeR, (uint8_t)recipe.sizeC};
 
-  for (int r = 0; r < recipe.sizeR; r++) {
-    for (int c = 0; c < recipe.sizeC; c++) {
-      int row = startRow + r;
-      int col = startCol + c;
-      int idx = parentFirst + row * parentDim + col;
-      if (idx == gridIndex) continue;
-      int layoutIdx = r * recipe.sizeC + c;
-      setType(idx, CellType::RESERVED);
-      _nodes[idx].content.data.reserved = {
-        (uint16_t)(idx - gridIndex),
-        recipe.layout[layoutIdx],
-        NO_ITEM, 0
-      };
+    for (int r = 0; r < recipe.sizeR; r++) {
+      for (int c = 0; c < recipe.sizeC; c++) {
+        const int idx = first + (startRow + r) * dim + (startCol + c);
+        if (idx == anchorIndex) continue;
+        setType(idx, CellType::RESERVED);
+        _nodes[idx].content.data.reserved = {
+          (uint16_t)(idx - anchorIndex),
+          recipe.layout[r * recipe.sizeC + c],
+          NO_ITEM, 0
+        };
+      }
     }
+    return true;
   }
-
-  return true;
+  return false;
 }
 
 void GameModel::populateWithSubgrid(int cellIndex, int size) {

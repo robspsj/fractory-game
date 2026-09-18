@@ -4,8 +4,12 @@
 #include <cstdio>
 
 void StationCell::collectTickPlan(int idx, GameModel &model, std::vector<int> &stations) {
+  // Only machines with work in flight are queued: an idle station (progress 0)
+  // would just cost a serial cache miss per tick to return immediately, and it
+  // cannot become active inside a tick (progress is only ever set by the
+  // interaction path, between ticks).
+  if (model._nodes[idx].content.data.station.progress == 0) return;
   stations.push_back(idx);
-  (void)model;
 }
 
 void StationCell::tick(int idx, GameModel &model) {

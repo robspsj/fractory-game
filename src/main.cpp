@@ -5,10 +5,14 @@
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
+#if !defined(__EMSCRIPTEN__)
+#include <filesystem>
+#endif
 #include "include/core/SkCanvas.h"
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkPaint.h"
@@ -18,7 +22,23 @@
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #include <emscripten/html5.h>
+#include "generated/wasm_interact_data.h"
 #endif
+
+// Runtime data files (assets/*.csv) are opened relative to cwd, and native runs
+// from build-native/ — fall back to the repo-relative "../<path>" like the SVG
+// asset loader (AssetManager) does. Native only: the wasm main() has no
+// filesystem and wires the baked-in copies of the data instead.
+static std::string resolveAssetPath(const std::string &path) {
+#if defined(__EMSCRIPTEN__)
+  return path;
+#else
+  if (std::filesystem::exists(path)) return path;
+  const std::string alt = "../" + path;
+  if (std::filesystem::exists(alt)) return alt;
+  return path;
+#endif
+}
 
 static std::unique_ptr<Game> s_game;
 static int winW = 800, winH = 600;
@@ -466,7 +486,12 @@ int main() {
   // (frct_webgl_frame re-binds our context whenever SDL's window creation
   // made another one current, so no explicit rebind is needed here)
 
-  s_game = std::make_unique<Game>(Config{});
+  // Model-side data has no filesystem to read from on web: CMake bakes the same
+  // station-recipes CSV into the binary (tools/gen_wasm_interact_data.py), and
+  // the model parses it with the very loader the native build uses on assets/.
+  Config cfg;
+  cfg.stationRecipesCsv = FRACTORY_EMBEDDED_STATION_RECIPES;
+  s_game = std::make_unique<Game>(cfg);
 #if !defined(__EMSCRIPTEN__)
   s_game->view().loadChessAssets();
   s_game->view().loadUiAssets();
@@ -587,8 +612,21 @@ int main(int argc, char *argv[]) {
     } else if (std::string(argv[a]) == "--grid-limit" && a + 1 < argc) {
       if (std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
         cfg.gridLimit = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--station-chance" && a + 1 < argc) {
+      // Machine density — see Config::stationChance.
+      if (std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
+        cfg.stationChance = std::atoi(argv[++a]);
+    } else if (std::string(argv[a]) == "--no-stations") {
+      cfg.stationChance = 0;
     }
   }
+
+  // Model-side data: machine footprints the random generator scatters (and that
+  // a hand-placed station uses). Loaded from assets/ next to items.csv; a
+  // missing file just leaves the config empty -> no stations in the world.
+  // (The web build has no filesystem and wires the baked-in copy instead — see
+  // the emscripten main() above.)
+  cfg.stationRecipesCsvPath = resolveAssetPath("assets/station_recipes.csv");
 
   if (tickMode) {
     // Headless model-tick micro-benchmark: avg time per GameModel::tick() on the
