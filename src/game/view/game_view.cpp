@@ -29,7 +29,9 @@ const float GameView::_white[3] = {1.0f, 1.0f, 1.0f};
 const float GameView::_yellow[3] = {1.0f, 1.0f, 0.0f};
 const float GameView::_grey[3] = {0.5f, 0.5f, 0.5f};
 const float GameView::_gridBg[3] = {0.25f, 0.40f, 0.60f};
-const float GameView::_stationColor[3] = {0.6f, 0.4f, 0.2f};
+// Machines: deliberately COOL and unlike the heat overlay's warm glow (Heat::
+// Visual::WARM_*), so a violet tile reads "station" and a warm one reads "hot".
+const float GameView::_stationColor[3] = {0.46f, 0.30f, 0.68f};
 const float GameView::_reservedInput[3] = {0.2f, 0.6f, 0.3f};
 const float GameView::_reservedOutput[3] = {0.6f, 0.2f, 0.2f};
 const float GameView::_reservedBuffer[3] = {0.4f, 0.4f, 0.4f};
