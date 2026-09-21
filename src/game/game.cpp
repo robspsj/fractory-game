@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "particle.hpp"
+#include "heat_constants.hpp"
 #include <algorithm>
 #include <chrono>
 #include "include/core/SkCanvas.h"
@@ -62,6 +63,14 @@ bool Game::step(int elapsedMs) {
   if (_tickAccumMs >= tickMs) {
     _tickAccumMs -= tickMs;
     if (_tickAccumMs > tickMs) _tickAccumMs = tickMs;  // drop unreachable catch-up
+    // Right-button hold: pump heat into the hovered cell before the tick runs,
+    // so a superheated EMPTY vacuum is at threshold when the decay pass rolls
+    // its quantum fluctuation (GameModel::quantumFluctuation). GRID cells are
+    // heat-less — addHeat no-ops for them, so hovering a container is inert.
+    if (_heatingHeld) {
+      int hc = _view->hoveredCellNode();
+      if (hc > 0) _model->addHeat(hc, Heat::QUANTUM_HOLD_HEAT_PER_TICK);
+    }
     auto s = clk::now();
     _model->tick();
     tickSum += std::chrono::duration<double, std::milli>(clk::now() - s).count();
@@ -301,6 +310,7 @@ void Game::applyEffects() {
     switch (e.type) {
       case CellEventType::REACTION:      kind = EffectKind::INTERACT_REACTION; break;
       case CellEventType::SPAWN:         kind = EffectKind::INTERACT_SPAWN;    break;
+      case CellEventType::QUANTUM_SPAWN: kind = EffectKind::QUANTUM_SPAWN;     break;
       case CellEventType::SPILL:         kind = EffectKind::SPILL;             break;
       case CellEventType::DESTROY:       kind = EffectKind::DESTROY;           break;
       case CellEventType::STATION_OUTPUT:kind = EffectKind::STATION_OUTPUT;    break;

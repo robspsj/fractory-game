@@ -10,6 +10,7 @@ struct TestStep {
   int expectedCount = 0;
   int count = 1;
   int rng = -1;   // for "test_rng": fixed RNG value to force (-1 = disable)
+  int heat = 0;   // for "set_heat" / "expect_heat"
 };
 
 class ModelTestRunner {

@@ -107,6 +107,11 @@ class GameModel {
   void setHeat(int idx, uint8_t h);
   void addHeat(int idx, int delta); // clamped 0..255, no-op for GRID
   void setHeatBulk(const std::vector<std::pair<int,uint8_t>> &pairs);
+  // Quantum fluctuation (docs: Heat::QUANTUM_*): a superheated EMPTY cell
+  // materializes a random item and freezes solid. Rolled from the heat-decay
+  // pass so no extra scan exists; the decay pass's own read of the old heat
+  // value in the same tick is harmless.
+  bool quantumFluctuation(int idx);
 
   struct TickProfile {
     double sweepMs = 0.0;

@@ -53,6 +53,20 @@ namespace Heat {
  inline constexpr int RESERVED_BUFFER_HEAT_IN  = 5;
  inline constexpr int RESERVED_BUFFER_HEAT_OUT = 2;
 
+ // ── Quantum fluctuation — superheated vacuum births particles ────────
+ // Hold RMB on a cell and Game::step pumps QUANTUM_HOLD_HEAT_PER_TICK of
+ // heat into it per sim tick. EMPTY cells at/above QUANTUM_MIN_HEAT then
+ // roll QUANTUM_CHANCE_PCT per heat-decay pass (~1.6s at 20 tps — the pass
+ // is the amortized decay slice, so the roll costs nothing extra). On a
+ // hit the cell materializes a random item (uniform over _numItems), born
+ // at heat 0: the fluctuation absorbs the local energy, which also acts
+ // as a cooldown. Roll uses GameModel::prng → deterministic under
+ // test_rng and per-cell reproducible.
+ inline constexpr int QUANTUM_HOLD_HEAT_PER_TICK = 6;   // 120/s at 20 tps → ~2s to saturate
+ inline constexpr int QUANTUM_MIN_HEAT           = 200; // same ceiling as INIT_WARM_MAX
+ inline constexpr int QUANTUM_CHANCE_PCT         = 25;  // per decay pass → ~6s of hold expected
+ inline constexpr int QUANTUM_PRNG_SALT          = 91;  // +1 salt picks the item id
+
  // ── Decay & diffusion (src/game/model/game_model.cpp) ───────────────
  // Power-of-two masks: interval = mask+1. Decay uses DECAY_PERIOD_MASK /
  // DECAY_PROPORTIONAL_SHIFT (defined above with reactiveness).

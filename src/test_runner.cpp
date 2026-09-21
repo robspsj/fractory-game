@@ -110,6 +110,22 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       int idx = model.rootChild(step.row, step.col);
       model.interact(idx);
       printState(model);
+    } else if (step.type == "set_heat") {
+      int idx = model.rootChild(step.row, step.col);
+      model.setHeat(idx, (uint8_t)step.heat);
+      std::cout << "Action: set_heat at [" << step.row << "," << step.col
+                << "] = " << step.heat << std::endl;
+    } else if (step.type == "expect_heat") {
+      int idx = model.rootChild(step.row, step.col);
+      int actual = model.heatAt(idx);
+      if (actual < step.heat) {
+        std::cerr << "Expectation FAILED: Cell [" << step.row << "," << step.col
+                  << "] heat expected >= " << step.heat << " but got "
+                  << actual << std::endl;
+        return false;
+      }
+      std::cout << "Expectation PASSED: Cell [" << step.row << "," << step.col
+                << "] heat is " << actual << std::endl;
     } else if (step.type == "place_station") {
       int idx = model.rootChild(step.row, step.col);
       bool ok = model.placeStation(idx, step.expectedId);
@@ -268,6 +284,17 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
       step.type = "interact";
       step.row = std::stoi(row_str);
       step.col = std::stoi(col_str);
+      steps.push_back(step);
+    } else if (type == "set_heat" || type == "expect_heat") {
+      std::string row_str, col_str, heat_str;
+      std::getline(ss, row_str, ',');
+      std::getline(ss, col_str, ',');
+      std::getline(ss, heat_str, ',');
+      TestStep step;
+      step.type = type;
+      step.row = std::stoi(row_str);
+      step.col = std::stoi(col_str);
+      step.heat = std::stoi(heat_str);
       steps.push_back(step);
     } else if (type == "place_station") {
       std::string row_str, col_str, recipe_str;

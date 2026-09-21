@@ -394,10 +394,17 @@ static void frame() {
       s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
     else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
       int mod = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1 : 0;
-      s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
-    } else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
-      s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-    else if (e.type == SDL_EVENT_MOUSE_WHEEL)
+      if (e.button.button == SDL_BUTTON_RIGHT) {  // hold -> heat the hovered cell
+        s_game->setHeatingHeld(true);
+      } else {
+        s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
+      }
+    } else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+      if (e.button.button == SDL_BUTTON_RIGHT)
+        s_game->setHeatingHeld(false);
+      else
+        s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+    } else if (e.type == SDL_EVENT_MOUSE_WHEEL)
       s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
     else if (e.type == SDL_EVENT_KEY_DOWN) {
       if (e.key.key == SDLK_F3) {
@@ -936,10 +943,18 @@ int main(int argc, char *argv[]) {
         s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
       else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
         int mod = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1 : 0;
-        s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
+        if (e.button.button == SDL_BUTTON_RIGHT) {  // hold -> heat the hovered cell
+          s_game->setHeatingHeld(true);
+        } else {
+          s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
+        }
       }
-      else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
-        s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+      else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        if (e.button.button == SDL_BUTTON_RIGHT)
+          s_game->setHeatingHeld(false);
+        else
+          s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+      }
       else if (e.type == SDL_EVENT_MOUSE_WHEEL)
         s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
       else if (e.type == SDL_EVENT_KEY_DOWN) {

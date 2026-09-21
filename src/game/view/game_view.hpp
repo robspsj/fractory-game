@@ -60,6 +60,7 @@ class GameView {
     }
     void setHoveredCellNode(int nodeIdx) { _hoverCellNode = nodeIdx; }
     void clearHoveredCell() { _hoverCellNode = -1; }
+    int hoveredCellNode() const { return _hoverCellNode; }
 
     void zoom(float factor, float mouseNX, float mouseNY);
     float zoomFactor() const { return _zoom; }

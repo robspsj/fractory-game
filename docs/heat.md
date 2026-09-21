@@ -31,9 +31,11 @@ flowchart TB
         E[Empty spawn<br/>+10]
         F[Station I/O<br/>RESERVED +8 / anchor +4<br/>tick working +1]
         G[Station progress active<br/>+1 per tick]
+        Q[RMB hold on cell<br/>+6 per sim tick<br/>Game::step → hovered cell]
     end
     Sources --> H{Cell.heat 0..255}
     H --> I[Decay<br/>-(heat>>3 +1) every 32 ticks/cell<br/>1/32-array slice each tick]
+    I -.->|EMPTY ≥ 200: 25% roll| QS[Quantum fluctuation<br/>random ITEM ×1, heat→0]
     H --> J[Diffusion<br/>~1/128 hot cells/64 ticks/cell<br/>1/64-array slice each tick<br/>-1 here +1 random neighbour (4-dir)]
     I --> H
     J --> H
@@ -158,8 +160,24 @@ All `addHeat` call sites:
 | `EmptyCell::interact` spawn | `empty_cell.cpp:13` | +10 |
 | `StationCell::tick` working | `station_cell.cpp:16` | +1 |
 | `StationCell/ReservedCell` I/O | `station_cell.cpp:126`, `reserved_cell.cpp:18` | +8 / +4 |
+| RMB hold ("heat a cell") | `game.cpp` `Game::step` | +6 per sim tick into the hovered cell |
 
 Pick/drop intentionally **heat-neutral** (cell-local invariant).
+
+### Quantum fluctuation — superheated vacuum births particles
+
+The entry point for an empty board: hold **right mouse button** over any
+non-GRID cell and heat pumps in (`Heat::QUANTUM_HOLD_HEAT_PER_TICK`/tick,
+~2 s to saturation). Once an **EMPTY** cell sits at ≥ `QUANTUM_MIN_HEAT`
+(200), every heat-decay pass visits it (≈1.6 s at 20 tps) with a
+`QUANTUM_CHANCE_PCT` (25%) roll (`GameModel::quantumFluctuation`, called
+from the decay slice — no extra scan). A hit materialises a random item
+(uniform over `_numItems`) as `ITEM ×1` and the fluctuation **absorbs the
+cell's energy**: heat drops to 0, doubling as birth signature and
+cooldown. Emits `CellEventType::QUANTUM_SPAWN` → `EffectKind::QUANTUM_SPAWN`
+smoke burst. Rolls go through `GameModel::prng(idx, salt)`, so
+`test_rng`-forced CSV scenarios stay deterministic
+(`tests/test_quantum.csv`).
 
 ---
 
@@ -174,6 +192,9 @@ Pick/drop intentionally **heat-neutral** (cell-local invariant).
   Constant gain + fixed −1 decay was a runaway: events/tick doubled in ~2 min on big
   boards and fps decayed with them (2025-09 incident).
 * **Sway**: multipliers `0.7` (amp) / `0.9` (freq) — reduce for calmer hot items.
+* **Quantum**: hold rate `QUANTUM_HOLD_HEAT_PER_TICK` (feel), threshold
+  `QUANTUM_MIN_HEAT` (vs decay equilibrium ~222: must stay reachable), roll
+  `QUANTUM_CHANCE_PCT` per decay pass (~6 s of holding is one expected birth).
 
 See `PERF.md` for tick cost: diffusion now ~0.7M checks/tick avg vs. 11M heavy before.
 

@@ -1,0 +1,22 @@
+# Quantum fluctuation: heating an EMPTY cell past the threshold makes the
+# vacuum condense a particle (Heat::QUANTUM_* in heat_constants.hpp).
+# test_rng=0 forces every prng() call to 0:
+#   0 % 100 < QUANTUM_CHANCE_PCT(25) -> the roll hits
+#   0 % numItems(3)                  -> born item id 0
+empty_grid:3
+# Cell [0,0] starts EMPTY
+expect_cell,0,0,-1,0
+# Below threshold the vacuum stays inert even with a guaranteed-hit RNG roll
+set_heat,0,1,150
+test_rng,0
+# 30 ticks: the decay slice (1 cell/tick on a 10-node board, cycling 1..9)
+# visits the warm cell [0,1] four times — it decays but never rolls (heat<200).
+tick,30
+expect_cell,0,1,-1,0
+# Superheat [0,0] (what the RMB hold pumps toward: Heat::QUANTUM_MIN_HEAT=200).
+# Slice pointer sits at cell 4; cell 1 (=[0,0]) comes around 7 ticks later.
+set_heat,0,0,200
+tick,7
+# Fluctuation born: ITEM 0 x1. The heat was absorbed at birth, so the fresh
+# item cannot have acted yet (it would need a decay-pass visit first anyway).
+expect_cell,0,0,0,1

@@ -385,6 +385,25 @@ uint32_t GameModel::prng(int idx, int salt) const {
   return x;
 }
 
+bool GameModel::quantumFluctuation(int idx) {
+  if (idx <= 0 || idx >= (int)_nodes.size()) return false;
+  if (typeOf(idx) != CellType::EMPTY) return false;   // vacuum only
+  if (_nodes[idx].heat < Heat::QUANTUM_MIN_HEAT) return false;
+  if ((int)(prng(idx, Heat::QUANTUM_PRNG_SALT) % 100u) >= Heat::QUANTUM_CHANCE_PCT)
+    return false;
+  // The fluctuation wins: a particle pops into being and the cell's energy
+  // is absorbed — it freezes to heat 0, which is both the birth signature
+  // and the cooldown (the hold must pump ~2s back up to the threshold).
+  CellContent born;
+  born.data.item.id =
+      (uint16_t)(prng(idx, Heat::QUANTUM_PRNG_SALT + 1) % (uint32_t)_numItems);
+  born.data.item.count = 1;
+  putContent(idx, CellType::ITEM, born);
+  _nodes[idx].heat = 0;
+  emitEvent(CellEventType::QUANTUM_SPAWN, idx, born.data.item.id);
+  return true;
+}
+
 void GameModel::tick() {
   using clk = std::chrono::steady_clock;
   _tprof = TickProfile{};
@@ -493,6 +512,12 @@ void GameModel::tick() {
       if (_type[i] == (uint8_t)CellType::GRID) continue;
       Cell &c = _nodes[i];
       if (c.heat == 0) continue;
+      // Quantum fluctuation piggybacks on this pass (~every 32 ticks per cell
+      // — the natural rate knob): a superheated EMPTY vacuum may condense an
+      // item, which zeroes this cell's heat, so skip the local decay below.
+      if (typeOf(i) == CellType::EMPTY &&
+          c.heat >= Heat::QUANTUM_MIN_HEAT && quantumFluctuation(i))
+        continue;
       int d = (c.heat >> Heat::DECAY_PROPORTIONAL_SHIFT) + 1;  // proportional loss
       c.heat = (uint8_t)(c.heat > d ? c.heat - d : 0);
     }
