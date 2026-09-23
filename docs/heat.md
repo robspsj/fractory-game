@@ -80,6 +80,29 @@ if (freqDenom > 100) freqDenom = 100;
 if (prng(idx,0) % freqDenom != 0) return;
 ```
 
+Once it acts, `prng(idx,1) & 1` picks the branch:
+
+```mermaid
+flowchart TB
+    act[act] --> odd{"prng&1"}
+    odd -->|1| shrink["cnt>1 ? SHRINK : DESTROY"]
+    odd -->|0| cap{"cnt > COMFORT(5)?"}
+    cap -->|no| grow["GROW cnt+1"]
+    cap -->|yes| roll["split roll:<br/>prng%100 < 20 + (cnt-6)*10, ≤90"]
+    roll -->|hit| split["SPILL: half to an EMPTY neighbour<br/>src keeps cnt - cnt/2"]
+    roll -->|miss| grow
+    split -->|no EMPTY neighbour| grow
+```
+
+**Growth is uncapped** (uint16 ceiling only) and a **spill is a proportional
+split**, not a fixed transfer — the old code wrote `src=tgt=3`, which silently
+destroyed 44 units out of a 50-stack and hard-capped growth at 5. A tall pile
+now drains in ~log₂ steps: 12 → 6+6 → … The split chance rises with the stack
+(`Heat::ITEM_SPILL_CHANCE_*`), so piles settle in the high single digits
+instead of running away. Target choice stays `findSpillTarget` (random EMPTY
+neighbour via `prng(idx,2)`); with nowhere to spill, the stack keeps growing
+rather than stalling.
+
 ### STATION (`src/game/model/station_cell.cpp:10`)
 
 ```cpp
@@ -195,6 +218,9 @@ smoke burst. Rolls go through `GameModel::prng(idx, salt)`, so
 * **Quantum**: hold rate `QUANTUM_HOLD_HEAT_PER_TICK` (feel), threshold
   `QUANTUM_MIN_HEAT` (vs decay equilibrium ~222: must stay reachable), roll
   `QUANTUM_CHANCE_PCT` per decay pass (~6 s of holding is one expected birth).
+* **Growth/split**: `ITEM_SPILL_COMFORT` sets when piles start splitting;
+  `ITEM_SPILL_CHANCE_BASE`/`_PER`/`_MAX` set how eagerly (higher = flatter
+  piles). A split always moves half, so `_MAX` is the real runaway brake.
 
 See `PERF.md` for tick cost: diffusion now ~0.7M checks/tick avg vs. 11M heavy before.
 

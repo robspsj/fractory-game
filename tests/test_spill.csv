@@ -1,0 +1,26 @@
+# Item growth is uncapped; spills SPLIT the stack (Heat::ITEM_SPILL_*).
+# test_rng forces every prng() call to one value, so each branch is exact:
+#   act        <=> rng % freqDenom == 0   (freqDenom = 100 at heat 0, 20 at 255)
+#   grow branch<=> rng & 1 == 0
+#   split      <=> rng % 100 < 20 + (count-COMFORT-1)*10, capped at 90
+empty_grid:3
+# [0,0] = item0 x12 (a pile no longer possible under the old cap)
+# [0,2] = item0 x6
+init:0:12,-1:0,0:6,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+
+# Phase 1 — growth past the old hard cap of 5.
+# heat 255 -> freqDenom 20; rng 20 acts (20%20==0), takes the grow branch
+# (20&1==0), and its split roll 20 is NOT < the 20% chance at count 6 -> grows.
+set_heat,0,2,255
+test_rng 20
+tick,1
+expect_cell,0,2,0,7
+
+# Phase 2 — the split is proportional: half moves, half stays.
+# heat 0 -> freqDenom 100; rng 0 acts, grow branch, split roll 0 < 80% at
+# count 12 -> 6 units move to the first empty neighbour (DOWN = [1,0]).
+test_rng 0
+tick,1
+expect_cell,0,0,0,6
+expect_cell,1,0,0,6
+test_rng -1

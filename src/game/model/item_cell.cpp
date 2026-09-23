@@ -40,14 +40,31 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
     else
       muts.push_back({idx, CellType::EMPTY, item, 0, CellEventType::DESTROY});
   } else {
-    if (cnt < 5)
-      muts.push_back({idx, CellType::ITEM, item, cnt + 1, CellEventType::GROW});
-    else {
+    // Grow branch — no hard cap. A stack past ITEM_SPILL_COMFORT may split
+    // instead, with a chance that rises with the stack; the split takes half
+    // (proportional drain). Reaching the uint16 ceiling forces a split.
+    int amount = 0;
+    if (cnt >= Heat::ITEM_COUNT_MAX) {
+      amount = cnt / 2;
+    } else if (cnt > Heat::ITEM_SPILL_COMFORT) {
+      int pct = Heat::ITEM_SPILL_CHANCE_BASE +
+                (cnt - Heat::ITEM_SPILL_COMFORT - 1) * Heat::ITEM_SPILL_CHANCE_PER;
+      if (pct > Heat::ITEM_SPILL_CHANCE_MAX) pct = Heat::ITEM_SPILL_CHANCE_MAX;
+      if ((int)(model.prng(idx, 3) % 100u) < pct) amount = cnt / 2;
+    }
+    if (amount > 0) {
       auto s = clk::now();
       int tgt = findSpillTarget(idx, model);
       spillMs += std::chrono::duration<double, std::milli>(clk::now() - s).count();
-      if (tgt != -1) spills.push_back({idx, tgt, item});
+      // Nowhere to spill -> keep growing (a stalled stack must not freeze).
+      if (tgt != -1) {
+        spills.push_back({idx, tgt, item, amount});
+        return;
+      }
     }
+    int nc = cnt + 1;
+    if (nc > Heat::ITEM_COUNT_MAX) nc = Heat::ITEM_COUNT_MAX;
+    muts.push_back({idx, CellType::ITEM, item, nc, CellEventType::GROW});
   }
 }
 

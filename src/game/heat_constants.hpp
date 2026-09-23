@@ -53,6 +53,23 @@ namespace Heat {
  inline constexpr int RESERVED_BUFFER_HEAT_IN  = 5;
  inline constexpr int RESERVED_BUFFER_HEAT_OUT = 2;
 
+ // ── Item growth & spill (src/game/model/item_cell.cpp) ───────────────
+ // Stacks have NO hard cap: below ITEM_SPILL_COMFORT a grown stack simply
+ // grows. Past it, the grow action instead rolls a split whose chance rises
+ // with the stack (BASE + PER per unit over the comfort line, capped at MAX).
+ // The split moves HALF the stack to an empty neighbour (src keeps
+ // count-amount) — proportional, so a tall pile drains in ~log2 steps
+ // instead of being clamped to a fixed transfer (the old code forced
+ // src=tgt=3, which destroyed 44 units out of a 50-stack).
+ // ITEM_COUNT_MAX is the uint16 storage ceiling: a stack that reaches it
+ // must split (it cannot grow), and growth is clamped there as a fallback
+ // when no empty neighbour exists.
+ inline constexpr int ITEM_COUNT_MAX        = 65535;
+ inline constexpr int ITEM_SPILL_COMFORT    = 5;   // stacks above this may split
+ inline constexpr int ITEM_SPILL_CHANCE_BASE = 20; // % at COMFORT+1
+ inline constexpr int ITEM_SPILL_CHANCE_PER  = 10; // +% per extra unit above it
+ inline constexpr int ITEM_SPILL_CHANCE_MAX  = 90; // ceiling
+
  // ── Quantum fluctuation — superheated vacuum births particles ────────
  // Hold RMB on a cell and Game::step pumps QUANTUM_HOLD_HEAT_PER_TICK of
  // heat into it per sim tick. EMPTY cells at/above QUANTUM_MIN_HEAT then

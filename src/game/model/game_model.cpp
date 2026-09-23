@@ -485,10 +485,16 @@ void GameModel::tick() {
     }
     for (const PlSpill &sp : buf.spills) {
       if (!_spillClaimed.insert(sp.tgt).second) continue;
+      // Proportional split: the source keeps what it did not send (sp.amount
+      // is half the planned stack), so big piles drain without loss.
+      Cell &srcCell = _nodes[sp.src];
+      int left = (int)srcCell.content.data.item.count - sp.amount;
+      if (left < 0) left = 0;
+      srcCell.content.data.item.count = (uint16_t)left;
+      if (left == 0) setType(sp.src, CellType::EMPTY);
       setType(sp.tgt, CellType::ITEM);
       _nodes[sp.tgt].content.data.item.id  = sp.item;
-      _nodes[sp.tgt].content.data.item.count = 3;
-      _nodes[sp.src].content.data.item.count = 3;
+      _nodes[sp.tgt].content.data.item.count = (uint16_t)sp.amount;
       emitEvent(CellEventType::SPILL, sp.src, sp.item);
       addHeat(sp.src, Heat::SPILL_HEAT_SRC);
       addHeat(sp.tgt, Heat::SPILL_HEAT_TGT);
