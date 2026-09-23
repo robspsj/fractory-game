@@ -307,6 +307,7 @@ void GameModel::drop(int nodeIndex) {
       int nc = (int)_nodes[nodeIndex].content.data.item.count + _dragAmount;
       _nodes[nodeIndex].content.data.item.count = (uint16_t)(nc > 65535 ? 65535 : nc);
       // keep heat with cell, not item — no heat change on merge
+      emitEvent(CellEventType::MERGE, nodeIndex, _dragItemId);
     } else if (tgtType == CellType::EMPTY) {
       putContent(nodeIndex, CellType::ITEM, dragCell);
       // keep target's heat (cell-local), don't transfer item heat

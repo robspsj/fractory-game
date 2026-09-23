@@ -311,6 +311,7 @@ void Game::applyEffects() {
       case CellEventType::REACTION:      kind = EffectKind::INTERACT_REACTION; break;
       case CellEventType::SPAWN:         kind = EffectKind::INTERACT_SPAWN;    break;
       case CellEventType::QUANTUM_SPAWN: kind = EffectKind::QUANTUM_SPAWN;     break;
+      case CellEventType::MERGE:         kind = EffectKind::MERGE;             break;
       case CellEventType::SPILL:         kind = EffectKind::SPILL;             break;
       case CellEventType::DESTROY:       kind = EffectKind::DESTROY;           break;
       case CellEventType::STATION_OUTPUT:kind = EffectKind::STATION_OUTPUT;    break;

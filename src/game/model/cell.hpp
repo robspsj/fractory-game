@@ -5,7 +5,7 @@
 
 enum class CellType { EMPTY, ITEM, GRID, STATION, RESERVED };
 
-enum class CellEventType { REACTION, SPAWN, SPILL, DESTROY, STATION_OUTPUT, GROW, SHRINK, QUANTUM_SPAWN };
+enum class CellEventType { REACTION, SPAWN, SPILL, DESTROY, STATION_OUTPUT, GROW, SHRINK, QUANTUM_SPAWN, MERGE };
 struct CellEvent {
   int nodeIndex;
   int itemId;

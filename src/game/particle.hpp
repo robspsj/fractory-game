@@ -33,6 +33,7 @@ enum class EffectKind {
   INTERACT_REACTION, // two items combined/consumed on shift-click
   INTERACT_SPAWN,    // a rule spawned an item into an empty cell
   QUANTUM_SPAWN,     // superheated vacuum fluctuated a particle into being
+  MERGE,             // a dragged stack merged into a same-id stack on drop
   DROP,              // an item was dropped into a cell
   SPILL,             // tick: an item spilled to a neighbour
   DESTROY,           // tick: an item's count hit 0 / was removed
