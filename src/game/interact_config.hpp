@@ -43,4 +43,8 @@ void initInteractConfig(InteractConfig &cfg,
                         const std::string &reactionsPath,
                         const std::string &spawnPath = "",
                         const std::string &stationRecipesPath = "",
-                        const std::string &stationRecipesCsv = "");
+                        const std::string &stationRecipesCsv = "",
+                        // Inline (filesystem-less) variants: take precedence
+                        // over the matching path when non-empty.
+                        const std::string &reactionsCsv = "",
+                        const std::string &spawnCsv = "");

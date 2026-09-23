@@ -1,0 +1,15 @@
+# Item reactions (shift-click an ITEM that has an ITEM neighbour).
+# Format: itemA,itemB,result,resultCount
+#
+# Each pair of DISTINCT items transmutes into the third one — a 3-item cycle,
+# so every cross-pair has a rule and shift-click always reacts instead of
+# falling through to the id-cycle fallback (ItemCell::interact).
+#
+# Semantics of a reaction: the neighbour cell is consumed (becomes EMPTY) and
+# the clicked cell becomes `result` with count `resultCount` — both stacks'
+# counts are discarded, so react small piles first.
+#
+# Item ids come from assets/items.csv (0=wood, 1=stone, 2=water).
+0,1,2,1   # wood  + stone -> water
+1,2,0,1   # stone + water -> wood
+2,0,1,1   # water + wood  -> stone

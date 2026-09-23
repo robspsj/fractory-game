@@ -494,9 +494,10 @@ int main() {
   // made another one current, so no explicit rebind is needed here)
 
   // Model-side data has no filesystem to read from on web: CMake bakes the same
-  // station-recipes CSV into the binary (tools/gen_wasm_interact_data.py), and
-  // the model parses it with the very loader the native build uses on assets/.
+  // interaction CSVs into the binary (tools/gen_wasm_interact_data.py), and the
+  // model parses them with the very loader the native build uses on assets/.
   Config cfg;
+  cfg.reactionsCsv = FRACTORY_EMBEDDED_REACTIONS;
   cfg.stationRecipesCsv = FRACTORY_EMBEDDED_STATION_RECIPES;
   s_game = std::make_unique<Game>(cfg);
 #if !defined(__EMSCRIPTEN__)
@@ -634,6 +635,10 @@ int main(int argc, char *argv[]) {
   // (The web build has no filesystem and wires the baked-in copy instead — see
   // the emscripten main() above.)
   cfg.stationRecipesCsvPath = resolveAssetPath("assets/station_recipes.csv");
+  // Reactions are what shift-click applies between two neighbouring items —
+  // without this table the model has 0 rules and interact silently falls back
+  // to the id-cycle. Spawns stay unset until an assets/spawns.csv is authored.
+  cfg.reactionsCsvPath = resolveAssetPath("assets/reactions.csv");
 
   if (tickMode) {
     // Headless model-tick micro-benchmark: avg time per GameModel::tick() on the

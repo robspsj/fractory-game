@@ -39,11 +39,12 @@ const StationRecipe *InteractConfig::findStationRecipe(int id) const {
   return nullptr;
 }
 
-static void loadReactions(const std::string &path,
-                          std::vector<ReactionRule> &out) {
-  std::ifstream file(path);
+// Loaders take a stream so the same parser serves the file path (native, reads
+// assets/*.csv) and the inline string (wasm, no filesystem) — mirroring
+// loadStationRecipes below.
+static void loadReactions(std::istream &in, std::vector<ReactionRule> &out) {
   std::string line;
-  while (std::getline(file, line)) {
+  while (std::getline(in, line)) {
     if (line.empty() || line[0] == '#') continue;
     std::stringstream ss(line);
     std::string a, b, res, cnt;
@@ -56,11 +57,9 @@ static void loadReactions(const std::string &path,
   }
 }
 
-static void loadSpawnRules(const std::string &path,
-                           std::vector<SpawnRule> &out) {
-  std::ifstream file(path);
+static void loadSpawnRules(std::istream &in, std::vector<SpawnRule> &out) {
   std::string line;
-  while (std::getline(file, line)) {
+  while (std::getline(in, line)) {
     if (line.empty() || line[0] == '#') continue;
     std::stringstream ss(line);
     std::string held, item, cnt, w;
@@ -108,16 +107,31 @@ void initInteractConfig(InteractConfig &cfg,
                         const std::string &reactionsPath,
                         const std::string &spawnPath,
                         const std::string &stationRecipesPath,
-                        const std::string &stationRecipesCsv) {
+                        const std::string &stationRecipesCsv,
+                        const std::string &reactionsCsv,
+                        const std::string &spawnCsv) {
   cfg.reactions.clear();
   cfg.spawnRules.clear();
   cfg.stationRecipes.clear();
-  if (!reactionsPath.empty())
-    loadReactions(reactionsPath, cfg.reactions);
-  if (!spawnPath.empty())
-    loadSpawnRules(spawnPath, cfg.spawnRules);
-  // Inline CSV wins over the path: it is how the wasm build feeds data in (no
-  // filesystem to read assets/ from). Both are parsed by the same loader.
+  // Inline CSV wins over the path for every table: it is how the wasm build
+  // feeds data in (no filesystem to read assets/ from). Both go through the
+  // same loader, so native and web parse identical bytes.
+  if (!reactionsCsv.empty()) {
+    std::istringstream in(reactionsCsv);
+    loadReactions(in, cfg.reactions);
+  } else if (!reactionsPath.empty()) {
+    std::ifstream file(reactionsPath);
+    if (file)
+      loadReactions(file, cfg.reactions);
+  }
+  if (!spawnCsv.empty()) {
+    std::istringstream in(spawnCsv);
+    loadSpawnRules(in, cfg.spawnRules);
+  } else if (!spawnPath.empty()) {
+    std::ifstream file(spawnPath);
+    if (file)
+      loadSpawnRules(file, cfg.spawnRules);
+  }
   if (!stationRecipesCsv.empty()) {
     std::istringstream in(stationRecipesCsv);
     loadStationRecipes(in, cfg.stationRecipes);
@@ -126,9 +140,10 @@ void initInteractConfig(InteractConfig &cfg,
     if (file)
       loadStationRecipes(file, cfg.stationRecipes);
   }
-  // One-line summary: with no recipe table the random generator cannot place a
-  // single machine, which is otherwise silent (web without the embedded CSV, a
-  // native run from a directory without assets/, a typo in the path).
+  // One-line summary: an empty table is otherwise silent (a native run from a
+  // directory without assets/, a typo in a path, a wasm build without the
+  // embedded copy) — and 0 reactions means shift-click falls back to the
+  // id-cycle instead of reacting, which reads as "reactions are broken".
   fprintf(stderr, "[GameModel] interact config: %zu reactions, %zu spawn rules, %zu station recipes\n",
           cfg.reactions.size(), cfg.spawnRules.size(), cfg.stationRecipes.size());
 }

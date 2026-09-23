@@ -14,6 +14,7 @@ import sys
 
 # (C++ symbol, path relative to the repo root)
 FILES = [
+    ("FRACTORY_EMBEDDED_REACTIONS", "assets/reactions.csv"),
     ("FRACTORY_EMBEDDED_STATION_RECIPES", "assets/station_recipes.csv"),
 ]
 

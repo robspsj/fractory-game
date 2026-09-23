@@ -31,7 +31,8 @@ void GameModel::init(const Config &cfg) {
   // Data-driven interaction config must be in place BEFORE the generator runs:
   // the random world scatters station footprints taken from the recipe table.
   initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
-                     cfg.stationRecipesCsvPath, cfg.stationRecipesCsv);
+                     cfg.stationRecipesCsvPath, cfg.stationRecipesCsv,
+                     cfg.reactionsCsv, cfg.spawnCsv);
 
   Cell root;
   _nodes.push_back(root);
