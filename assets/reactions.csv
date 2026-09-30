@@ -13,3 +13,7 @@
 0,1,2,1   # wood  + stone -> water
 1,2,0,1   # stone + water -> wood
 2,0,1,1   # water + wood  -> stone
+# Same-type rule: the crafting element's source (2 wood -> 1 wand). Without a
+# same-type rule, shift-clicking two identical piles falls through to the
+# id-cycle fallback instead (ItemCell::interact).
+0,0,3,1   # wood  + wood  -> crafting wand

@@ -1,0 +1,6 @@
+# Test fixture for crafting (mirrors assets/crafting.csv; the harness loads this
+# file so asset edits never move test expectations).
+# Format: resultId,resultCount,dr:dc:itemId,...
+0,1,0:0:1,0:1:2
+1,2,0:0:0,0:1:0,0:2:0
+3,1,0:0:0,1:0:1,0:1:2

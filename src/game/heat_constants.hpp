@@ -53,6 +53,11 @@ namespace Heat {
  inline constexpr int RESERVED_BUFFER_HEAT_IN  = 5;
  inline constexpr int RESERVED_BUFFER_HEAT_OUT = 2;
 
+ // ── Crafting (src/game/model/game_model.cpp tryCraftWithDrag) ────────
+ // Heat fed to the cell the crafted result lands on, so a craft site warms up
+ // like every other interaction (and hot items keep acting around it).
+ inline constexpr int CRAFT_HEAT = 8;
+
  // ── Item growth & spill (src/game/model/item_cell.cpp) ───────────────
  // Stacks have NO hard cap: below ITEM_SPILL_COMFORT a grown stack simply
  // grows. Past it, the grow action instead rolls a split whose chance rises

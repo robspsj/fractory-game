@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include "model/crafting.hpp"
 
 enum class ReserveRole : uint8_t { NONE, INPUT, OUTPUT, BUFFER };
 
@@ -33,6 +34,7 @@ struct InteractConfig {
   std::vector<ReactionRule> reactions;
   std::vector<SpawnRule> spawnRules;
   std::vector<StationRecipe> stationRecipes;
+  std::vector<CraftingRule> crafting;
 
   const ReactionRule *findReaction(int itemA, int itemB) const;
   const SpawnRule *pickSpawn(int heldItemId) const;
@@ -47,4 +49,6 @@ void initInteractConfig(InteractConfig &cfg,
                         // Inline (filesystem-less) variants: take precedence
                         // over the matching path when non-empty.
                         const std::string &reactionsCsv = "",
-                        const std::string &spawnCsv = "");
+                        const std::string &spawnCsv = "",
+                        const std::string &craftingPath = "",
+                        const std::string &craftingCsv = "");

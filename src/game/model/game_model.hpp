@@ -112,6 +112,16 @@ class GameModel {
   // pass so no extra scan exists; the decay pass's own read of the old heat
   // value in the same tick is harmless.
   bool quantumFluctuation(int idx);
+  // Crafting — see docs/crafting.md. While a stack of CRAFT_TOOL_ITEM is held
+  // (drag state), a right-click on a pattern cell attempts the shaped recipes:
+  // the clicked cell must be part of a matching pattern, every pattern cell
+  // loses one unit, the result lands on the clicked cell, and one unit is spent
+  // from the held tool. Returns false when nothing matched, so the caller can
+  // treat the click as something else.
+  bool tryCraftWithDrag(int anchorIdx);
+  // Leaf cell at (dr,dc) from idx inside the SAME parent grid, or -1 when the
+  // offset leaves that grid (v1 constraint: a pattern must fit in one grid).
+  int cellAtOffset(int idx, int dr, int dc) const;
 
   struct TickProfile {
     double sweepMs = 0.0;

@@ -394,17 +394,10 @@ static void frame() {
       s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
     else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
       int mod = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1 : 0;
-      if (e.button.button == SDL_BUTTON_RIGHT) {  // hold -> heat the hovered cell
-        s_game->setHeatingHeld(true);
-      } else {
-        s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
-      }
-    } else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
-      if (e.button.button == SDL_BUTTON_RIGHT)
-        s_game->setHeatingHeld(false);
-      else
-        s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-    } else if (e.type == SDL_EVENT_MOUSE_WHEEL)
+      s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
+    } else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
+      s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
+    else if (e.type == SDL_EVENT_MOUSE_WHEEL)
       s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
     else if (e.type == SDL_EVENT_KEY_DOWN) {
       if (e.key.key == SDLK_F3) {
@@ -498,6 +491,7 @@ int main() {
   // model parses them with the very loader the native build uses on assets/.
   Config cfg;
   cfg.reactionsCsv = FRACTORY_EMBEDDED_REACTIONS;
+  cfg.craftingCsv = FRACTORY_EMBEDDED_CRAFTING;
   cfg.stationRecipesCsv = FRACTORY_EMBEDDED_STATION_RECIPES;
   s_game = std::make_unique<Game>(cfg);
 #if !defined(__EMSCRIPTEN__)
@@ -639,6 +633,9 @@ int main(int argc, char *argv[]) {
   // without this table the model has 0 rules and interact silently falls back
   // to the id-cycle. Spawns stay unset until an assets/spawns.csv is authored.
   cfg.reactionsCsvPath = resolveAssetPath("assets/reactions.csv");
+  // Shaped crafting patterns (held crafting element + right-click), see
+  // docs/crafting.md.
+  cfg.craftingCsvPath = resolveAssetPath("assets/crafting.csv");
 
   if (tickMode) {
     // Headless model-tick micro-benchmark: avg time per GameModel::tick() on the
@@ -948,18 +945,10 @@ int main(int argc, char *argv[]) {
         s_game->update((int)e.motion.x, (int)e.motion.y, winW, winH);
       else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
         int mod = (SDL_GetModState() & SDL_KMOD_SHIFT) ? 1 : 0;
-        if (e.button.button == SDL_BUTTON_RIGHT) {  // hold -> heat the hovered cell
-          s_game->setHeatingHeld(true);
-        } else {
-          s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
-        }
+        s_game->mouseDown(e.button.button, mod, (int)e.button.x, (int)e.button.y, winW, winH);
       }
-      else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
-        if (e.button.button == SDL_BUTTON_RIGHT)
-          s_game->setHeatingHeld(false);
-        else
-          s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
-      }
+      else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
+        s_game->mouseUp(e.button.button, (int)e.button.x, (int)e.button.y, winW, winH);
       else if (e.type == SDL_EVENT_MOUSE_WHEEL)
         s_game->mouseWheel((float)e.wheel.x, (float)e.wheel.y, (int)e.wheel.mouse_x, (int)e.wheel.mouse_y, winW, winH);
       else if (e.type == SDL_EVENT_KEY_DOWN) {

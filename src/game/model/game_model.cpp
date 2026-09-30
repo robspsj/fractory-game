@@ -32,7 +32,8 @@ void GameModel::init(const Config &cfg) {
   // the random world scatters station footprints taken from the recipe table.
   initInteractConfig(_interactCfg, cfg.reactionsCsvPath, cfg.spawnCsvPath,
                      cfg.stationRecipesCsvPath, cfg.stationRecipesCsv,
-                     cfg.reactionsCsv, cfg.spawnCsv);
+                     cfg.reactionsCsv, cfg.spawnCsv, cfg.craftingCsvPath,
+                     cfg.craftingCsv);
 
   Cell root;
   _nodes.push_back(root);
@@ -404,6 +405,87 @@ bool GameModel::quantumFluctuation(int idx) {
   _nodes[idx].heat = 0;
   emitEvent(CellEventType::QUANTUM_SPAWN, idx, born.data.item.id);
   return true;
+}
+
+int GameModel::cellAtOffset(int idx, int dr, int dc) const {
+  if (idx <= 0 || idx >= (int)_nodes.size()) return -1;
+  const int parent = _nodes[idx].parentId;
+  if (parent < 0 || typeOf(parent) != CellType::GRID) return -1;
+  const int dim = _nodes[parent].content.data.grid.gridDimension;
+  const int first = _nodes[parent].content.data.grid.firstChild;
+  const int off = idx - first;
+  if (off < 0 || off >= dim * dim) return -1;
+  const int r = off / dim, c = off % dim;
+  const int nr = r + dr, nc = c + dc;
+  if (nr < 0 || nr >= dim || nc < 0 || nc >= dim) return -1;
+  return first + nr * dim + nc;
+}
+
+bool GameModel::tryCraftWithDrag(int anchorIdx) {
+  if (!hasDrag() || _dragItemId != CRAFT_TOOL_ITEM) return false;
+  if (anchorIdx <= 0 || anchorIdx >= (int)_nodes.size()) return false;
+  if (typeOf(anchorIdx) != CellType::ITEM) return false;
+
+  for (const CraftingRule &rule : _interactCfg.crafting) {
+    // Slide the recipe so the clicked cell can sit anywhere inside its bounding
+    // box: origin = anchor - (dr,dc). First match wins (the rules are tried in
+    // file order, so specific shapes should be authored before general ones).
+    for (int dr = rule.minDr; dr <= rule.maxDr; dr++) {
+      for (int dc = rule.minDc; dc <= rule.maxDc; dc++) {
+        const int origin = cellAtOffset(anchorIdx, -dr, -dc);
+        if (origin < 0) continue;
+        // The clicked cell must itself be one of the pattern's cells.
+        bool anchorInPattern = false;
+        for (const CraftEntry &e : rule.entries)
+          if (cellAtOffset(origin, e.dr, e.dc) == anchorIdx) { anchorInPattern = true; break; }
+        if (!anchorInPattern) continue;
+        // Every entry must be a matching ITEM cell.
+        bool ok = true;
+        for (const CraftEntry &e : rule.entries) {
+          const int c = cellAtOffset(origin, e.dr, e.dc);
+          if (c < 0 || typeOf(c) != CellType::ITEM ||
+              _nodes[c].content.data.item.id != (uint16_t)e.itemId) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        // The anchor loses one unit like every other pattern cell, so after the
+        // craft it is either free (result placed) or holds a leftover of the
+        // result item (result merged in). Anything else would silently destroy
+        // items, so the craft is refused instead.
+        const int left = (int)_nodes[anchorIdx].content.data.item.count - 1;
+        if (left > 0 &&
+            _nodes[anchorIdx].content.data.item.id != (uint16_t)rule.result)
+          continue;
+        // Commit: one unit per pattern cell, then the result on the anchor.
+        for (const CraftEntry &e : rule.entries) {
+          const int c = cellAtOffset(origin, e.dr, e.dc);
+          const int n = (int)_nodes[c].content.data.item.count - 1;
+          if (n <= 0)
+            setType(c, CellType::EMPTY);
+          else
+            _nodes[c].content.data.item.count = (uint16_t)n;
+        }
+        CellContent res;
+        res.data.item.id = (uint16_t)rule.result;
+        res.data.item.count =
+            (uint16_t)(left > 0 ? left + rule.resultCount : rule.resultCount);
+        putContent(anchorIdx, CellType::ITEM, res);
+        addHeat(anchorIdx, Heat::CRAFT_HEAT);
+        emitEvent(CellEventType::CRAFT, anchorIdx, rule.result);
+        // The crafting element is spent one unit per craft.
+        if (--_dragAmount <= 0) {
+          _dragSrcIndex = -1;
+          _dragAmount = 0;
+          _dragItemId = -1;
+          _dragHeat = 0;
+        }
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void GameModel::tick() {

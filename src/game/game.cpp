@@ -214,6 +214,18 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
   // Remember cursor for hover refresh etc.
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
 
+  if (button == 3) { // right -> craft with a held tool, else arm the heat pump
+    if (_model->hasDrag()) {
+      float wx, wy;
+      _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
+      const int idx = _view->resolveLeafCell(wx, wy);
+      if (idx >= 0 && _model->tryCraftWithDrag(idx)) applyEffects();
+    } else {
+      _heatingHeld = true;
+    }
+    return;
+  }
+
   if (button == 2) { // middle -> panning (immediate)
     _view->startPan(mousePx, mousePy);
     // Any pending tap is cancelled when panning starts.
@@ -235,6 +247,11 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
 
 void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
+
+  if (button == 3) { // right -> release the heat pump (crafts happen on press)
+    _heatingHeld = false;
+    return;
+  }
 
   if (button == 2) {
     _view->endPan();
@@ -312,6 +329,7 @@ void Game::applyEffects() {
       case CellEventType::SPAWN:         kind = EffectKind::INTERACT_SPAWN;    break;
       case CellEventType::QUANTUM_SPAWN: kind = EffectKind::QUANTUM_SPAWN;     break;
       case CellEventType::MERGE:         kind = EffectKind::MERGE;             break;
+      case CellEventType::CRAFT:         kind = EffectKind::CRAFT;             break;
       case CellEventType::SPILL:         kind = EffectKind::SPILL;             break;
       case CellEventType::DESTROY:       kind = EffectKind::DESTROY;           break;
       case CellEventType::STATION_OUTPUT:kind = EffectKind::STATION_OUTPUT;    break;

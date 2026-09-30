@@ -1,0 +1,28 @@
+# Crafting — shaped recipes matched against a pattern of ITEM cells on the board.
+#
+# Format: resultId,resultCount,dr:dc:itemId,dr:dc:itemId,...
+#   Each entry after the first two columns is one (offset, item) pair.
+#   Offsets are dr = rows down, dc = columns right, relative to the recipe's own
+#   origin (so a recipe is authored as it reads on the board). Entries may be
+#   non-contiguous (L, T, ring, …) and future fields can be appended inside an
+#   entry after a second ':' without changing the format.
+#
+# How a craft happens in game: hold (drag) a stack of item 3 — the crafting
+# element — and RIGHT-CLICK a cell that is part of the pattern. The recipe is
+# slid around the clicked cell, so the click can be on any of its cells. Every
+# pattern cell loses one unit, the result lands on the clicked cell, and one
+# unit of the crafting element is spent. Nothing is ever silently destroyed: if
+# the clicked cell still holds a different item after its unit is consumed, the
+# craft is refused.
+#
+# Item ids come from assets/items.csv: 0=wood 1=stone 2=water 3=crafting wand.
+# Rules are tried in file order — author specific shapes before general ones.
+
+# 1x2 — stone beside water -> wood
+0,1,0:0:1,0:1:2
+
+# 1x3 — three wood in a row -> 2 stone
+1,2,0:0:0,0:1:0,0:2:0
+
+# L — wood + stone + water -> a crafting wand
+3,1,0:0:0,1:0:1,0:1:2

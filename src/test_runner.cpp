@@ -22,6 +22,7 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
   Config cfg(42, 50, gridLimit);
   cfg.reactionsCsvPath = dir + "reactions.csv";
   cfg.spawnCsvPath = dir + "spawns.csv";
+  cfg.craftingCsvPath = dir + "crafting.csv";
   cfg.stationRecipesCsvPath = dir + "station_recipes.csv";
   cfg.emptyGrid = emptyGrid;
   cfg.initialGridSize = gridSize;
@@ -109,6 +110,12 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
                 << "]" << std::endl;
       int idx = model.rootChild(step.row, step.col);
       model.interact(idx);
+      printState(model);
+    } else if (step.type == "craft") {
+      int idx = model.rootChild(step.row, step.col);
+      bool ok = model.tryCraftWithDrag(idx);
+      std::cout << "Action: craft at [" << step.row << "," << step.col << "] "
+                << (ok ? "OK" : "no match") << std::endl;
       printState(model);
     } else if (step.type == "set_heat") {
       int idx = model.rootChild(step.row, step.col);
@@ -282,6 +289,15 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
       std::getline(ss, col_str, ',');
       TestStep step;
       step.type = "interact";
+      step.row = std::stoi(row_str);
+      step.col = std::stoi(col_str);
+      steps.push_back(step);
+    } else if (type == "craft") {
+      std::string row_str, col_str;
+      std::getline(ss, row_str, ',');
+      std::getline(ss, col_str, ',');
+      TestStep step;
+      step.type = "craft";
       step.row = std::stoi(row_str);
       step.col = std::stoi(col_str);
       steps.push_back(step);

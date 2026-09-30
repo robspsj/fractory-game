@@ -23,11 +23,6 @@ public:
   void mouseUp(int button, int mousePx, int mousePy, int winW, int winH);
   void mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW, int winH);
   void keyDown(Key key, bool shift, int winW, int winH);
-  // Right-button hold pumps heat into the hovered cell ("heat a cell" —
-  // see Heat::QUANTUM_*). The heat itself lands in Game::step so the gain
-  // is tick-paced; the button state just arms/disarms it.
-  void setHeatingHeld(bool held) { _heatingHeld = held; }
-  bool heatingHeld() const { return _heatingHeld; }
   // Render into the given canvas (which wraps either the SDL window surface on
   // native or a CPU RGBA buffer on web). The canvas matrix is left set to
   // NDC->pixel; callers reset it before drawing overlays in pixel space.
@@ -96,7 +91,11 @@ private:
   int _tapDownWinW = 0, _tapDownWinH = 0;
   std::chrono::steady_clock::time_point _tapDownTime{};
 
-  // --- Right-button hold: heating a cell toward a quantum fluctuation ----
+  // --- Right button: craft with a held tool, else heat the hovered cell ----
+  // Holding (dragging) the crafting element turns the right button into a craft
+  // attempt in the clicked area; with nothing held it is the heat pump that
+  // drives quantum fluctuations (Heat::QUANTUM_*). The heat itself lands in
+  // Game::step so the gain is tick-paced; the button state only arms it.
   bool _heatingHeld = false;
 
   void handleTap(int mousePx, int mousePy, int winW, int winH, int mod);

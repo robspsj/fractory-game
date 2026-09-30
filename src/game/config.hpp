@@ -28,12 +28,14 @@ struct Config {
     int numItems = 3;
     std::string reactionsCsvPath;
     std::string spawnCsvPath;
+    std::string craftingCsvPath;
     std::string stationRecipesCsvPath;
     // Inline interaction CSVs, used instead of the path when there is no
     // filesystem to read them from (wasm bakes the assets/*.csv copies into the
     // binary — see tools/gen_wasm_interact_data.py). Take precedence if set.
     std::string reactionsCsv;
     std::string spawnCsv;
+    std::string craftingCsv;
     std::string stationRecipesCsv;
 
     Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false), ticksPerSecond(20) {}

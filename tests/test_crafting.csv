@@ -1,0 +1,25 @@
+# Crafting: a held crafting element (item 3) + right-click on a pattern cell.
+# Patterns are shaped recipes from tests/crafting.csv, matched by sliding the
+# recipe around the clicked cell. Every pattern cell loses one unit, the result
+# lands on the clicked cell, and one tool unit is spent.
+empty_grid:5
+# L pattern: wood [0,0], water [0,1], stone [1,0]; one crafting wand at [4,4]
+init:0:1,2:1,-1:0,-1:0,-1:0,1:1,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,3:1
+
+# Nothing held -> no craft happens (the pattern is untouched)
+craft,0,0
+expect_cell,0,0,0,1
+
+# Hold the crafting element, then craft the L -> a wand appears on the clicked
+# cell, every pattern cell is consumed, and the tool stack is spent
+pickup,4,4
+expect_drag,3,1
+craft,0,0
+expect_cell,0,0,3,1
+expect_cell,0,1,-1,0
+expect_cell,1,0,-1,0
+expect_drag,-1,0
+
+# Pattern is gone now: a second craft matches nothing and must not consume
+craft,0,0
+expect_cell,0,0,3,1
