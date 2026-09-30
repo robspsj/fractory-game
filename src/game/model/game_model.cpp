@@ -43,6 +43,12 @@ void GameModel::init(const Config &cfg) {
   _itemGrow = cfg.itemGrow;
   _itemShrink = cfg.itemShrink;
   _itemSplit = cfg.itemSplit;
+  // One-line mode banner: with everything off the board is player-driven and
+  // the tick cost is a fraction of the self-running simulation, so knowing which
+  // mode a run is in matters when comparing performance.
+  fprintf(stderr, "[GameModel] item dynamics: grow=%d shrink=%d split=%d%s\n",
+          (int)_itemGrow, (int)_itemShrink, (int)_itemSplit,
+          (_itemGrow || _itemShrink || _itemSplit) ? "" : "  (player-driven board)");
 
   Cell root;
   _nodes.push_back(root);
