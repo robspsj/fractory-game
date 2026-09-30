@@ -103,6 +103,15 @@ instead of running away. Target choice stays `findSpillTarget` (random EMPTY
 neighbour via `prng(idx,2)`); with nowhere to spill, the stack keeps growing
 rather than stalling.
 
+> **Feature flags — off by default.** All three automatic behaviours above are
+> gated by `Config::itemGrow` / `itemShrink` / `itemSplit` (CLI:
+> `--item-dynamics`, or individually `--item-grow` / `--item-shrink` /
+> `--item-split`). Out of the box the board only changes when the player acts
+> (craft, react, merge, drop, heat): the code paths stay intact, the flags just
+> gate them. Disabling them also removes most of the tick cost (apply phase →
+> ~0 ms, events/tick ~54k → ~4 on an 11.5M-node world). The recipe book's
+> Stacking tab greys the disabled rows and labels them `off`.
+
 ### STATION (`src/game/model/station_cell.cpp:10`)
 
 ```cpp

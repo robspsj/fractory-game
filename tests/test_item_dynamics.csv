@@ -1,0 +1,36 @@
+# Automatic item dynamics are feature flags (Config::itemGrow/itemShrink/
+# itemSplit), OFF by default: with everything disabled the board must not change
+# on its own, even when the RNG is forced to make items act every tick.
+empty_grid:3
+# [0,0] = item0 x3 (below the split comfort, so growth is the only candidate)
+init:0:3,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+
+# test_rng 0: every item "acts" every tick (prng%freqDenom==0) and takes the
+# increase branch (prng&1==0) — but with the flags off nothing may happen.
+test_rng 0
+tick,60
+expect_cell,0,0,0,3
+
+# Turning growth on makes the very same setup grow.
+item_flags,1,0,0
+tick,1
+expect_cell,0,0,0,4
+
+# Turning it back off freezes the stack again.
+item_flags,0,0,0
+tick,60
+expect_cell,0,0,0,4
+
+# Shrink is its own flag. To reach the decrease branch the act roll must pass
+# (prng % freqDenom == 0) AND the branch bit must be odd — heat 252 gives
+# freqDenom 21, so test_rng 21 does both. Heat is re-set because the decay pass
+# would otherwise have cooled the cell past that frequency by now.
+set_heat,0,0,252
+test_rng 21
+tick,30
+expect_cell,0,0,0,4
+item_flags,0,1,0
+set_heat,0,0,252
+tick,1
+expect_cell,0,0,0,3
+test_rng -1

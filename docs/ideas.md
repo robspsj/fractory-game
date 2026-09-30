@@ -1,0 +1,3 @@
+- some kind of blueprinting system to compose machines
+- manual and aotomatic crafting
+- some multiple ways to generate transform and combine resources

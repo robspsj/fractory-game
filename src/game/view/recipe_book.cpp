@@ -104,6 +104,18 @@ void rowStatus(SkCanvas *c, float xRight, float y, bool done) {
   drawText(c, xRight - textWidth(t, kSmallScale), y, t, kSmallScale);
 }
 
+// Is this automatic behaviour switched on? Feature flags live in the model
+// (Config::itemGrow/…); manual transformations (merge) are always available.
+bool physicsEnabled(const GameModel &m, BookPhysics id) {
+  switch (id) {
+    case BookPhysics::Grow: return m.itemGrow();
+    case BookPhysics::Shrink:
+    case BookPhysics::Destroy: return m.itemShrink();
+    case BookPhysics::Split: return m.itemSplit();
+    default: return true;
+  }
+}
+
 int catTotal(const InteractConfig &ic, BookCategory c) {
   switch (c) {
     case BookCategory::Recipes:   return (int)ic.crafting.size();
@@ -346,6 +358,9 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
     }
     case BookCategory::Stacking: {
       drawText(canvas, cx, y, "How piles behave on their own (tick-driven)", kSmallScale);
+      y += 20.f;
+      drawText(canvas, cx, y, "Greyed rows are switched off by a feature flag (--item-dynamics).",
+               kSmallScale);
       y += 26.f;
       struct Entry { BookPhysics id; const char *title; const char *desc; const char *desc2; };
       char split1[80], split2[80];
@@ -365,13 +380,29 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       for (const Entry &e : entries) {
         const float eh = e.desc2[0] ? 58.f : 40.f;
         const bool done = bs.has(BookCategory::Stacking, (int)e.id);
+        const bool on = physicsEnabled(model, e.id);
         if (y + eh > top && y < top + L.contentH) {
-          fillRect(canvas, cx, y, cw, eh - 6.f, rowColor(done));
-          doneMark(canvas, cx + 12.f, y + 14.f, done);
+          fillRect(canvas, cx, y, cw, eh - 6.f,
+                   on ? rowColor(done) : SkColorSetARGB(150, 24, 26, 32));
+          if (on) {
+            doneMark(canvas, cx + 12.f, y + 14.f, done);
+          } else {   // hollow grey mark = disabled, not "not yet done"
+            SkPaint p;
+            p.setAntiAlias(true);
+            p.setStyle(SkPaint::kStroke_Style);
+            p.setStrokeWidth(1.5f);
+            p.setColor(SkColorSetARGB(160, 120, 128, 142));
+            canvas->drawCircle(cx + 12.f, y + 14.f, 4.5f, p);
+          }
           drawText(canvas, cx + 26.f, y + 6.f, e.title, kTextScale);
           drawText(canvas, cx + 26.f, y + 24.f, e.desc, kSmallScale);
           if (e.desc2[0]) drawText(canvas, cx + 26.f, y + 40.f, e.desc2, kSmallScale);
-          rowStatus(canvas, cx + cw - 14.f, y + 6.f, done);
+          if (on) {
+            rowStatus(canvas, cx + cw - 14.f, y + 6.f, done);
+          } else {
+            drawText(canvas, cx + cw - 14.f - textWidth("off", kSmallScale), y + 6.f, "off",
+                     kSmallScale);
+          }
         }
         y += eh;
       }

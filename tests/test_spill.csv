@@ -8,6 +8,9 @@ empty_grid:3
 # [0,2] = item0 x6
 init:0:12,-1:0,0:6,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
 
+# Automatic growth and splitting are feature flags (off by default) — opt in.
+item_flags,1,1,1
+
 # Phase 1 — growth past the old hard cap of 5.
 # heat 255 -> freqDenom 20; rng 20 acts (20%20==0), takes the grow branch
 # (20&1==0), and its split roll 20 is NOT < the 20% chance at count 6 -> grows.

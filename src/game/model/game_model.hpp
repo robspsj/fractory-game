@@ -128,6 +128,17 @@ class GameModel {
   // already performed (the book lists everything and marks the done ones).
   const InteractConfig &interactConfig() const { return _interactCfg; }
   const BookState &book() const { return _book; }
+  // Feature flags for the automatic item dynamics (see Config::itemGrow/…).
+  // Off by default: items only change when the player acts. Read by the tick
+  // plan (ItemCell) and by the recipe book, which labels disabled entries.
+  bool itemGrow() const { return _itemGrow; }
+  bool itemShrink() const { return _itemShrink; }
+  bool itemSplit() const { return _itemSplit; }
+  void setItemDynamics(bool grow, bool shrink, bool split) {
+    _itemGrow = grow;
+    _itemShrink = shrink;
+    _itemSplit = split;
+  }
   // Index of the station recipe with this id, or -1 (StationData stores the id).
   int stationRecipeIndexOf(int recipeId) const;
 
@@ -216,6 +227,10 @@ class GameModel {
   uint8_t _dragHeat = 0;
   InteractConfig _interactCfg;
   BookState _book;   // recipe-book progress (which entries were performed)
+  // Automatic item dynamics — off unless Config asked for them (feature flags).
+  bool _itemGrow = false;
+  bool _itemShrink = false;
+  bool _itemSplit = false;
   TickProfile _tprof;
   TickProfile _taccum{};
   unsigned _prngSeed = 0;

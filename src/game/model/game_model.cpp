@@ -39,6 +39,10 @@ void GameModel::init(const Config &cfg) {
   _book.resize((int)_interactCfg.crafting.size(),
                (int)_interactCfg.stationRecipes.size(),
                (int)_interactCfg.reactions.size());
+  // Automatic item dynamics are opt-in feature flags (Config::itemGrow/…).
+  _itemGrow = cfg.itemGrow;
+  _itemShrink = cfg.itemShrink;
+  _itemSplit = cfg.itemSplit;
 
   Cell root;
   _nodes.push_back(root);

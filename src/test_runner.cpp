@@ -117,6 +117,13 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       std::cout << "Action: craft at [" << step.row << "," << step.col << "] "
                 << (ok ? "OK" : "no match") << std::endl;
       printState(model);
+    } else if (step.type == "item_flags") {
+      // item_flags,<grow>,<shrink>,<split> — feature flags for the automatic
+      // item dynamics (Config::itemGrow/…), so tests can opt in explicitly.
+      model.setItemDynamics(step.expectedId != 0, step.expectedCount != 0, step.count != 0);
+      std::cout << "Action: item_flags grow=" << (step.expectedId != 0)
+                << " shrink=" << (step.expectedCount != 0) << " split=" << (step.count != 0)
+                << std::endl;
     } else if (step.type == "expect_performed") {
       // expect_performed,<category>,<id>,<0|1> — recipe-book progress marks
       // (BookCategory / BookPhysics ids, see src/game/model/book_state.hpp).
@@ -312,6 +319,17 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
       step.type = "craft";
       step.row = std::stoi(row_str);
       step.col = std::stoi(col_str);
+      steps.push_back(step);
+    } else if (type == "item_flags") {
+      std::string g_str, s_str, sp_str;
+      std::getline(ss, g_str, ',');
+      std::getline(ss, s_str, ',');
+      std::getline(ss, sp_str, ',');
+      TestStep step;
+      step.type = "item_flags";
+      step.expectedId = std::stoi(g_str);      // grow
+      step.expectedCount = std::stoi(s_str);   // shrink
+      step.count = std::stoi(sp_str);          // split
       steps.push_back(step);
     } else if (type == "expect_performed") {
       std::string cat_str, id_str, val_str;

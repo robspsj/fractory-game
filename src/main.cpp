@@ -647,6 +647,16 @@ int main(int argc, char *argv[]) {
         cfg.stationChance = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--no-stations") {
       cfg.stationChance = 0;
+    } else if (std::string(argv[a]) == "--item-dynamics") {
+      // Feature flags: re-enable the tick engine's own item behaviour (off by
+      // default — see Config::itemGrow/itemShrink/itemSplit).
+      cfg.itemGrow = cfg.itemShrink = cfg.itemSplit = true;
+    } else if (std::string(argv[a]) == "--item-grow") {
+      cfg.itemGrow = true;
+    } else if (std::string(argv[a]) == "--item-shrink") {
+      cfg.itemShrink = true;
+    } else if (std::string(argv[a]) == "--item-split") {
+      cfg.itemSplit = true;
     }
   }
 

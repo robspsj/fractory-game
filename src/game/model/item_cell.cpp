@@ -35,22 +35,28 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
   if (freqDenom > Heat::ITEM_FREQ_MAX) freqDenom = Heat::ITEM_FREQ_MAX;
   if (model.prng(idx, 0) % (uint32_t)freqDenom != 0) return;
   if (model.prng(idx, 1) & 1) {
+    // Decrease side. Feature flag (Config::itemShrink): off by default, so the
+    // board does not lose items on its own — the code path stays intact.
+    if (!model.itemShrink()) return;
     if (cnt > 1)
       muts.push_back({idx, CellType::ITEM, item, cnt - 1, CellEventType::SHRINK});
     else
       muts.push_back({idx, CellType::EMPTY, item, 0, CellEventType::DESTROY});
   } else {
-    // Grow branch — no hard cap. A stack past ITEM_SPILL_COMFORT may split
+    // Increase side — no hard cap. A stack past ITEM_SPILL_COMFORT may split
     // instead, with a chance that rises with the stack; the split takes half
     // (proportional drain). Reaching the uint16 ceiling forces a split.
+    // Both halves are feature flags (Config::itemSplit / itemGrow).
     int amount = 0;
-    if (cnt >= Heat::ITEM_COUNT_MAX) {
-      amount = cnt / 2;
-    } else if (cnt > Heat::ITEM_SPILL_COMFORT) {
-      int pct = Heat::ITEM_SPILL_CHANCE_BASE +
-                (cnt - Heat::ITEM_SPILL_COMFORT - 1) * Heat::ITEM_SPILL_CHANCE_PER;
-      if (pct > Heat::ITEM_SPILL_CHANCE_MAX) pct = Heat::ITEM_SPILL_CHANCE_MAX;
-      if ((int)(model.prng(idx, 3) % 100u) < pct) amount = cnt / 2;
+    if (model.itemSplit()) {
+      if (cnt >= Heat::ITEM_COUNT_MAX) {
+        amount = cnt / 2;
+      } else if (cnt > Heat::ITEM_SPILL_COMFORT) {
+        int pct = Heat::ITEM_SPILL_CHANCE_BASE +
+                  (cnt - Heat::ITEM_SPILL_COMFORT - 1) * Heat::ITEM_SPILL_CHANCE_PER;
+        if (pct > Heat::ITEM_SPILL_CHANCE_MAX) pct = Heat::ITEM_SPILL_CHANCE_MAX;
+        if ((int)(model.prng(idx, 3) % 100u) < pct) amount = cnt / 2;
+      }
     }
     if (amount > 0) {
       auto s = clk::now();
@@ -62,6 +68,7 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
         return;
       }
     }
+    if (!model.itemGrow()) return;
     int nc = cnt + 1;
     if (nc > Heat::ITEM_COUNT_MAX) nc = Heat::ITEM_COUNT_MAX;
     muts.push_back({idx, CellType::ITEM, item, nc, CellEventType::GROW});

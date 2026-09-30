@@ -33,11 +33,14 @@ Implementation: `src/game/view/recipe_book.cpp` (overlay) +
 | 1 | Recipes | `assets/crafting.csv` | one mini-grid per shaped recipe, offsets drawn as authored, result + count |
 | 2 | Machines | `assets/station_recipes.csv` | footprint with role colours (violet machine / green input / orange output / blue buffer), in → out, duration |
 | 3 | Reactions | `assets/reactions.csv` | shift-click pair: A + B → result |
-| 4 | Stacking | code-defined | Grow, Shrink, Vanish, Merge, Split (with the split chance from `Heat::ITEM_SPILL_*`) |
+| 4 | Stacking | code-defined | Grow, Shrink, Vanish, Merge, Split (with the split chance from `Heat::ITEM_SPILL_*`); rows whose feature flag is off are greyed and labelled `off` |
 | 5 | Quantum | code-defined | heat bar 0..255 with the fluctuation threshold marked, hold rate, roll chance |
 
 Numbers in the text come from `heat_constants.hpp`, so tuning a knob changes the
-book too.
+book too. The Stacking tab also reflects the **feature flags**: automatic grow /
+shrink / split are off by default (`Config::itemGrow/itemShrink/itemSplit`), and
+the book draws those rows greyed with an `off` label instead of a progress mark —
+so the manual always matches what the simulation will actually do.
 
 ## 3. Progress marks
 

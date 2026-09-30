@@ -26,6 +26,17 @@ struct Config {
     // generation). Keep this in sync with the rows defined in assets/items.csv
     // (id 0..numItems-1). Defaults to 3: wood, stone, water.
     int numItems = 3;
+    // ── Feature flags: automatic item dynamics ──────────────────────────
+    // The tick engine's own item behaviour — a stack growing on its own, a
+    // stack shrinking/vanishing, and a tall stack splitting toward a neighbour.
+    // All three are OFF by default: the board only changes when the player does
+    // something (craft, react, merge, drop, heat). The code paths stay intact;
+    // flip these on (--item-dynamics, or individually --item-grow/--item-shrink/
+    // --item-split) to get the self-running simulation back.
+    // Manual transformations are never affected by these flags.
+    bool itemGrow = false;
+    bool itemShrink = false;
+    bool itemSplit = false;
     std::string reactionsCsvPath;
     std::string spawnCsvPath;
     std::string craftingCsvPath;
