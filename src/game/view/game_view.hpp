@@ -44,6 +44,13 @@ class GameView {
     void setParticles(ParticleSystem* particles) { _particles = particles; }
     void loadItemConfig(const std::string &path = "assets/items.csv");
     void debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac);
+    // Draw one item icon at pixel (cx,cy) with half-extent halfPx — used by the
+    // recipe-book overlay. Primes canvas/target size the way the renderers do
+    // (drawIcon works in NDC and resets the matrix), then restores the canvas.
+    void drawItemIcon(SkCanvas *canvas, float cx, float cy, float halfPx, int itemId);
+    // Item display name from items.csv ("" when the id has no row) — used by the
+    // recipe book so entries read "wood" instead of a bare id.
+    const std::string &itemName(int itemId) const;
     void resetFramebench() { _bench.reset(); }
     const Framebench& framebench() const { return _bench; }
     int lastVertexCount() const { return _lastVertexCount; }
@@ -98,6 +105,7 @@ class GameView {
   struct ItemRenderInfo {
     float   color[3] = {1.0f, 1.0f, 1.0f};
     int     icon   = 0;
+    std::string name;   // items.csv column 2 (used by the recipe book)
     std::string svgPath;
     SwayMode sway = SwayMode::Static;
   };
@@ -214,4 +222,5 @@ class GameView {
   friend class BadgeRenderer;
   friend class BackgroundRenderer;
   friend class AssetManager;
+  friend class RecipeBook;
 };

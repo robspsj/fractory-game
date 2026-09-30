@@ -2,13 +2,19 @@
 # Patterns are shaped recipes from tests/crafting.csv, matched by sliding the
 # recipe around the clicked cell. Every pattern cell loses one unit, the result
 # lands on the clicked cell, and one tool unit is spent.
+# The last two steps also cover the recipe book's "performed" marks
+# (BookCategory::Recipes = 0, row index = recipe id).
 empty_grid:5
 # L pattern: wood [0,0], water [0,1], stone [1,0]; one crafting wand at [4,4]
 init:0:1,2:1,-1:0,-1:0,-1:0,1:1,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,3:1
 
+# Nothing performed yet
+expect_performed,0,2,0
+
 # Nothing held -> no craft happens (the pattern is untouched)
 craft,0,0
 expect_cell,0,0,0,1
+expect_performed,0,2,0
 
 # Hold the crafting element, then craft the L -> a wand appears on the clicked
 # cell, every pattern cell is consumed, and the tool stack is spent
@@ -19,6 +25,8 @@ expect_cell,0,0,3,1
 expect_cell,0,1,-1,0
 expect_cell,1,0,-1,0
 expect_drag,-1,0
+# ...and the book now marks that recipe as performed
+expect_performed,0,2,1
 
 # Pattern is gone now: a second craft matches nothing and must not consume
 craft,0,0

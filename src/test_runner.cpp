@@ -117,6 +117,18 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       std::cout << "Action: craft at [" << step.row << "," << step.col << "] "
                 << (ok ? "OK" : "no match") << std::endl;
       printState(model);
+    } else if (step.type == "expect_performed") {
+      // expect_performed,<category>,<id>,<0|1> — recipe-book progress marks
+      // (BookCategory / BookPhysics ids, see src/game/model/book_state.hpp).
+      const bool actual = model.book().has((BookCategory)step.row, step.col);
+      if ((int)actual != step.expectedId) {
+        std::cerr << "Expectation FAILED: book entry category=" << step.row
+                  << " id=" << step.col << " expected performed=" << step.expectedId
+                  << " but got " << (int)actual << std::endl;
+        return false;
+      }
+      std::cout << "Expectation PASSED: book entry category=" << step.row
+                << " id=" << step.col << " performed=" << (int)actual << std::endl;
     } else if (step.type == "set_heat") {
       int idx = model.rootChild(step.row, step.col);
       model.setHeat(idx, (uint8_t)step.heat);
@@ -300,6 +312,17 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
       step.type = "craft";
       step.row = std::stoi(row_str);
       step.col = std::stoi(col_str);
+      steps.push_back(step);
+    } else if (type == "expect_performed") {
+      std::string cat_str, id_str, val_str;
+      std::getline(ss, cat_str, ',');
+      std::getline(ss, id_str, ',');
+      std::getline(ss, val_str, ',');
+      TestStep step;
+      step.type = "expect_performed";
+      step.row = std::stoi(cat_str);
+      step.col = std::stoi(id_str);
+      step.expectedId = std::stoi(val_str);
       steps.push_back(step);
     } else if (type == "set_heat" || type == "expect_heat") {
       std::string row_str, col_str, heat_str;

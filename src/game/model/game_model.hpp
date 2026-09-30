@@ -1,6 +1,7 @@
 #pragma once
 #include "../config.hpp"
 #include "../interact_config.hpp"
+#include "book_state.hpp"
 #include "cell.hpp"
 #include "tick_plan.hpp"
 #include <unordered_set>
@@ -123,6 +124,13 @@ class GameModel {
   // offset leaves that grid (v1 constraint: a pattern must fit in one grid).
   int cellAtOffset(int idx, int dr, int dc) const;
 
+  // Recipe book: the transformation tables plus which entries the player has
+  // already performed (the book lists everything and marks the done ones).
+  const InteractConfig &interactConfig() const { return _interactCfg; }
+  const BookState &book() const { return _book; }
+  // Index of the station recipe with this id, or -1 (StationData stores the id).
+  int stationRecipeIndexOf(int recipeId) const;
+
   struct TickProfile {
     double sweepMs = 0.0;
     double planMs = 0.0;     // phase-1 linear node scan (item/station planning)
@@ -207,6 +215,7 @@ class GameModel {
   int _dragItemId = -1;
   uint8_t _dragHeat = 0;
   InteractConfig _interactCfg;
+  BookState _book;   // recipe-book progress (which entries were performed)
   TickProfile _tprof;
   TickProfile _taccum{};
   unsigned _prngSeed = 0;

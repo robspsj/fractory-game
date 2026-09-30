@@ -214,6 +214,11 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
   // Remember cursor for hover refresh etc.
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
 
+  if (_book.isOpen()) {   // modal overlay: clicks only drive the book
+    _book.click(mousePx, mousePy, winW, winH);
+    return;
+  }
+
   if (button == 3) { // right -> craft with a held tool, else arm the heat pump
     if (_model->hasDrag()) {
       float wx, wy;
@@ -247,6 +252,8 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
 
 void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
+
+  if (_book.isOpen()) return;
 
   if (button == 3) { // right -> release the heat pump (crafts happen on press)
     _heatingHeld = false;
@@ -284,6 +291,26 @@ void Game::keyDown(Key key, bool shift, int winW, int winH) {
   (void)shift;
   (void)winW;
   (void)winH;
+  if (key == Key::F2) {   // recipe book toggle
+    _book.toggle();
+    return;
+  }
+  if (_book.isOpen()) {
+    // Modal while open: only book navigation reaches the game.
+    switch (key) {
+      case Key::Escape: _book.close(); return;
+      case Key::Num1: _book.setCategory(0); return;
+      case Key::Num2: _book.setCategory(1); return;
+      case Key::Num3: _book.setCategory(2); return;
+      case Key::Num4: _book.setCategory(3); return;
+      case Key::Num5: _book.setCategory(4); return;
+      case Key::Left: _book.cycle(-1); return;
+      case Key::Right: _book.cycle(1); return;
+      case Key::Up: _book.scrollBy(1.f); return;
+      case Key::Down: _book.scrollBy(-1.f); return;
+      default: return;
+    }
+  }
   if (key == Key::F1)
     _view->resetView();
 }
@@ -293,6 +320,10 @@ void Game::mouseWheel(float dx, float dy, int mousePx, int mousePy, int winW,
   (void)dx;
   if (dy == 0)
     return;
+  if (_book.isOpen()) {   // scroll the book instead of zooming the board
+    _book.scrollBy(dy);
+    return;
+  }
   float mouseNX = (2.0f * mousePx / (float)winW) - 1.0f;
   float mouseNY = 1.0f - (2.0f * mousePy / (float)winH);
   float factor = (dy > 0) ? 1.1f : (1.0f / 1.1f);

@@ -85,6 +85,24 @@ void GameView::debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac) 
   _canvas = nullptr;
 }
 
+const std::string &GameView::itemName(int itemId) const {
+  static const std::string kEmpty;
+  auto it = _itemRenderInfo.find(itemId);
+  return (it != _itemRenderInfo.end()) ? it->second.name : kEmpty;
+}
+
+void GameView::drawItemIcon(SkCanvas *canvas, float cx, float cy, float halfPx, int itemId) {
+  if (!canvas || itemId < 0 || _targetW <= 0 || _targetH <= 0) return;
+  SkCanvas *prev = _canvas;
+  _canvas = canvas;
+  const float W = (float)_targetW, H = (float)_targetH;
+  const float ndcX = 2.f * cx / W - 1.f;
+  const float ndcY = 1.f - 2.f * cy / H;
+  IconRenderer::drawIcon(*this, ndcX, ndcY, itemId, _elemColors[itemId % GameModel::ELEMS],
+                         halfPx / (W * 0.5f), halfPx / (H * 0.5f), 0, -1);
+  _canvas = prev;
+}
+
 std::size_t GameView::allocatedBytes() const {
   std::size_t bytes = 0;
   bytes += _icons.size() * sizeof(IconStyle);

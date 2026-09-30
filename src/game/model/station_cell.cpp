@@ -47,6 +47,9 @@ void StationCell::tick(int idx, GameModel &model) {
           reserved.content.data.reserved.itemId = (uint16_t)recipe->output;
           reserved.content.data.reserved.itemCount = (uint16_t)recipe->outputCount;
           model.emitEvent(CellEventType::STATION_OUTPUT, idx, recipe->output);
+          // Recipe book: mark the machine's recipe row as performed.
+          model._book.mark(BookCategory::Machines,
+                           model.stationRecipeIndexOf(st.recipeIndex));
           return;
         }
       }

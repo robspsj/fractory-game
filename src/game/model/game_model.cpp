@@ -34,6 +34,11 @@ void GameModel::init(const Config &cfg) {
                      cfg.stationRecipesCsvPath, cfg.stationRecipesCsv,
                      cfg.reactionsCsv, cfg.spawnCsv, cfg.craftingCsvPath,
                      cfg.craftingCsv);
+  // Recipe-book progress is per table row, so it is sized once the tables are
+  // loaded (the book lists every entry and marks the performed ones).
+  _book.resize((int)_interactCfg.crafting.size(),
+               (int)_interactCfg.stationRecipes.size(),
+               (int)_interactCfg.reactions.size());
 
   Cell root;
   _nodes.push_back(root);
@@ -310,6 +315,7 @@ void GameModel::drop(int nodeIndex) {
       _nodes[nodeIndex].content.data.item.count = (uint16_t)(nc > 65535 ? 65535 : nc);
       // keep heat with cell, not item — no heat change on merge
       emitEvent(CellEventType::MERGE, nodeIndex, _dragItemId);
+      _book.mark(BookCategory::Stacking, (int)BookPhysics::Merge);
     } else if (tgtType == CellType::EMPTY) {
       putContent(nodeIndex, CellType::ITEM, dragCell);
       // keep target's heat (cell-local), don't transfer item heat
@@ -404,7 +410,15 @@ bool GameModel::quantumFluctuation(int idx) {
   putContent(idx, CellType::ITEM, born);
   _nodes[idx].heat = 0;
   emitEvent(CellEventType::QUANTUM_SPAWN, idx, born.data.item.id);
+  _book.mark(BookCategory::Quantum, (int)BookPhysics::Quantum);
   return true;
+}
+
+int GameModel::stationRecipeIndexOf(int recipeId) const {
+  const auto &v = _interactCfg.stationRecipes;
+  for (int i = 0; i < (int)v.size(); i++)
+    if (v[i].id == recipeId) return i;
+  return -1;
 }
 
 int GameModel::cellAtOffset(int idx, int dr, int dc) const {
@@ -426,7 +440,8 @@ bool GameModel::tryCraftWithDrag(int anchorIdx) {
   if (anchorIdx <= 0 || anchorIdx >= (int)_nodes.size()) return false;
   if (typeOf(anchorIdx) != CellType::ITEM) return false;
 
-  for (const CraftingRule &rule : _interactCfg.crafting) {
+  for (int ri = 0; ri < (int)_interactCfg.crafting.size(); ri++) {
+    const CraftingRule &rule = _interactCfg.crafting[ri];
     // Slide the recipe so the clicked cell can sit anywhere inside its bounding
     // box: origin = anchor - (dr,dc). First match wins (the rules are tried in
     // file order, so specific shapes should be authored before general ones).
@@ -474,6 +489,7 @@ bool GameModel::tryCraftWithDrag(int anchorIdx) {
         putContent(anchorIdx, CellType::ITEM, res);
         addHeat(anchorIdx, Heat::CRAFT_HEAT);
         emitEvent(CellEventType::CRAFT, anchorIdx, rule.result);
+        _book.mark(BookCategory::Recipes, ri);
         // The crafting element is spent one unit per craft.
         if (--_dragAmount <= 0) {
           _dragSrcIndex = -1;
@@ -558,6 +574,13 @@ void GameModel::tick() {
       else
         cl.content.data.item.count = m.count;
       emitEvent(m.ev, m.idx, m.item);
+      // Recipe book: mark the stacking transformations as performed.
+      if (m.ev == CellEventType::GROW)
+        _book.mark(BookCategory::Stacking, (int)BookPhysics::Grow);
+      else if (m.ev == CellEventType::SHRINK)
+        _book.mark(BookCategory::Stacking, (int)BookPhysics::Shrink);
+      else if (m.ev == CellEventType::DESTROY)
+        _book.mark(BookCategory::Stacking, (int)BookPhysics::Destroy);
       // heat feedback from item activity — see Heat::ITEM_MUT_* / SPILL_*
       if (typeOf(m.idx) != CellType::GRID) {
         int dh = Heat::ITEM_MUT_BASE + ((Heat::HEAT_MAX - cl.heat) >> Heat::ITEM_MUT_SCALE_SHIFT);
@@ -579,6 +602,7 @@ void GameModel::tick() {
       _nodes[sp.tgt].content.data.item.id  = sp.item;
       _nodes[sp.tgt].content.data.item.count = (uint16_t)sp.amount;
       emitEvent(CellEventType::SPILL, sp.src, sp.item);
+      _book.mark(BookCategory::Stacking, (int)BookPhysics::Split);
       addHeat(sp.src, Heat::SPILL_HEAT_SRC);
       addHeat(sp.tgt, Heat::SPILL_HEAT_TGT);
     }

@@ -2,6 +2,7 @@
 #include "config.hpp"
 #include "game_model.hpp"
 #include "game_view.hpp"
+#include "view/recipe_book.hpp"
 #include <memory>
 class SkCanvas;
 class ParticleSystem;
@@ -11,6 +12,9 @@ enum class Key {
   NONE = 0,
   F1,
   F2,
+  Escape,
+  Num1, Num2, Num3, Num4, Num5,
+  Left, Right, Up, Down,
   UNKNOWN,
 };
 
@@ -31,6 +35,7 @@ public:
   bool step(int elapsedMs);
   GameModel& model() { return *_model; }
   GameView& view() { return *_view; }
+  RecipeBook& book() { return _book; }
   float zoomFactor() const;
   int lastCellDrawCount() const;
   int anchorDepth() const;
@@ -69,6 +74,7 @@ private:
   std::unique_ptr<GameModel> _model;
   std::unique_ptr<GameView> _view;
   std::unique_ptr<ParticleSystem> _particles;
+  RecipeBook _book;   // in-game recipe book overlay (F2)
 
   int _ticksPerSecond;
   int _tickAccumMs = 0;

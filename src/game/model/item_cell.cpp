@@ -91,6 +91,9 @@ void ItemCell::interact(int idx, GameModel &model) {
       cell.content.data.item.id = rule->result;
       cell.content.data.item.count = rule->resultCount;
       model.emitEvent(CellEventType::REACTION, idx, rule->result);
+      // Recipe book: mark the reaction row as performed (pointer -> index).
+      model._book.mark(BookCategory::Reactions,
+                       (int)(rule - model._interactCfg.reactions.data()));
       model.addHeat(idx, Heat::INTERACT_REACTION_A);
       model.addHeat(nIdx, Heat::INTERACT_REACTION_B);
       return;

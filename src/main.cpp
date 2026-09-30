@@ -40,6 +40,25 @@ static std::string resolveAssetPath(const std::string &path) {
 #endif
 }
 
+// Platform keys → engine key codes (shared by the native and wasm loops).
+static Key mapKey(SDL_Keycode k) {
+  switch (k) {
+    case SDLK_F1: return Key::F1;
+    case SDLK_F2: return Key::F2;
+    case SDLK_ESCAPE: return Key::Escape;
+    case SDLK_1: return Key::Num1;
+    case SDLK_2: return Key::Num2;
+    case SDLK_3: return Key::Num3;
+    case SDLK_4: return Key::Num4;
+    case SDLK_5: return Key::Num5;
+    case SDLK_LEFT: return Key::Left;
+    case SDLK_RIGHT: return Key::Right;
+    case SDLK_UP: return Key::Up;
+    case SDLK_DOWN: return Key::Down;
+    default: return Key::UNKNOWN;
+  }
+}
+
 static std::unique_ptr<Game> s_game;
 static int winW = 800, winH = 600;
 static uint64_t s_lastFrameMs = 0;
@@ -358,6 +377,8 @@ static void drawHud(SkCanvas *canvas) {
   for (int i = 0; i < 10; i++)
     drawText(canvas, winW - textWidth(t[i], 1) - 4, 4 + i * 10, t[i], 1);
   drawProfiler(canvas);   // F3-toggled live bar chart (no-op when off)
+  // Recipe book overlay (F2): drawn last so it covers the HUD.
+  s_game->book().draw(s_game->view(), canvas, winW, winH);
 }
 
 #if defined(__EMSCRIPTEN__)
@@ -403,10 +424,8 @@ static void frame() {
       if (e.key.key == SDLK_F3) {
         s_profilerOn = !s_profilerOn;   // live on-screen frame profiler (same as native)
       } else {
-        Key k = Key::UNKNOWN;
-        if (e.key.key == SDLK_F1) k = Key::F1;
         bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
-        s_game->keyDown(k, shift, winW, winH);
+        s_game->keyDown(mapKey(e.key.key), shift, winW, winH);
       }
     }
   }
@@ -570,6 +589,10 @@ int main(int argc, char *argv[]) {
   bool benchFull = false;  // --full: fill EVERY grid cell with count>=5 (worst-case badges)
   int hoverNode = -1; // --hover <nodeIdx>: force a hover highlight on a cell (headless)
   bool profilerHeadless = false; // --profiler: paint the F3 bar-chart panel in the headless frame
+  // --book [category]: draw the recipe-book overlay into the headless frame
+  // (0=Recipes 1=Machines 2=Reactions 3=Stacking 4=Quantum), for visual checks.
+  bool bookHeadless = false;
+  int bookCat = 0;
   for (int a = 1; a < argc; a++) {
     if (std::string(argv[a]) == "--empty-grid") {
       cfg.emptyGrid = true;
@@ -611,6 +634,10 @@ int main(int argc, char *argv[]) {
       hoverNode = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--profiler") {
       profilerHeadless = true;
+    } else if (std::string(argv[a]) == "--book") {
+      bookHeadless = true;
+      if (a + 1 < argc && std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
+        bookCat = std::atoi(argv[++a]);
     } else if (std::string(argv[a]) == "--grid-limit" && a + 1 < argc) {
       if (std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
         cfg.gridLimit = std::atoi(argv[++a]);
@@ -713,7 +740,7 @@ int main(int argc, char *argv[]) {
         else
           count = 0;
         if (count > 0) {
-          gridData[i * 2] = i % 3;      // item id cycles 0,1,2
+          gridData[i * 2] = i % 4;      // item id cycles 0..3 (includes the crafting wand)
           gridData[i * 2 + 1] = count;
         } else {
           gridData[i * 2] = -1;         // empty
@@ -740,6 +767,12 @@ int main(int argc, char *argv[]) {
       s_prof.glowMs   = b.glowMs; s_prof.textMs = b.textMs;
       s_profilerOn = true;
       drawProfiler(surf->getCanvas());
+    }
+    // --book: overlay the recipe book (same overlay the F2 key opens live).
+    if (bookHeadless) {
+      g.book().toggle();
+      g.book().setCategory(bookCat);
+      g.book().draw(g.view(), surf->getCanvas(), headW, headH);
     }
 #endif
     std::string hdr = "P6\n" + std::to_string(headW) + " " + std::to_string(headH) + "\n255\n";
@@ -804,7 +837,7 @@ int main(int argc, char *argv[]) {
         else
           count = 0;
         if (count > 0) {
-          gridData[i * 2] = i % 3;      // item id cycles 0,1,2
+          gridData[i * 2] = i % 4;      // item id cycles 0..3 (includes the crafting wand)
           gridData[i * 2 + 1] = count;
         } else {
           gridData[i * 2] = -1;
@@ -955,10 +988,8 @@ int main(int argc, char *argv[]) {
         if (e.key.key == SDLK_F3) {
           s_profilerOn = !s_profilerOn;   // live on-screen frame profiler
         } else {
-          Key k = Key::UNKNOWN;
-          if (e.key.key == SDLK_F1) k = Key::F1;
           bool shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
-          s_game->keyDown(k, shift, winW, winH);
+          s_game->keyDown(mapKey(e.key.key), shift, winW, winH);
         }
       }
     }
