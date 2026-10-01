@@ -26,10 +26,19 @@ Everything is derived from the window size (`Metrics`/`layoutFor` at the top of
 
 * `ui` scales geometry (cell, icon, margins, tabs); `o` is a gentler scale for
   structural offsets; **text is floored** (`text`/`small`) so it stays legible —
-  vertical overflow is absorbed by the scroll view rather than shrinking type.
+  overflow is absorbed by wrapping and the scroll view rather than shrinking type.
+  Current type: `text = clamp(1.75*ui, 1.35, 2.05)`, `small = clamp(1.42*ui, 1.15, 1.65)`.
+  Those two lines in `metricsFor()` are the *only* place to make the book's type
+  bigger or smaller — never hard-code a scale in a draw block.
+* **Long text word-wraps** to the pane (`wrapText` + `drawLines`, used for every
+  intro, help line, row description and machine label). Rows measure their
+  wrapped line count *before* drawing so row heights always fit the type; this
+  also dodges `drawText`'s 64-char clip.
 * **Tabs move to a top strip** when a left column would leave the content narrower
-  than ~400px (small windows, portrait/phone aspect ratios). `layoutFor` decides
-  once per draw and `click()` hit-tests the same geometry, so both stay in sync.
+  than ~400px (small windows, portrait/phone aspect ratios), and their labels
+  degrade (`1 Recipes 0/3` → `1 Recipes` → `1`) rather than overrun the pill.
+  `layoutFor` decides once per draw and `click()` hit-tests the same geometry, so
+  both stay in sync.
 * **Rows re-flow when the pane is tight** rather than clipping: a recipe's result
   and a machine's text block drop *below* the shape instead of sitting beside it.
 * The title band drops items as room runs out: full hint → keys only → nothing,

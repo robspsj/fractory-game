@@ -6,6 +6,8 @@
 #include "../../font.hpp"
 #include <algorithm>
 #include <cstdio>
+#include <string>
+#include <vector>
 #include "include/core/SkCanvas.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkRect.h"
@@ -46,11 +48,11 @@ Metrics metricsFor(int winW, int winH) {
   const float minDim = (float)std::min(winW, winH);
   m.ui = std::clamp(minDim / 700.f, 0.55f, 1.5f);
   m.o = std::clamp(m.ui, 0.75f, 1.3f);
-  m.text = std::clamp(1.45f * m.ui, 1.05f, 1.7f);
-  m.small = std::clamp(1.15f * m.ui, 0.95f, 1.35f);
+  m.text = std::clamp(1.75f * m.ui, 1.35f, 2.05f);
+  m.small = std::clamp(1.42f * m.ui, 1.15f, 1.65f);
   m.cell = std::clamp(30.f * m.ui, 18.f, 36.f);
   m.icon = m.cell * 0.44f;
-  m.gap = std::clamp(18.f * m.ui, 13.f, 22.f);
+  m.gap = std::clamp(19.f * m.ui, 15.f, 24.f);
   m.margin = std::clamp(22.f * m.ui, 8.f, 30.f);
   return m;
 }
@@ -153,6 +155,45 @@ bool physicsEnabled(const GameModel &m, BookPhysics id) {
   }
 }
 
+// ─── Word wrapping ──────────────────────────────────────────────────────────
+// Bigger type + narrow panes mean lines must reflow, not clip (drawText also
+// hard-clips at 64 chars). Everything long goes through these two helpers.
+std::vector<std::string> wrapText(const char *text, float scale, float maxW) {
+  std::vector<std::string> lines;
+  if (!text || !*text) return lines;
+  std::string cur;
+  const char *p = text;
+  while (true) {
+    while (*p == ' ') p++;
+    if (!*p) break;
+    const char *ws = p;
+    while (*p && *p != ' ') p++;
+    const std::string word(ws, (size_t)(p - ws));
+    const std::string cand = cur.empty() ? word : cur + " " + word;
+    // Break when the line would overflow — unless it is a single long word,
+    // which we let through rather than looping forever.
+    if (!cur.empty() && textWidth(cand.c_str(), scale) > maxW) {
+      lines.push_back(cur);
+      cur = word;
+    } else {
+      cur = cand;
+    }
+  }
+  if (!cur.empty()) lines.push_back(cur);
+  return lines;
+}
+
+// Draw pre-wrapped lines; returns the y advance consumed.
+float drawLines(SkCanvas *c, float x, float y, const std::vector<std::string> &lines, float scale,
+                float gap) {
+  float adv = 0.f;
+  for (const std::string &ln : lines) {
+    drawText(c, x, y + adv, ln.c_str(), scale);
+    adv += gap;
+  }
+  return adv;
+}
+
 // ─── Activation help ────────────────────────────────────────────────────────
 // "How do I make this happen?" — the book's instructions live in exactly these
 // tables, so when a mechanic's input changes (or a flag is added/removed) this
@@ -191,18 +232,12 @@ const char *kPhysicsHow[(int)BookPhysics::COUNT] = {
 };
 
 // Draw the per-category activation help (and its context note) under the
-// section intro; returns the y advance consumed. Empty strings are skipped.
-float drawCatHelp(SkCanvas *c, float x, float y, BookCategory cat, const Metrics &m) {
+// section intro, wrapped to the pane width; returns the y advance consumed.
+float drawCatHelp(SkCanvas *c, float x, float y, BookCategory cat, const Metrics &m, float maxW) {
   float adv = 0.f;
-  const char *how = kCatHow[(int)cat];
-  const char *note = kCatNote[(int)cat];
-  if (how[0]) {
-    drawText(c, x, y + adv, how, m.small);
-    adv += m.gap;
-  }
-  if (note[0]) {
-    drawText(c, x, y + adv, note, m.small);
-    adv += m.gap;
+  for (const char *s : {kCatHow[(int)cat], kCatNote[(int)cat]}) {
+    if (!s[0]) continue;
+    adv += drawLines(c, x, y + adv, wrapText(s, m.small, maxW), m.small, m.gap);
   }
   return adv;
 }
@@ -352,8 +387,15 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
                  1.f);
       char label[64];
       const int total = catTotal(ic, (BookCategory)i);
-      snprintf(label, sizeof label, "%d %s %d/%d", i + 1, kCatName[i], catDone(bs, (BookCategory)i),
-               total);
+      // The pill width is fixed, the type is not: drop the counter, then the
+      // name, before letting a label overrun its tab.
+      const float maxLblW = tw - 16.f * o;
+      snprintf(label, sizeof label, "%d %s %d/%d", i + 1, kCatName[i],
+               catDone(bs, (BookCategory)i), total);
+      if (textWidth(label, m.small) > maxLblW)
+        snprintf(label, sizeof label, "%d %s", i + 1, kCatName[i]);
+      if (textWidth(label, m.small) > maxLblW)
+        snprintf(label, sizeof label, "%d", i + 1);
       drawText(canvas, tx + 8.f * o, L.sideY + L.tabH * 0.5f - 8.f * o, label, m.small);
     }
   } else {
@@ -387,17 +429,19 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
   const float cx = L.contentX;
   const float cw = L.contentW;
   const SkColor cellBg = SkColorSetARGB(190, 46, 52, 66);
-  // When the pane is narrow, wide rows put their result/text block *below* the
-  // shape instead of beside it so nothing gets squeezed off the edge.
+  // When the pane is narrow, wide rows put their result *below* the shape grid
+  // instead of beside it so nothing gets squeezed off the edge. (Machines decide
+  // per row from the measured text block: see `beside`.)
   const bool narrow = (cw < 470.f * o);
-  const bool narrowText = (cw < 560.f * o);
+  const float helpW = cw - 16.f * o;   // wrap width for intro / help lines
   char buf[128];
 
   switch ((BookCategory)_cat) {
     case BookCategory::Recipes: {
-      drawText(canvas, cx, y, "Shaped patterns (offsets exactly as drawn)", m.small);
-      y += g + 2.f;
-      y += drawCatHelp(canvas, cx, y, BookCategory::Recipes, m);
+      y += drawLines(canvas, cx, y, wrapText("Shaped patterns (offsets exactly as drawn)",
+                                             m.small, helpW), m.small, g);
+      y += 2.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Recipes, m, helpW);
       y += 10.f;
       for (int i = 0; i < (int)ic.crafting.size(); i++) {
         const CraftingRule &r = ic.crafting[i];
@@ -447,15 +491,38 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       break;
     }
     case BookCategory::Machines: {
-      drawText(canvas, cx, y, "Machine footprints, roles and timings", m.small);
-      y += g + 2.f;
-      y += drawCatHelp(canvas, cx, y, BookCategory::Machines, m);
+      y += drawLines(canvas, cx, y, wrapText("Machine footprints, roles and timings", m.small,
+                                             helpW), m.small, g);
+      y += 2.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Machines, m, helpW);
       y += 10.f;
       for (int i = 0; i < (int)ic.stationRecipes.size(); i++) {
         const StationRecipe &r = ic.stationRecipes[i];
         const float footH = std::max(1, r.sizeR) * cell;
-        const float textH = 4.f * g;
-        const float eh = footH + (narrowText ? textH : 14.f * o) + 10.f * o;
+        const float footW = r.sizeC * cell;
+        const char *na = r.inputA >= 0 ? view.itemName(r.inputA).c_str() : "-";
+        const char *nb = r.inputB >= 0 ? view.itemName(r.inputB).c_str() : "-";
+        char line1[128], line2[96];
+        snprintf(line1, sizeof line1, "%s + %s  ->  %s x%d", na, nb,
+                 view.itemName(r.output).c_str(), r.outputCount);
+        snprintf(line2, sizeof line2, "%d ticks   (machine %d, %dx%d)", r.duration, r.id, r.sizeR,
+                 r.sizeC);
+        // Wrap the text block first: it decides the row height, and whether it
+        // fits beside the footprint or has to go underneath it.
+        const float besideW = cw - 26.f * o - footW - 14.f * o - 62.f * o;
+        const float belowW = cw - 26.f * o - 70.f * o;
+        const bool beside = (besideW > 190.f);
+        const float wrapW = beside ? besideW : belowW;
+        const std::vector<std::string> head = wrapText(line1, m.text, wrapW);
+        std::vector<std::string> body;
+        const char *line2p = line2;   // keep the initializer list const-clean
+        for (const char *s : {line2p, "violet = machine   green = input",
+                              "orange = output   blue = buffer"}) {
+          const std::vector<std::string> w = wrapText(s, m.small, wrapW);
+          body.insert(body.end(), w.begin(), w.end());
+        }
+        const float blockH = (float)head.size() * (g + 4.f) + (float)body.size() * g;
+        const float eh = (beside ? std::max(footH, blockH) : footH + blockH + 6.f * o) + 14.f * o;
         const bool done = bs.has(BookCategory::Machines, i);
         if (y + eh > top && y < top + L.contentH) {
           fillRect(canvas, cx, y, cw, eh - 6.f, rowColor(done));
@@ -474,21 +541,10 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
               fillRect(canvas, gx + cc * cell, gy + rr * cell, cell - 2.f, cell - 2.f, col, 4.f);
             }
           }
-          const float tx = narrowText ? gx : gx + r.sizeC * cell + 14.f * o;
-          float ty = narrowText ? gy + r.sizeR * cell + 6.f * o : y + 6.f * o;
-          const char *na = r.inputA >= 0 ? view.itemName(r.inputA).c_str() : "-";
-          const char *nb = r.inputB >= 0 ? view.itemName(r.inputB).c_str() : "-";
-          snprintf(buf, sizeof buf, "%s + %s  ->  %s x%d", na, nb,
-                   view.itemName(r.output).c_str(), r.outputCount);
-          drawText(canvas, tx, ty, buf, m.text);
-          ty += g + 4.f;
-          snprintf(buf, sizeof buf, "%d ticks   (machine %d, %dx%d)", r.duration, r.id, r.sizeR,
-                   r.sizeC);
-          drawText(canvas, tx, ty, buf, m.small);
-          ty += g;
-          drawText(canvas, tx, ty, "violet = machine   green = input", m.small);
-          ty += g;
-          drawText(canvas, tx, ty, "orange = output   blue = buffer", m.small);
+          const float tx = beside ? gx + footW + 14.f * o : gx;
+          float ty = beside ? y + 6.f * o : gy + r.sizeR * cell + 6.f * o;
+          ty += drawLines(canvas, tx, ty, head, m.text, g + 4.f);
+          drawLines(canvas, tx, ty, body, m.small, g);
           rowStatus(canvas, cx + cw - 12.f * o, y + 6.f * o, done, m.small);
         }
         y += eh;
@@ -496,9 +552,10 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       break;
     }
     case BookCategory::Reactions: {
-      drawText(canvas, cx, y, "Item reactions (pair-wise)", m.small);
-      y += g + 2.f;
-      y += drawCatHelp(canvas, cx, y, BookCategory::Reactions, m);
+      y += drawLines(canvas, cx, y, wrapText("Item reactions (pair-wise)", m.small, helpW), m.small,
+                     g);
+      y += 2.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Reactions, m, helpW);
       y += 10.f;
       for (int i = 0; i < (int)ic.reactions.size(); i++) {
         const ReactionRule &r = ic.reactions[i];
@@ -535,9 +592,11 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       break;
     }
     case BookCategory::Stacking: {
-      drawText(canvas, cx, y, "How piles behave on their own (tick-driven)", m.small);
-      y += g + 2.f;
-      y += drawCatHelp(canvas, cx, y, BookCategory::Stacking, m);
+      y += drawLines(canvas, cx, y,
+                     wrapText("How piles behave on their own (tick-driven)", m.small, helpW),
+                     m.small, g);
+      y += 2.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Stacking, m, helpW);
       y += 10.f;
       struct Entry { BookPhysics id; const char *title; const char *desc; const char *desc2; };
       char split1[80], split2[80];
@@ -554,9 +613,16 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
           {BookPhysics::Merge, "Merge", "Drag a stack onto the same item: the counts add up.", ""},
           {BookPhysics::Split, "Split", split1, split2},
       };
+      // Wrap the body first: a row's height depends on how many lines it needs.
+      const float rowTextW = cw - 26.f * o - 74.f * o;   // room for the status label
       for (const Entry &e : entries) {
-        const int lines = 2 + (e.desc2[0] ? 1 : 0) + 1;   // desc (+desc2) + how
-        const float eh = lines * g + 16.f * o;
+        std::vector<std::string> body;
+        for (const char *s : {e.desc, e.desc2, kPhysicsHow[(int)e.id]}) {
+          if (!s || !s[0]) continue;
+          const std::vector<std::string> w = wrapText(s, m.small, rowTextW);
+          body.insert(body.end(), w.begin(), w.end());
+        }
+        const float eh = (1.f + (float)body.size()) * g + 16.f * o;
         const bool done = bs.has(BookCategory::Stacking, (int)e.id);
         const bool on = physicsEnabled(model, e.id);
         if (y + eh > top && y < top + L.contentH) {
@@ -575,13 +641,7 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
           float ty = y + 6.f * o;
           drawText(canvas, cx + 26.f * o, ty, e.title, m.text);
           ty += g + 2.f;
-          drawText(canvas, cx + 26.f * o, ty, e.desc, m.small);
-          ty += g;
-          if (e.desc2[0]) {
-            drawText(canvas, cx + 26.f * o, ty, e.desc2, m.small);
-            ty += g;
-          }
-          drawText(canvas, cx + 26.f * o, ty, kPhysicsHow[(int)e.id], m.small);
+          drawLines(canvas, cx + 26.f * o, ty, body, m.small, g);
           if (on) {
             rowStatus(canvas, cx + cw - 12.f * o, y + 6.f * o, done, m.small);
           } else {
@@ -594,24 +654,46 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       break;
     }
     case BookCategory::Quantum: {
-      drawText(canvas, cx, y, "Heat - the only way matter appears from nothing", m.small);
-      y += g + 2.f;
-      y += drawCatHelp(canvas, cx, y, BookCategory::Quantum, m);
+      y += drawLines(canvas, cx, y,
+                     wrapText("Heat - the only way matter appears from nothing", m.small, helpW),
+                     m.small, g);
+      y += 2.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Quantum, m, helpW);
       y += 10.f;
       const float bh = std::clamp(18.f * o, 12.f, 22.f);
-      const float barTop = 58.f * o;
-      const float eh = barTop + bh + 26.f + 3.f * g + 14.f * o;
+      const float textInset = 26.f * o;
+      const float qWrapW = std::max(150.f, cw - textInset - 30.f * o);
+      // Wrap first: the card height has to fit the type size and pane width.
+      const std::vector<std::string> qHow =
+          wrapText(kPhysicsHow[(int)BookPhysics::Quantum], m.small, qWrapW);
+      std::vector<std::string> qBody;
+      {
+        char l1[96], l2[112];
+        snprintf(l1, sizeof l1, "Holding pumps +%d heat per tick.",
+                 Heat::QUANTUM_HOLD_HEAT_PER_TICK);
+        snprintf(l2, sizeof l2, "An EMPTY cell at %d+ heat rolls %d%% per heat pass (~1.6 s)",
+                 Heat::QUANTUM_MIN_HEAT, Heat::QUANTUM_CHANCE_PCT);
+        const char *l1p = l1, *l2p = l2;
+        for (const char *s : {l1p, l2p, "and births a random item; the birth absorbs the heat.",
+                              "Hot cells make items act up to 5x more often."}) {
+          const std::vector<std::string> w = wrapText(s, m.small, qWrapW);
+          qBody.insert(qBody.end(), w.begin(), w.end());
+        }
+      }
+      const float howTop = 26.f * o;
+      const float howH = (float)qHow.size() * g;
+      const float barTop = howTop + howH + 8.f * o;
+      const float eh = barTop + bh + 26.f + (float)qBody.size() * g + 14.f * o;
       const bool qDone = bs.has(BookCategory::Quantum, (int)BookPhysics::Quantum);
       if (y + eh > top && y < top + L.contentH) {
         fillRect(canvas, cx, y, cw, eh - 6.f, rowColor(qDone));
         doneMark(canvas, cx + 12.f * o, y + 13.f * o, 4.5f * o, qDone);
-        drawText(canvas, cx + 26.f * o, y + 6.f * o, "Quantum fluctuation", m.text);
+        drawText(canvas, cx + textInset, y + 6.f * o, "Quantum fluctuation", m.text);
         rowStatus(canvas, cx + cw - 12.f * o, y + 6.f * o, qDone, m.small);
-        drawText(canvas, cx + 26.f * o, y + 26.f * o, kPhysicsHow[(int)BookPhysics::Quantum],
-                 m.small);
+        drawLines(canvas, cx + textInset, y + howTop, qHow, m.small, g);
         // Heat bar 0..255, full available width, threshold marked.
-        const float bx = cx + 26.f * o;
-        const float bw = std::max(120.f, std::min(cw - 52.f * o, 700.f * o));
+        const float bx = cx + textInset;
+        const float bw = std::max(120.f, std::min(cw - textInset - 26.f * o, 700.f * o));
         const float by = y + barTop;
         const int segs = 64;
         for (int s = 0; s < segs; s++) {
@@ -627,21 +709,13 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
         tick.setStrokeWidth(2.f);
         canvas->drawLine(tx, by - 5.f, tx, by + bh + 5.f, tick);
         snprintf(buf, sizeof buf, "fluctuation from %d", Heat::QUANTUM_MIN_HEAT);
-        drawText(canvas, tx + 6.f, by - 20.f * o, buf, m.small);
+        // Above the tick if it fits, otherwise flipped to its left.
+        const float lblW = textWidth(buf, m.small);
+        const float lblX = (tx + 6.f + lblW <= bx + bw) ? tx + 6.f : (tx - 6.f - lblW);
+        drawText(canvas, lblX, by - 20.f * o, buf, m.small);
         drawText(canvas, bx, by + bh + 6.f, "0", m.small);
-        drawText(canvas, bx + bw - 22.f, by + bh + 6.f, "255", m.small);
-        float ty = by + bh + 26.f;
-        snprintf(buf, sizeof buf, "Holding pumps +%d heat per tick.",
-                 Heat::QUANTUM_HOLD_HEAT_PER_TICK);
-        drawText(canvas, bx, ty, buf, m.small);
-        ty += g;
-        snprintf(buf, sizeof buf, "An EMPTY cell at %d+ heat rolls %d%% per heat pass (~1.6 s)",
-                 Heat::QUANTUM_MIN_HEAT, Heat::QUANTUM_CHANCE_PCT);
-        drawText(canvas, bx, ty, buf, m.small);
-        ty += g;
-        drawText(canvas, bx, ty, "and births a random item; the birth absorbs the heat.", m.small);
-        ty += g;
-        drawText(canvas, bx, ty, "Hot cells make items act up to 5x more often.", m.small);
+        drawText(canvas, bx + bw - textWidth("255", m.small), by + bh + 6.f, "255", m.small);
+        drawLines(canvas, bx, by + bh + 26.f, qBody, m.small, g);
       }
       y += eh;
       break;
