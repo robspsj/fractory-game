@@ -42,7 +42,27 @@ shrink / split are off by default (`Config::itemGrow/itemShrink/itemSplit`), and
 the book draws those rows greyed with an `off` label instead of a progress mark —
 so the manual always matches what the simulation will actually do.
 
-## 3. Progress marks
+## 3. Activation help ("how do I make this happen?")
+
+Every tab carries instructions, generated from **two tables at the top of
+`src/game/view/recipe_book.cpp`** — the single place to edit when a mechanic's
+input changes or a flag is added/removed:
+
+| Table | Scope | Example |
+|---|---|---|
+| `kCatHow[category]` | one line per category | Recipes: *"hold the hammer (item 3), right-click any cell of the shape"* |
+| `kCatNote[category]` | extra context (tool source, caveats) | Recipes: *"the hammer itself: two wood react into one, or craft the L shape below"* |
+| `kPhysicsHow[BookPhysics]` | per-entry, for the code-defined rows | Split: *"automatic while --item-split / --item-dynamics is on"* |
+
+Drawn under each section intro (`drawCatHelp`) and inside each Stacking row, so
+the manual always states how a mechanic is triggered — including the CLI flag for
+the ones that are off by default.
+
+> When you iterate on a mechanic: change the input handling, then update the
+> matching string(s) in those tables. If a new mechanic gets a flag, put the flag
+> name in its `How:` line so the book doubles as the flag reference.
+
+## 4. Progress marks
 
 Everything is listed from the start (the book doubles as the manual); entries the
 player has **performed** are marked — green row + dot + `done` label. The sidebar
@@ -62,7 +82,7 @@ output (`StationCell::tick`), muts (GROW/SHRINK/DESTROY), spill apply (Split),
 merge (`drop`), quantum birth (`quantumFluctuation`). Tests can assert them with
 the `expect_performed,<category>,<id>,<0|1>` harness step.
 
-## 4. Extending it
+## 5. Extending it
 
 * A new table row appears automatically (the book iterates the loaded vectors).
 * A new *category* needs: a `BookCategory` value, a name in `kCatName`, a
@@ -71,7 +91,7 @@ the `expect_performed,<category>,<id>,<0|1>` harness step.
   by `(category, row index)` — the same id space `BookState::mark()` uses — so a
   click can map to a recipe/rule without any new bookkeeping.
 
-## 5. Visual checks
+## 6. Visual checks
 
 `--book [category]` renders the overlay into a headless frame, e.g.
 

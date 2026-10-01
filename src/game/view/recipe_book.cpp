@@ -116,6 +116,60 @@ bool physicsEnabled(const GameModel &m, BookPhysics id) {
   }
 }
 
+// ─── Activation help ────────────────────────────────────────────────────────
+// "How do I make this happen?" — the book's instructions live in exactly these
+// two tables, so when a mechanic's input changes (or a flag is added/removed)
+// this is the only place to update. Keep them in sync with the code paths:
+//   Recipes   -> GameModel::tryCraftWithDrag   (held tool + right-click)
+//   Machines  -> StationCell::place / tick     (footprint + inputs)
+//   Reactions -> ItemCell::interact            (shift-click)
+//   Stacking  -> ItemCell::collectTickPlan     (tick-driven, flag-gated)
+//   Quantum   -> Game::step heat pump + GameModel::quantumFluctuation
+const char *kCatHow[(int)BookCategory::COUNT] = {
+    /* Recipes   */ "How: hold the hammer (item 3), right-click any cell of the shape.",
+    /* Machines  */ "How: shift-click an INPUT cell (green) while holding an item to load it.",
+    /* Reactions */ "How: shift-click an item that sits next to another item.",
+    /* Stacking  */ "How: automatic, gated by a feature flag per row (see the 'off' rows).",
+    /* Quantum   */ "",   // single entry: its own how-line carries the instruction
+};
+
+// Extra context line per category (tools, sources, caveats). Empty = none.
+const char *kCatNote[(int)BookCategory::COUNT] = {
+    /* Recipes   */ "The hammer itself: two wood react into one, or craft the L shape below.",
+    /* Machines  */ "Machines are scattered by the random world; hand-placing has no input yet.",
+    /* Reactions */ "Two identical items work too: wood + wood -> a hammer.",
+    /* Stacking  */ "Enable with --item-dynamics (or --item-grow/-shrink/-split individually).",
+    /* Quantum   */ "",
+};
+
+// Per-entry activation for the code-defined entries (Stacking rows and the
+// Quantum mechanic) — these differ row by row, so they get their own line.
+const char *kPhysicsHow[(int)BookPhysics::COUNT] = {
+    /* Grow    */ "How: automatic while --item-grow / --item-dynamics is on.",
+    /* Shrink  */ "How: automatic while --item-shrink / --item-dynamics is on.",
+    /* Destroy */ "How: automatic while --item-shrink / --item-dynamics is on.",
+    /* Merge   */ "How: drag a stack onto a cell holding the same item.",
+    /* Split   */ "How: automatic while --item-split / --item-dynamics is on.",
+    /* Quantum */ "How: hold RIGHT mouse on an EMPTY cell until it passes the threshold.",
+};
+
+// Draw the per-category activation help (and its context note) under the
+// section intro; returns the y advance consumed. Empty strings are skipped.
+float drawCatHelp(SkCanvas *c, float x, float y, BookCategory cat) {
+  float adv = 0.f;
+  const char *how = kCatHow[(int)cat];
+  const char *note = kCatNote[(int)cat];
+  if (how[0]) {
+    drawText(c, x, y + adv, how, kSmallScale);
+    adv += 18.f;
+  }
+  if (note[0]) {
+    drawText(c, x, y + adv, note, kSmallScale);
+    adv += 18.f;
+  }
+  return adv;
+}
+
 int catTotal(const InteractConfig &ic, BookCategory c) {
   switch (c) {
     case BookCategory::Recipes:   return (int)ic.crafting.size();
@@ -229,9 +283,10 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
 
   switch ((BookCategory)_cat) {
     case BookCategory::Recipes: {
-      drawText(canvas, cx, y, "Hold the hammer (item 3) and right-click a cell of the shape",
-               kSmallScale);
-      y += 26.f;
+      drawText(canvas, cx, y, "Shaped patterns (offsets exactly as drawn)", kSmallScale);
+      y += 20.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Recipes);
+      y += 10.f;
       for (int i = 0; i < (int)ic.crafting.size(); i++) {
         const CraftingRule &r = ic.crafting[i];
         const int rows = r.maxDr - r.minDr + 1, cols = r.maxDc - r.minDc + 1;
@@ -279,8 +334,10 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       break;
     }
     case BookCategory::Machines: {
-      drawText(canvas, cx, y, "Fill the inputs; output appears after the duration", kSmallScale);
-      y += 26.f;
+      drawText(canvas, cx, y, "Machine footprints, roles and timings", kSmallScale);
+      y += 20.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Machines);
+      y += 10.f;
       for (int i = 0; i < (int)ic.stationRecipes.size(); i++) {
         const StationRecipe &r = ic.stationRecipes[i];
         const float eh = std::max(1, r.sizeR) * kCell + 18.f;
@@ -320,9 +377,10 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       break;
     }
     case BookCategory::Reactions: {
-      drawText(canvas, cx, y, "Item reactions - shift-click one item next to another",
-               kSmallScale);
-      y += 26.f;
+      drawText(canvas, cx, y, "Item reactions (pair-wise)", kSmallScale);
+      y += 20.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Reactions);
+      y += 10.f;
       for (int i = 0; i < (int)ic.reactions.size(); i++) {
         const ReactionRule &r = ic.reactions[i];
         const float eh = kCell + 18.f;
@@ -359,9 +417,8 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
     case BookCategory::Stacking: {
       drawText(canvas, cx, y, "How piles behave on their own (tick-driven)", kSmallScale);
       y += 20.f;
-      drawText(canvas, cx, y, "Greyed rows are switched off by a feature flag (--item-dynamics).",
-               kSmallScale);
-      y += 26.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Stacking);
+      y += 10.f;
       struct Entry { BookPhysics id; const char *title; const char *desc; const char *desc2; };
       char split1[80], split2[80];
       snprintf(split1, sizeof split1,
@@ -378,7 +435,8 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
           {BookPhysics::Split, "Split", split1, split2},
       };
       for (const Entry &e : entries) {
-        const float eh = e.desc2[0] ? 58.f : 40.f;
+        // Two description lines at most, plus the per-row activation line.
+        const float eh = (e.desc2[0] ? 58.f : 40.f) + 18.f;
         const bool done = bs.has(BookCategory::Stacking, (int)e.id);
         const bool on = physicsEnabled(model, e.id);
         if (y + eh > top && y < top + L.contentH) {
@@ -397,6 +455,8 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
           drawText(canvas, cx + 26.f, y + 6.f, e.title, kTextScale);
           drawText(canvas, cx + 26.f, y + 24.f, e.desc, kSmallScale);
           if (e.desc2[0]) drawText(canvas, cx + 26.f, y + 40.f, e.desc2, kSmallScale);
+          drawText(canvas, cx + 26.f, y + (e.desc2[0] ? 56.f : 40.f), kPhysicsHow[(int)e.id],
+                   kSmallScale);
           if (on) {
             rowStatus(canvas, cx + cw - 14.f, y + 6.f, done);
           } else {
@@ -410,18 +470,21 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
     }
     case BookCategory::Quantum: {
       drawText(canvas, cx, y, "Heat - the only way matter appears from nothing", kSmallScale);
-      y += 26.f;
-      const float eh = 172.f;
+      y += 20.f;
+      y += drawCatHelp(canvas, cx, y, BookCategory::Quantum);
+      y += 10.f;
+      const float eh = 196.f;
       const bool qDone = bs.has(BookCategory::Quantum, (int)BookPhysics::Quantum);
       if (y + eh > top && y < top + L.contentH) {
         fillRect(canvas, cx, y, cw, eh - 6.f, rowColor(qDone));
         doneMark(canvas, cx + 12.f, y + 14.f, qDone);
         drawText(canvas, cx + 26.f, y + 6.f, "Quantum fluctuation", kTextScale);
         rowStatus(canvas, cx + cw - 14.f, y + 6.f, qDone);
+        drawText(canvas, cx + 26.f, y + 26.f, kPhysicsHow[(int)BookPhysics::Quantum], kSmallScale);
         // Heat bar 0..255 on its own row, threshold marked, then short text
         // lines below (drawText clips at 64 chars, so nothing longer is safe).
         const float bw = std::min(cw - 60.f, 700.f);
-        const float bx = cx + 26.f, by = y + 40.f, bh = 18.f;
+        const float bx = cx + 26.f, by = y + 58.f, bh = 18.f;
         const int segs = 64;
         for (int s = 0; s < segs; s++) {
           const float t = (float)s / (float)(segs - 1);
@@ -440,8 +503,7 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
         drawText(canvas, bx, by + bh + 6.f, "0", kSmallScale);
         drawText(canvas, bx + bw - 22.f, by + bh + 6.f, "255", kSmallScale);
         float ty = by + bh + 26.f;
-        snprintf(buf, sizeof buf, "Hold RIGHT mouse on a cell: +%d heat per tick.",
-                 Heat::QUANTUM_HOLD_HEAT_PER_TICK);
+        snprintf(buf, sizeof buf, "Holding pumps +%d heat per tick.", Heat::QUANTUM_HOLD_HEAT_PER_TICK);
         drawText(canvas, bx, ty, buf, kSmallScale);
         ty += 18.f;
         snprintf(buf, sizeof buf, "An EMPTY cell at %d+ heat rolls %d%% per heat pass (~1.6 s)",
