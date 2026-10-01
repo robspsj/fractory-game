@@ -24,8 +24,12 @@ class RecipeBook {
   void cycle(int dir);
   void scrollBy(float dy);
   // Mouse click in pixels. Returns true when the book consumed the click
-  // (sidebar tab hit or inside the panel).
+  // (tab hit, scrollbar grab, or inside the panel).
   bool click(int px, int py, int winW, int winH);
+  // Mouse motion while the button is held: drags the scrollbar if it was
+  // grabbed by click(). No-op otherwise.
+  void dragTo(int py, int winW, int winH);
+  void endDrag();
   // Draw the overlay (pixel space; the caller's canvas is left untouched).
   void draw(GameView &view, SkCanvas *canvas, int winW, int winH);
 
@@ -36,4 +40,10 @@ class RecipeBook {
   // Measured on the last draw so scrolling can clamp to the content.
   float _contentH = 0.f;
   float _viewH = 1.f;
+  // Scroll view geometry, measured on the last draw so click() can hit-test the
+  // bar and dragTo() can map the mouse to a scroll position.
+  float _barX = 0.f, _barY = 0.f, _barW = 0.f, _barH = 0.f;
+  float _trackY = 0.f, _trackH = 0.f;
+  bool _dragging = false;
+  float _dragGrabDy = 0.f;
 };

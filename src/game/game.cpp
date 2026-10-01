@@ -115,6 +115,13 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
   // from the CURRENT view transform (even on frames with no motion event).
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
 
+  // The recipe book is modal: while it is open the cursor only drives its
+  // scroll view (dragging the bar), never the world.
+  if (_book.isOpen()) {
+    _book.dragTo(mousePy, winW, winH);
+    return;
+  }
+
   // If a tap is armed, cancel it when the cursor drifts beyond epsilon.
   // This handles dragging / moving before release — not a tap.
   if (_tapArmed) {
@@ -253,7 +260,10 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
 void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
 
-  if (_book.isOpen()) return;
+  if (_book.isOpen()) {   // modal: the release only ends a scrollbar drag
+    _book.endDrag();
+    return;
+  }
 
   if (button == 3) { // right -> release the heat pump (crafts happen on press)
     _heatingHeld = false;

@@ -7,24 +7,46 @@ constants, so it can never drift from the sim.
 Implementation: `src/game/view/recipe_book.cpp` (overlay) +
 `src/game/model/book_state.hpp` (progress marks).
 
-## 1. Layout
+## 1. Layout (responsive)
 
 ```
-┌ RECIPE BOOK ─────────────────────────────── F2 close  1-5 tabs  arrows scroll ┐
-│ 1 Recipes   0/3 │  Hold the hammer (item 3) and right-click a cell of the shape│
-│ 2 Machines  0/3 │  ┌───────────────────────────────────────────────────────┐   │
-│ 3 Reactions 0/4 │  │ ● [pattern grid] -> [result] name xN          done     │   │
-│ 4 Stacking  0/5 │  └───────────────────────────────────────────────────────┘   │
-│ 5 Quantum   0/1 │  ...                                                       │
-└────────────────────────────────────────────────────────────────────────────────┘
+wide window                              narrow / portrait window
+┌ RECIPE BOOK ────── F2 close … green row = done ┐   ┌ RECIPE BOOK ──────────┐
+│ 1 Recipes   0/3 │  How: hold the hammer …      │   │ 1 Recipes 0/3  2 Mach…│  <- tab strip
+│ 2 Machines  0/3 │  ┌────────────────────────┐   │   ├───────────────────────┤
+│ 3 Reactions 0/4 │  │ ● [pattern] -> [result]│ ▓ │   │ How: hold the hammer… │
+│ 4 Stacking  0/5 │  └────────────────────────┘ ▓ │   │ ● [pattern]           │
+│ 5 Quantum   0/1 │  ...                     ░ ▓ │   │   -> [result]         │
+└─────────────────────────────────────────────────┘   └───────────────────────┘
+   sidebar tabs + right pane, scrollbar at the edge     top tabs, full-width rows
 ```
 
-* **Tabbed**: sidebar categories (number keys 1-5, left/right arrows, or click),
-  content pane on the right.
-* Scroll the content with the wheel or up/down arrows; a slim indicator appears
-  when a category overflows.
-* While open the overlay is **modal**: clicks, wheel and keys drive the book only
-  (the board is not pickable, the sim keeps running).
+Everything is derived from the window size (`Metrics`/`layoutFor` at the top of
+`recipe_book.cpp`), so the book works from a small web canvas to a 4K window:
+
+* `ui` scales geometry (cell, icon, margins, tabs); `o` is a gentler scale for
+  structural offsets; **text is floored** (`text`/`small`) so it stays legible —
+  vertical overflow is absorbed by the scroll view rather than shrinking type.
+* **Tabs move to a top strip** when a left column would leave the content narrower
+  than ~400px (small windows, portrait/phone aspect ratios). `layoutFor` decides
+  once per draw and `click()` hit-tests the same geometry, so both stay in sync.
+* **Rows re-flow when the pane is tight** rather than clipping: a recipe's result
+  and a machine's text block drop *below* the shape instead of sitting beside it.
+* The title band drops items as room runs out: full hint → keys only → nothing,
+  with the legend always laid out *relative to* the hint (never both right-aligned
+  to the same edge, which overlapped them).
+
+### Scroll view
+
+The content pane is clipped and scrolled by `_scroll`; the wheel and up/down
+arrows move it, and when the content overflows a real **scrollbar** appears at the
+right edge and can be **dragged** (`click()` grabs it, `dragTo()` follows the
+mouse, `endDrag()` releases — `Game::update`/`mouseUp` forward those while the
+book is open). The bar is only drawn when it is needed, and its geometry is
+measured during `draw()` so hit-testing uses the very same numbers.
+
+While open the overlay is **modal**: clicks, motion, wheel and keys drive the book
+only (the board is not pickable, the sim keeps running).
 
 ## 2. Categories
 
@@ -44,7 +66,7 @@ so the manual always matches what the simulation will actually do.
 
 ## 3. Activation help ("how do I make this happen?")
 
-Every tab carries instructions, generated from **two tables at the top of
+Every tab carries instructions, generated from **three tables at the top of
 `src/game/view/recipe_book.cpp`** — the single place to edit when a mechanic's
 input changes or a flag is added/removed:
 
@@ -100,7 +122,15 @@ the `expect_performed,<category>,<id>,<0|1>` harness step.
 ```
 
 (0=Recipes 1=Machines 2=Reactions 3=Stacking 4=Quantum). Handy for eyeballing
-layout changes without a window.
+layout changes without a window. When touching the layout, render a spread of
+window shapes — `1150x720` (reference), `700x900` (portrait → tab strip + stacked
+rows), `560x360` (small → scrollbar), `1200x420` (wide/short):
+
+```
+for wh in 1150x720 700x900 560x360 1200x420; do
+  ./build-native/fractory --headless /tmp/book_$wh.ppm ${wh%x*} ${wh#*x} --empty-grid --book 3
+done
+```
 
 > `drawText` clips at 64 characters, so every line in the book must stay short —
 > split long sentences into multiple `drawText` calls.
