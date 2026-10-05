@@ -82,7 +82,12 @@ class GameModel {
   void tickGrid(int idx);
   void tryStartStation(int anchorIdx);
 
-  void setFullState(int *inData);
+  // Test-harness hook: overwrite the root grid from a flat (id,count) array.
+  // `pairs` is how many entries the caller actually provides (the CSV harness
+  // caps at GRID*GRID); pass -1 for "as many as the grid holds". A grid bigger
+  // than the caller's buffer is filled only as far as the data goes — the rest
+  // keeps whatever init() left (EMPTY), never an out-of-bounds read.
+  void setFullState(int *inData, int pairs = -1);
   void getFullState(int *outData) const;
   int getSubgridState(int subgridSeqIndex, int *outData, int &outSize) const;
   void getDragState(int &outId, int &outCount);
@@ -120,6 +125,25 @@ class GameModel {
   // from the held tool. Returns false when nothing matched, so the caller can
   // treat the click as something else.
   bool tryCraftWithDrag(int anchorIdx);
+
+  // Which gap next to a cell a click landed in: the space between the cell and
+  // its neighbour across an EDGE (2 cells), or the space where a CORNER joins a
+  // 2x2 block (4 cells). Resolved from the cursor by GameView::resolveGap.
+  enum class GapSide : int {
+    Up = 0, Down, Left, Right,
+    UpLeft, UpRight, DownLeft, DownRight,
+  };
+
+  // Reaction gesture — see docs/reactions.md. The clicked gap names up to four
+  // cells that must all live in the SAME grid (a gap that would reach across a
+  // subgrid edge never reacts). The ITEM cells among them are matched as an
+  // exact multiset of (itemId, count) against assets/reactions.csv; on a hit
+  // every one of those cells is emptied and the result goes into the HAND (the
+  // drag state) — so the player ends the reaction holding it. A non-ITEM,
+  // non-EMPTY cell in the gap (GRID/STATION/RESERVED) or a busy hand refuses.
+  // Returns true when a reaction fired.
+  bool tryReaction(int anchorIdx, GapSide side);
+
   // Leaf cell at (dr,dc) from idx inside the SAME parent grid, or -1 when the
   // offset leaves that grid (v1 constraint: a pattern must fit in one grid).
   int cellAtOffset(int idx, int dr, int dc) const;

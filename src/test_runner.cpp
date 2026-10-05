@@ -1,6 +1,7 @@
 #include "test_runner.hpp"
 #include "game/game_model.hpp"
 #include "print_state.hpp"
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -9,6 +10,24 @@
 static std::string dirOf(const std::string &filepath) {
   auto pos = filepath.find_last_of("/\\");
   return (pos != std::string::npos) ? filepath.substr(0, pos + 1) : "./";
+}
+
+// "up"/"down"/"left"/"right" name an EDGE gap, "ul"/"ur"/"dl"/"dr" a CORNER one
+// (full words work too: "upleft", "downright"). Mirrors GameModel::GapSide.
+static int parseGapSide(const std::string &s) {
+  std::string t;
+  for (char c : s) {
+    if (c == ' ' || c == '\t' || c == '\r') continue;
+    t += (char)std::tolower((unsigned char)c);
+  }
+  if (t == "down" || t == "d") return (int)GameModel::GapSide::Down;
+  if (t == "left" || t == "l") return (int)GameModel::GapSide::Left;
+  if (t == "right" || t == "r") return (int)GameModel::GapSide::Right;
+  if (t == "ul" || t == "upleft") return (int)GameModel::GapSide::UpLeft;
+  if (t == "ur" || t == "upright") return (int)GameModel::GapSide::UpRight;
+  if (t == "dl" || t == "downleft") return (int)GameModel::GapSide::DownLeft;
+  if (t == "dr" || t == "downright") return (int)GameModel::GapSide::DownRight;
+  return (int)GameModel::GapSide::Up;   // "up"/"u" and anything unrecognised
 }
 
 bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
@@ -117,6 +136,12 @@ bool ModelTestRunner::runTest(const std::string &filepath, int gridLimit) {
       std::cout << "Action: craft at [" << step.row << "," << step.col << "] "
                 << (ok ? "OK" : "no match") << std::endl;
       printState(model);
+    } else if (step.type == "react") {
+      int idx = model.rootChild(step.row, step.col);
+      bool ok = model.tryReaction(idx, (GameModel::GapSide)step.side);
+      std::cout << "Action: react in the gap at [" << step.row << "," << step.col
+                << "] side " << step.side << (ok ? " OK" : " no reaction") << std::endl;
+      printState(model);
     } else if (step.type == "item_flags") {
       // item_flags,<grow>,<shrink>,<split> — feature flags for the automatic
       // item dynamics (Config::itemGrow/…), so tests can opt in explicitly.
@@ -213,7 +238,7 @@ void ModelTestRunner::loadState(GameModel &model, const std::string &stateStr) {
     gridData[i * 2 + 1] = count;
     i++;
   }
-  model.setFullState(gridData);
+  model.setFullState(gridData, i);
 }
 
 std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
@@ -319,6 +344,20 @@ std::vector<TestStep> ModelTestRunner::loadSteps(const std::string &filepath,
       step.type = "craft";
       step.row = std::stoi(row_str);
       step.col = std::stoi(col_str);
+      steps.push_back(step);
+    } else if (type == "react") {
+      // react,<row>,<col>,<side> — right-click in the gap touching (row,col).
+      // side is an edge (up|down|left|right) or a corner (ul|ur|dl|dr); see
+      // GameModel::GapSide.
+      std::string row_str, col_str, side_str;
+      std::getline(ss, row_str, ',');
+      std::getline(ss, col_str, ',');
+      std::getline(ss, side_str, ',');
+      TestStep step;
+      step.type = "react";
+      step.row = std::stoi(row_str);
+      step.col = std::stoi(col_str);
+      step.side = parseGapSide(side_str);
       steps.push_back(step);
     } else if (type == "item_flags") {
       std::string g_str, s_str, sp_str;

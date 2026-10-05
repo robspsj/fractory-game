@@ -5,11 +5,26 @@
 
 enum class ReserveRole : uint8_t { NONE, INPUT, OUTPUT, BUFFER };
 
+// The most cells one gap can touch (a corner joins a 2x2 block), so also the
+// largest ingredient list a reaction may carry.
+inline constexpr int kMaxReactionCells = 4;
+
+// One ingredient of a reaction: an item id and the EXACT stack count its cell
+// must hold. A rule lists 2..4 of them (the number of board cells it consumes).
+struct ReactionIngredient {
+  int itemId = 0;
+  int count = 1;
+};
+
+// Reactions are ingredient SETS, not shapes: the arrangement of the cells is
+// irrelevant, their exact contents are not. A rule matches when the multiset of
+// (itemId, count) over the ITEM cells of the clicked gap equals its ingredient
+// multiset — same ids, same counts, nothing extra. GameModel::tryReaction does
+// the matching and the commit (see docs/reactions.md).
 struct ReactionRule {
-  int itemA;
-  int itemB;
-  int result;
-  int resultCount;
+  int result = 0;
+  int resultCount = 1;
+  std::vector<ReactionIngredient> ingredients;
 };
 
 struct SpawnRule {
@@ -36,7 +51,11 @@ struct InteractConfig {
   std::vector<StationRecipe> stationRecipes;
   std::vector<CraftingRule> crafting;
 
-  const ReactionRule *findReaction(int itemA, int itemB) const;
+  // Exact-set lookup: the arrays are the contents of the gap's ITEM cells, in
+  // any order. Returns the first rule in file order whose ingredient multiset
+  // matches (same ids, same counts, same size), or nullptr.
+  const ReactionRule *findReaction(const int *itemIds, const int *counts,
+                                   int n) const;
   const SpawnRule *pickSpawn(int heldItemId) const;
   const StationRecipe *findStationRecipe(int id) const;
 };

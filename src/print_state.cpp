@@ -53,7 +53,11 @@ void printState(const GameModel &model) {
   std::cout << "Nodes: " << total << std::endl;
 
   if (dragId != -1) {
-    std::cout << "Drag:  [" << _itemColors[dragId] << dragId << "\033[0m" << ":"
+    // Guard the palette: item ids run past ELEMS as soon as the content grows
+    // beyond the five built-in colours (the same guard printCell uses).
+    const char *col =
+        (dragId >= 0 && dragId < GameModel::ELEMS) ? _itemColors[dragId] : "\033[1;37m";
+    std::cout << "Drag:  [" << col << dragId << "\033[0m" << ":"
               << dragAmount << "]" << std::endl;
   } else {
     std::cout << "Drag:  None" << std::endl;

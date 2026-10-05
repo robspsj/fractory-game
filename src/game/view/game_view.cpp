@@ -160,6 +160,42 @@ float GameView::gridToWorldX(int col) const { return CoordinateMapper::gridToWor
 float GameView::gridToWorldY(int row) const { return CoordinateMapper::gridToWorldY(*this, row); }
 
 int GameView::resolveLeafCell(float worldX, float worldY) const { return PickingEngine::resolveLeafCell(*this, worldX, worldY); }
+
+bool GameView::resolveGap(float worldX, float worldY, int &cellIdx,
+                          GameModel::GapSide &side) const {
+  float u = 0.0f, v = 0.0f;   // position inside the nearest cell, ±0.5 = its edges
+  const int leaf = PickingEngine::resolveLeafCell(*this, worldX, worldY, &u, &v);
+  if (leaf < 0) return false;
+  cellIdx = leaf;
+
+  // A cell is a 1x1 box around its centre, so |u| or |v| past 0.5 is the gutter
+  // between cells — but the gutter is only as wide as _gapRatio (~7% of a cell),
+  // which is a pixel or two at normal zoom. So the gap zone is the gutter plus a
+  // margin reaching into the neighbouring cells. The corner band is wider than
+  // the edge band: an edge target is a long strip, a corner target a small
+  // square, and the corner is the one that needs the help. Whatever is left in
+  // the middle of the cell stays a plain cell click.
+  constexpr float kHalf = 0.5f;
+  constexpr float kCornerBand = 0.24f;   // each corner: 4 * 0.24² ≈ 23% of a cell
+  constexpr float kEdgeBand = 0.12f;     // each edge:   4 * 0.12*0.52 ≈ 25%
+  const float au = std::abs(u), av = std::abs(v);
+  const bool nearCornerU = au > kHalf - kCornerBand;
+  const bool nearCornerV = av > kHalf - kCornerBand;
+  const bool nearEdgeU = au > kHalf - kEdgeBand;
+  const bool nearEdgeV = av > kHalf - kEdgeBand;
+
+  if (nearCornerU && nearCornerV) {
+    side = (v > 0.0f) ? (u < 0.0f ? GameModel::GapSide::UpLeft : GameModel::GapSide::UpRight)
+                      : (u < 0.0f ? GameModel::GapSide::DownLeft : GameModel::GapSide::DownRight);
+  } else if (nearEdgeU && !nearCornerV) {
+    side = (u < 0.0f) ? GameModel::GapSide::Left : GameModel::GapSide::Right;
+  } else if (nearEdgeV && !nearCornerU) {
+    side = (v > 0.0f) ? GameModel::GapSide::Up : GameModel::GapSide::Down;
+  } else {
+    return false;   // the middle of the cell: a cell action, not a reaction
+  }
+  return true;
+}
 int GameView::resolveCellAt(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const { return PickingEngine::resolveCellAt(*this, worldX, worldY, nodeIndex, gridDim, r); }
 int GameView::resolveCellAtWithSizeCheck(float worldX, float worldY, int nodeIndex, int gridDim, Rect r) const { return PickingEngine::resolveCellAtWithSizeCheck(*this, worldX, worldY, nodeIndex, gridDim, r); }
 int GameView::resolveCenterCell(float worldX, float worldY) const { return PickingEngine::resolveCenterCell(*this, worldX, worldY); }

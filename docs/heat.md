@@ -177,7 +177,7 @@ graph LR
     Drag --> DropEmpty[Drop on EMPTY<br/>heat stays with target cell]
     Drag --> DropMerge[Drop on same ITEM<br/>count+ , heat unchanged]
     Drag --> DropSwap[Drop on different ITEM<br/>swap contents, heats stay]
-    Interact[Right-click] --> Reaction
+    Interact[Right-click a gap] --> Reaction
     Reaction --> HeatReact
     EmptySpawn --> HeatSpawn
 ```

@@ -212,13 +212,13 @@ float drawLines(SkCanvas *c, float x, float y, const std::vector<std::string> &l
 // is the only place to update. Keep them in sync with the code paths:
 //   Recipes   -> GameModel::tryCraftWithDrag   (held tool + right-click)
 //   Machines  -> StationCell::place / tick     (footprint + inputs)
-//   Reactions -> ItemCell::interact            (right-click)
+//   Reactions -> GameModel::tryReaction        (right-click a gap)
 //   Stacking  -> ItemCell::collectTickPlan     (tick-driven, flag-gated)
 //   Quantum   -> Game::step heat pump + GameModel::quantumFluctuation
 const char *kCatHow[(int)BookCategory::COUNT] = {
     /* Recipes   */ "How: hold the wand (item 3), right-click any cell of the shape.",
     /* Machines  */ "How: right-click an INPUT cell (green) while holding an item to load it.",
-    /* Reactions */ "How: right-click an item that sits next to another item.",
+    /* Reactions */ "How: right-click the gap between 2 or 4 cells of one subgrid.",
     /* Stacking  */ "How: automatic, gated by a feature flag per row (see the 'off' rows).",
     /* Quantum   */ "",   // single entry: its own how-line carries the instruction
 };
@@ -227,7 +227,7 @@ const char *kCatHow[(int)BookCategory::COUNT] = {
 const char *kCatNote[(int)BookCategory::COUNT] = {
     /* Recipes   */ "The wand itself is never crafted: two wood react into one (Reactions).",
     /* Machines  */ "Machines are scattered by the random world; hand-placing has no input yet.",
-    /* Reactions */ "Two identical items work too: wood + wood -> a wand, the craft tool.",
+    /* Reactions */ "Ingredient sets, not shapes: 2-4 cells, exact stacks, one subgrid.",
     /* Stacking  */ "Enable with --item-dynamics (or --item-grow/-shrink/-split individually).",
     /* Quantum   */ "",
 };
@@ -576,7 +576,7 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       break;
     }
     case BookCategory::Reactions: {
-      y += drawLines(canvas, cx, y, wrapText("Item reactions (pair-wise)", m.small, helpW), m.small,
+      y += drawLines(canvas, cx, y, wrapText("Item reactions (ingredient sets, exact counts)", m.small, helpW), m.small,
                      g);
       y += 2.f;
       y += drawCatHelp(canvas, cx, y, BookCategory::Reactions, m, helpW);
@@ -592,22 +592,30 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
           const float py = y + 8.f * o;
           const float nameY = py + cell + 3.f * o;
           const float opGap = 10.f * o;
-          fillRect(canvas, px, py, cell, cell, cellBg, 5.f);
-          iconAt(view, canvas, px + cell * 0.5f, py + cell * 0.5f, iconR, r.itemA);
-          drawText(canvas, px, nameY, view.itemName(r.itemA).c_str(), m.small);
-          px += cell + opGap;
-          drawText(canvas, px, py + 4.f * o, "+", m.text);
-          px += 14.f * o;
-          fillRect(canvas, px, py, cell, cell, cellBg, 5.f);
-          iconAt(view, canvas, px + cell * 0.5f, py + cell * 0.5f, iconR, r.itemB);
-          drawText(canvas, px, nameY, view.itemName(r.itemB).c_str(), m.small);
-          px += cell + opGap;
+          const float plusW = 14.f * o;
+          // Ingredient sets of 2..4 cells; a 4-ingredient rule gets slightly
+          // smaller tiles so the row still fits beside the result.
+          const float rc = (r.ingredients.size() >= 4) ? cell * 0.78f : cell;
+          for (int k = 0; k < (int)r.ingredients.size(); k++) {
+            const ReactionIngredient &ing = r.ingredients[k];
+            if (k > 0) {
+              drawText(canvas, px, py + 4.f * o, "+", m.text);
+              px += plusW;
+            }
+            fillRect(canvas, px, py, rc, rc, cellBg, 5.f);
+            iconAt(view, canvas, px + rc * 0.5f, py + rc * 0.5f, iconR, ing.itemId);
+            // The count is part of the recipe: the stack must hold exactly this
+            // much or the reaction does not fire.
+            snprintf(buf, sizeof buf, "%s x%d", view.itemName(ing.itemId).c_str(), ing.count);
+            drawText(canvas, px, nameY, buf, m.small);
+            px += rc + opGap;
+          }
           drawText(canvas, px, py + 4.f * o, "->", m.text);
           px += 28.f * o;
-          fillRect(canvas, px, py, cell, cell, cellBg, 5.f);
-          iconAt(view, canvas, px + cell * 0.5f, py + cell * 0.5f, iconR, r.result);
+          fillRect(canvas, px, py, rc, rc, cellBg, 5.f);
+          iconAt(view, canvas, px + rc * 0.5f, py + rc * 0.5f, iconR, r.result);
           snprintf(buf, sizeof buf, "%s x%d", view.itemName(r.result).c_str(), r.resultCount);
-          drawText(canvas, px + cell + 8.f * o, py + 4.f * o, buf, m.text);
+          drawText(canvas, px + rc + 8.f * o, py + 4.f * o, buf, m.text);
           drawText(canvas, px, nameY, "result", m.small);
           rowStatus(canvas, cx + cw - 12.f * o, py + 4.f * o, done, m.small);
         }

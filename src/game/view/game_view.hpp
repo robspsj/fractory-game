@@ -87,6 +87,14 @@ class GameView {
     void screenToWorld(int pixelX, int pixelY, int winW, int winH, float& worldX, float& worldY) const;
     void screenToNdc(int pixelX, int pixelY, int winW, int winH, float& nx, float& ny) const;
     int resolveLeafCell(float worldX, float worldY) const;
+    // Gap pick (docs/reactions.md): true when the point is aimed at the space
+    // BETWEEN cells rather than at a cell itself — the outer band of a cell, the
+    // band being wider than the visible gutter so it can be hit without pixel
+    // hunting. cellIdx is then that nearest cell and `side` names the edge (2
+    // cells) or corner (4 cells) the click points at. False = the point is in
+    // the middle of a cell, i.e. a cell action, not a reaction.
+    bool resolveGap(float worldX, float worldY, int &cellIdx,
+                    GameModel::GapSide &side) const;
 
     float gridToWorldX(int col) const;
     float gridToWorldY(int row) const;

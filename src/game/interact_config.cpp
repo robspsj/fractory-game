@@ -4,12 +4,28 @@
 #include <fstream>
 #include <sstream>
 
-const ReactionRule *InteractConfig::findReaction(int itemA, int itemB) const {
+const ReactionRule *InteractConfig::findReaction(const int *itemIds, const int *counts,
+                                                int n) const {
+  if (n < 2 || n > kMaxReactionCells) return nullptr;
   for (const auto &r : reactions) {
-    if ((r.itemA == itemA && r.itemB == itemB) ||
-        (r.itemA == itemB && r.itemB == itemA)) {
-      return &r;
+    if ((int)r.ingredients.size() != n) continue;
+    // Multiset compare: every ingredient is matched by exactly one distinct
+    // cell, every cell by exactly one ingredient. n <= 4, so the O(n^2) scan
+    // with a `used` mask is cheaper than sorting.
+    bool used[kMaxReactionCells] = {false};
+    bool ok = true;
+    for (const ReactionIngredient &ing : r.ingredients) {
+      bool hit = false;
+      for (int i = 0; i < n; i++) {
+        if (!used[i] && itemIds[i] == ing.itemId && counts[i] == ing.count) {
+          used[i] = true;
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) { ok = false; break; }
     }
+    if (ok) return &r;
   }
   return nullptr;
 }
@@ -42,18 +58,45 @@ const StationRecipe *InteractConfig::findStationRecipe(int id) const {
 // Loaders take a stream so the same parser serves the file path (native, reads
 // assets/*.csv) and the inline string (wasm, no filesystem) — mirroring
 // loadStationRecipes below.
+//
+// Reactions (assets/reactions.csv):
+//   resultId,resultCount,itemId:count,itemId:count[,...]
+// Each entry after the first two columns is one ingredient: the item id and the
+// EXACT stack count the cell must hold. A rule carries 2..4 ingredients and
+// matches the multiset of (id, count) over the item cells of the clicked gap —
+// arrangement is irrelevant, contents are not. Rules are tried in file order, so
+// author specific ingredient sets before general ones.
 static void loadReactions(std::istream &in, std::vector<ReactionRule> &out) {
   std::string line;
   while (std::getline(in, line)) {
     if (line.empty() || line[0] == '#') continue;
     std::stringstream ss(line);
-    std::string a, b, res, cnt;
-    std::getline(ss, a, ',');
-    std::getline(ss, b, ',');
-    std::getline(ss, res, ',');
-    std::getline(ss, cnt, ',');
-    out.push_back({std::stoi(a), std::stoi(b), std::stoi(res),
-                    std::stoi(cnt)});
+    std::string tok;
+    ReactionRule r;
+    try {
+      if (!std::getline(ss, tok, ',')) continue;
+      r.result = std::stoi(tok);
+      if (!std::getline(ss, tok, ',')) continue;
+      r.resultCount = std::stoi(tok);
+      while (std::getline(ss, tok, ',')) {
+        if (tok.empty()) continue;
+        const size_t colon = tok.find(':');
+        if (colon == std::string::npos) continue;
+        ReactionIngredient ing;
+        ing.itemId = std::stoi(tok.substr(0, colon));
+        ing.count = std::stoi(tok.substr(colon + 1));
+        if (ing.count < 1) continue;
+        r.ingredients.push_back(ing);
+      }
+    } catch (...) {
+      // A malformed row must not take the game down with it; skip and move on.
+      continue;
+    }
+    // Fewer than 2 ingredients is not a reaction (a gap always touches >= 2
+    // cells); more than 4 cannot be produced by any gap.
+    if (r.ingredients.size() < 2 || r.ingredients.size() > kMaxReactionCells)
+      continue;
+    out.push_back(std::move(r));
   }
 }
 

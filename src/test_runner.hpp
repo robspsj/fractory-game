@@ -11,6 +11,7 @@ struct TestStep {
   int count = 1;
   int rng = -1;   // for "test_rng": fixed RNG value to force (-1 = disable)
   int heat = 0;   // for "set_heat" / "expect_heat"
+  int side = 0;   // for "react": GameModel::GapSide index
 };
 
 class ModelTestRunner {

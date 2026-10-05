@@ -65,7 +65,7 @@ only (the board is not pickable, the sim keeps running).
 |---|---|---|---|
 | 1 | Recipes | `assets/crafting.csv` | one mini-grid per shaped recipe, offsets drawn as authored, result + count |
 | 2 | Machines | `assets/station_recipes.csv` | footprint with role colours (violet machine / green input / orange output / blue buffer), in → out, duration |
-| 3 | Reactions | `assets/reactions.csv` | right-click pair: A + B → result |
+| 3 | Reactions | `assets/reactions.csv` | gap click pair: A + B → result |
 | 4 | Stacking | code-defined | Grow, Shrink, Vanish, Merge, Split (with the split chance from `Heat::ITEM_SPILL_*`); rows whose feature flag is off are greyed and labelled `off` |
 | 5 | Quantum | code-defined | heat bar 0..255 with the fluctuation threshold marked, hold rate, roll chance |
 

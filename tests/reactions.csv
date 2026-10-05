@@ -1,5 +1,9 @@
-# itemA,itemB,result,resultCount
-0,1,2,1
-# The wand (item 3) is reaction-only — a crafting recipe for the tool would cost
-# the tool it makes (see assets/reactions.csv).
-0,0,3,1
+# Test fixture for reactions (mirrors the format of assets/reactions.csv).
+# resultId,resultCount,itemId:count,itemId:count[,...]
+# 2..4 ingredients, each with the EXACT stack count its cell must hold; the
+# multiset is matched against the cells a gap click touches (order irrelevant).
+0,1,1:1,2:1          # stone:1 + water:1      -> wood
+3,1,0:1,0:1          # wood:1  + wood:1       -> item 3 (two cells, same item)
+2,2,0:2,1:1          # wood:2  + stone:1      -> 2 water   (counts must be exact)
+4,1,0:1,1:1,2:1      # wood + stone + water   -> item 4    (3 ingredients)
+5,1,0:1,1:1,2:1,3:1  # wood + stone + water + item 3 -> item 5 (4 ingredients)

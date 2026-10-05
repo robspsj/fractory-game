@@ -278,14 +278,22 @@ void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
       if (dx*dx + dy*dy <= TAP_EPSILON_PX * TAP_EPSILON_PX && elapsed <= TAP_MAX_MS) {
         float wx, wy;
         _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
-        const int idx = _view->resolveLeafCell(wx, wy);
-        if (idx >= 0) {
-          // Craft first: right-clicking a matching pattern while the crafting
-          // element is held crafts it. Everything else — no tool held, or no
-          // pattern there — is the plain interact (reaction, id cycle, machine
-          // load, spawn on an EMPTY cell). A hold never gets this far.
-          if (!_model->tryCraftWithDrag(idx)) _model->interact(idx);
-          applyEffects();
+        int gapCell = -1;
+        GameModel::GapSide side = GameModel::GapSide::Up;
+        if (_view->resolveGap(wx, wy, gapCell, side)) {
+          // Aimed at the space between cells: a reaction. Nothing happens when
+          // the hand is busy or the contents match no rule — a gap click never
+          // falls back to a cell action or to heat.
+          if (_model->tryReaction(gapCell, side)) applyEffects();
+        } else {
+          const int idx = _view->resolveLeafCell(wx, wy);
+          if (idx >= 0) {
+            // On a cell: craft first when the wand is held and its pattern
+            // matches, otherwise the plain interact (reaction-free: id cycle,
+            // machine load, spawn on an EMPTY cell). A hold never gets this far.
+            if (!_model->tryCraftWithDrag(idx)) _model->interact(idx);
+            applyEffects();
+          }
         }
       }
     }

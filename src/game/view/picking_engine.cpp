@@ -1,10 +1,11 @@
 #include "picking_engine.hpp"
 #include "game_view.hpp"
 #include "layout_engine.hpp"
+#include <algorithm>
 #include <cmath>
 
 int PickingEngine::resolveCellAt(const GameView &view, float worldX, float worldY, int nodeIndex,
-                                 int gridDim, Rect r) {
+                                 int gridDim, Rect r, float *u, float *v) {
   float childCellSize = r.w / (gridDim + (gridDim - 1) * view._gapRatio);
   float pitch = childCellSize * (1 + view._gapRatio);
   float half = childCellSize * 0.5f;
@@ -14,13 +15,24 @@ int PickingEngine::resolveCellAt(const GameView &view, float worldX, float world
   int col = (int)((worldX - startX) / pitch + 0.5f);
   int row = (int)((startY - worldY) / pitch + 0.5f);
 
-  if (row < 0 || row >= gridDim || col < 0 || col >= gridDim)
+  if (u) {
+    // Tolerant flavour: snap to the nearest child instead of rejecting a point
+    // that sits in the gutter (or just off the grid) — the caller only needs the
+    // nearest cell plus where in it the point is.
+    col = std::clamp(col, 0, gridDim - 1);
+    row = std::clamp(row, 0, gridDim - 1);
+  } else if (row < 0 || row >= gridDim || col < 0 || col >= gridDim) {
     return -1;
+  }
 
   float centerX = startX + col * pitch;
   float centerY = startY - row * pitch;
-  if (std::abs(worldX - centerX) > half || std::abs(worldY - centerY) > half)
+  if (u) {
+    *u = (worldX - centerX) / childCellSize;
+    *v = (centerY - worldY) / childCellSize;
+  } else if (std::abs(worldX - centerX) > half || std::abs(worldY - centerY) > half) {
     return -1;
+  }
 
   int childIdx = view._model.node(nodeIndex).content.data.grid.firstChild + row * gridDim + col;
   const Cell &child = view._model.node(childIdx);
@@ -28,7 +40,7 @@ int PickingEngine::resolveCellAt(const GameView &view, float worldX, float world
   if (view._model.typeOf(childIdx) == CellType::GRID) {
     int childDim = child.content.data.grid.gridDimension;
     return resolveCellAt(view, worldX, worldY, childIdx, childDim,
-                         {centerX - half, centerY - half, childCellSize, childCellSize});
+                         {centerX - half, centerY - half, childCellSize, childCellSize}, u, v);
   }
 
   return childIdx;
@@ -107,6 +119,11 @@ int PickingEngine::resolveCenterCell(const GameView &view, float worldX, float w
 }
 
 int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float worldY) {
+  return resolveLeafCell(view, worldX, worldY, nullptr, nullptr);
+}
+
+int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float worldY,
+                                  float *u, float *v) {
   const float anchorW = GameView::_anchorWidth;
   Rect r = {-anchorW * 0.5f, -anchorW * 0.5f, anchorW, anchorW};
 
@@ -115,7 +132,7 @@ int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float wor
   if (r.contains(worldX, worldY)) {
     const Cell &anchor = view._model.node(view._anchorIndex);
     if (view._model.typeOf(view._anchorIndex) != CellType::GRID) leafIdx = view._anchorIndex;
-    else leafIdx = resolveCellAt(view, worldX, worldY, view._anchorIndex, view._anchorSize, r);
+    else leafIdx = resolveCellAt(view, worldX, worldY, view._anchorIndex, view._anchorSize, r, u, v);
   } else {
     int currIdx = view._anchorIndex;
     Rect currR = r;
@@ -145,7 +162,7 @@ int PickingEngine::resolveLeafCell(const GameView &view, float worldX, float wor
       };
 
       if (parentR.contains(worldX, worldY)) {
-        leafIdx = resolveCellAt(view, worldX, worldY, parentIdx, parentDim, parentR);
+        leafIdx = resolveCellAt(view, worldX, worldY, parentIdx, parentDim, parentR, u, v);
         break;
       }
 

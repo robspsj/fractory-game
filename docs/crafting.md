@@ -20,12 +20,13 @@ that is part of a pattern. One tool unit is spent per craft.
 
 > **The right button is a click/hold pair** (`Game::mouseDown`/`mouseUp`):
 > a **click** (a tap — released within `TAP_MAX_MS` = 250 ms and `TAP_EPSILON_PX`
-> = 8 px of travel) is the **interact** — reaction, id cycle, machine load —
-> with a **craft attempt first** while the wand is held and its pattern matches.
-> A **hold** past that window is the **heat pump** that drives quantum
-> fluctuations (`docs/heat.md`) and never crafts. Nothing held + click → the
-> plain interact; a click that matches no pattern is not a craft, it falls
-> through to the interact.
+> = 8 px of travel) is the **interact** — with a **craft attempt first** while the
+> wand is held and its pattern matches — and a **hold** past that window is the
+> **heat pump** that drives quantum fluctuations (`docs/heat.md`) and never
+> crafts. Within the click, the *position* picks the action: the middle of a cell
+> is the cell action, the gap between cells is a reaction (`docs/reactions.md`).
+> A click that matches no craft pattern is not a craft, it falls through to the
+> interact.
 
 ## 2. Recipe format
 

@@ -1,0 +1,70 @@
+# Reactions are a GAP gesture: right-click the space between cells — the shared
+# edge of two cells, or the corner where a 2x2 block meets. The ITEM cells the
+# gap touches must match a rule's ingredient multiset EXACTLY (same ids, same
+# stack counts) and all sit in the same subgrid. On a hit every one of those
+# cells is emptied and the result is HELD (expect_drag), not placed.
+# Rules live in tests/reactions.csv; sides: up/down/left/right = edge,
+# ul/ur/dl/dr = corner.
+empty_grid:5
+# [0,0] stone 1  [0,1] water 1             <- edge gap, exact match
+# [0,3] wood 3   [0,4] stone 1             <- edge gap, count mismatch
+# [2,0] wood 1   [2,1] stone 1             <- corner gap, 3 ingredients
+# [3,0] water 1  [3,1] empty
+# [3,2] wood 1   [3,3] stone 1             <- corner gap, 4 ingredients
+# [4,2] water 1  [4,3] item 3
+init:1:1,2:1,-1:0,0:3,1:1,-1:0,-1:0,-1:0,-1:0,-1:0,0:1,1:1,-1:0,-1:0,-1:0,2:1,-1:0,0:1,1:1,-1:0,-1:0,-1:0,2:1,3:1,-1:0
+
+# A gap on the grid's outer edge has no cell beyond it: nothing to react with.
+react,0,0,left
+expect_cell,0,0,1,1
+expect_drag,-1,0
+
+# Exact counts: the rule is wood x2 + stone x1, the board holds wood x3, so the
+# set does not match and nothing is consumed.
+react,0,3,right
+expect_cell,0,3,0,3
+expect_cell,0,4,1,1
+expect_drag,-1,0
+
+# Edge gap: stone [0,0] + water [0,1] -> wood, held in hand.
+react,0,0,right
+expect_cell,0,0,-1,0
+expect_cell,0,1,-1,0
+expect_drag,0,1
+# Put it down again so the hand is free for the next cases.
+drop,1,1
+expect_cell,1,1,0,1
+expect_drag,-1,0
+
+# A busy hand refuses the reaction (the result has nowhere to go): pick the wood
+# up first, aim at the same gap, and nothing must be consumed.
+pickup,2,0
+expect_drag,0,1
+react,2,0,downright
+expect_cell,2,1,1,1
+expect_cell,3,0,2,1
+expect_drag,0,1
+cancel
+expect_cell,2,0,0,1
+expect_drag,-1,0
+
+# Corner gap with three ingredients and an empty 4th cell: wood + stone + water
+# -> item 4. Position inside the 2x2 does not matter, only the set.
+react,2,0,downright
+expect_cell,2,0,-1,0
+expect_cell,2,1,-1,0
+expect_cell,3,0,-1,0
+expect_cell,3,1,-1,0
+expect_drag,4,1
+cancel
+expect_cell,2,0,4,1
+expect_drag,-1,0
+
+# The same corner with all four cells filled is a DIFFERENT set: the
+# 3-ingredient rule must not fire, the 4-ingredient one must.
+react,3,2,downright
+expect_cell,3,2,-1,0
+expect_cell,3,3,-1,0
+expect_cell,4,2,-1,0
+expect_cell,4,3,-1,0
+expect_drag,5,1

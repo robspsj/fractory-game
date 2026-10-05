@@ -514,6 +514,72 @@ bool GameModel::tryCraftWithDrag(int anchorIdx) {
   return false;
 }
 
+// Reaction gesture — see docs/reactions.md. The gap named by (anchorIdx, side)
+// contributes at most four cells; they must all be in the anchor's own grid
+// (cellAtOffset walks the parent grid and returns -1 outside it, which is what
+// enforces "same subgrid only"). The ITEM cells among them are matched as an
+// exact multiset of (itemId, count) against the reaction table; arrangement is
+// irrelevant. On a hit the cells are emptied and the result goes into the hand.
+bool GameModel::tryReaction(int anchorIdx, GapSide side) {
+  if (hasDrag()) return false;   // the hand must be free to receive the result
+  if (anchorIdx <= 0 || anchorIdx >= (int)_nodes.size()) return false;
+  if (typeOf(anchorIdx) == CellType::GRID) return false;
+
+  // The gap's cells as offsets from the anchor: the anchor itself plus the
+  // neighbour(s) the gap shares — one across an edge, three around a corner.
+  int offs[4][2];
+  int nOff = 0;
+  auto add = [&](int dr, int dc) { offs[nOff][0] = dr; offs[nOff][1] = dc; nOff++; };
+  add(0, 0);
+  switch (side) {
+    case GapSide::Up:        add(-1, 0); break;
+    case GapSide::Down:      add(1, 0); break;
+    case GapSide::Left:      add(0, -1); break;
+    case GapSide::Right:     add(0, 1); break;
+    case GapSide::UpLeft:    add(-1, 0); add(0, -1); add(-1, -1); break;
+    case GapSide::UpRight:   add(-1, 0); add(0, 1); add(-1, 1); break;
+    case GapSide::DownLeft:  add(1, 0); add(0, -1); add(1, -1); break;
+    case GapSide::DownRight: add(1, 0); add(0, 1); add(1, 1); break;
+  }
+
+  int cells[kMaxReactionCells];
+  int ids[kMaxReactionCells];
+  int counts[kMaxReactionCells];
+  int n = 0;
+  for (int i = 0; i < nOff; i++) {
+    const int c = cellAtOffset(anchorIdx, offs[i][0], offs[i][1]);
+    if (c < 0) return false;   // the gap reaches outside its grid
+    const CellType t = typeOf(c);
+    if (t == CellType::EMPTY) continue;         // empty cells are not ingredients
+    if (t != CellType::ITEM) return false;      // a machine/container sits in the gap
+    if (n >= kMaxReactionCells) return false;
+    ids[n] = _nodes[c].content.data.item.id;
+    counts[n] = _nodes[c].content.data.item.count;
+    cells[n] = c;
+    n++;
+  }
+  if (n < 2) return false;   // nothing to combine
+
+  const ReactionRule *rule = _interactCfg.findReaction(ids, counts, n);
+  if (!rule) return false;
+
+  // Commit: counts matched exactly, so each ingredient stack is consumed whole.
+  for (int i = 0; i < n; i++) setType(cells[i], CellType::EMPTY);
+  // The result is held, not placed: the drag needs a source cell for the
+  // cancel/drop-swap paths, and the anchor is now empty, so cancelling simply
+  // puts the result back where the reaction happened.
+  _dragSrcIndex = cells[0];
+  _dragItemId = rule->result;
+  _dragAmount = rule->resultCount;
+  _dragHeat = _nodes[cells[0]].heat;
+  addHeat(cells[0], Heat::INTERACT_REACTION_A);
+  for (int i = 1; i < n; i++) addHeat(cells[i], Heat::INTERACT_REACTION_B);
+  emitEvent(CellEventType::REACTION, cells[0], rule->result);
+  _book.mark(BookCategory::Reactions,
+             (int)(rule - _interactCfg.reactions.data()));
+  return true;
+}
+
 void GameModel::tick() {
   using clk = std::chrono::steady_clock;
   _tprof = TickProfile{};
@@ -721,9 +787,10 @@ void GameModel::tryStartStation(int anchorIdx) {
   StationCell::tryStart(anchorIdx, *this);
 }
 
-void GameModel::setFullState(int *inData) {
+void GameModel::setFullState(int *inData, int pairs) {
   int first = _nodes[0].content.data.grid.firstChild;
   int n = _nodes[0].content.data.grid.gridDimension * _nodes[0].content.data.grid.gridDimension;
+  if (pairs >= 0 && pairs < n) n = pairs;   // never read past the caller's array
   for (int i = 0; i < n; i++) {
     int idx = first + i;
     int id = inData[i * 2];
