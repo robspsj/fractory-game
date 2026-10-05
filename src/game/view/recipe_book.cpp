@@ -583,40 +583,46 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       y += 10.f;
       for (int i = 0; i < (int)ic.reactions.size(); i++) {
         const ReactionRule &r = ic.reactions[i];
-        const float eh = cell + 18.f * o + 12.f * o;
+        // One caption line per row, not a label under each icon: an ingredient
+        // name is routinely wider than its tile (and a 4-ingredient row has no
+        // room at all), so per-icon labels collide. The icons above still show
+        // the arrangement; the caption carries the exact counts.
+        std::string cap;
+        for (int k = 0; k < (int)r.ingredients.size(); k++) {
+          if (k) cap += " + ";
+          cap += view.itemName(r.ingredients[k].itemId);
+          cap += " x" + std::to_string(r.ingredients[k].count);
+        }
+        cap += "  ->  " + view.itemName(r.result) + " x" + std::to_string(r.resultCount);
+        const float capW = cw - 46.f * o;
+        const std::vector<std::string> capLines = wrapText(cap.c_str(), m.small, capW);
+        const float capStep = g + 1.f;
+        const float eh = cell + 18.f * o + (float)capLines.size() * capStep + 6.f * o;
         const bool done = bs.has(BookCategory::Reactions, i);
         if (y + eh > top && y < top + L.contentH) {
           fillRect(canvas, cx, y, cw, eh - 6.f, rowColor(done));
           doneMark(canvas, cx + 12.f * o, y + 14.f * o, 4.5f * o, done);
           float px = cx + 26.f * o;
           const float py = y + 8.f * o;
-          const float nameY = py + cell + 3.f * o;
           const float opGap = 10.f * o;
           const float plusW = 14.f * o;
           // Ingredient sets of 2..4 cells; a 4-ingredient rule gets slightly
-          // smaller tiles so the row still fits beside the result.
+          // smaller tiles so the row still fits inside the pane.
           const float rc = (r.ingredients.size() >= 4) ? cell * 0.78f : cell;
           for (int k = 0; k < (int)r.ingredients.size(); k++) {
-            const ReactionIngredient &ing = r.ingredients[k];
             if (k > 0) {
               drawText(canvas, px, py + 4.f * o, "+", m.text);
               px += plusW;
             }
             fillRect(canvas, px, py, rc, rc, cellBg, 5.f);
-            iconAt(view, canvas, px + rc * 0.5f, py + rc * 0.5f, iconR, ing.itemId);
-            // The count is part of the recipe: the stack must hold exactly this
-            // much or the reaction does not fire.
-            snprintf(buf, sizeof buf, "%s x%d", view.itemName(ing.itemId).c_str(), ing.count);
-            drawText(canvas, px, nameY, buf, m.small);
+            iconAt(view, canvas, px + rc * 0.5f, py + rc * 0.5f, iconR, r.ingredients[k].itemId);
             px += rc + opGap;
           }
           drawText(canvas, px, py + 4.f * o, "->", m.text);
           px += 28.f * o;
           fillRect(canvas, px, py, rc, rc, cellBg, 5.f);
           iconAt(view, canvas, px + rc * 0.5f, py + rc * 0.5f, iconR, r.result);
-          snprintf(buf, sizeof buf, "%s x%d", view.itemName(r.result).c_str(), r.resultCount);
-          drawText(canvas, px + rc + 8.f * o, py + 4.f * o, buf, m.text);
-          drawText(canvas, px, nameY, "result", m.small);
+          drawLines(canvas, cx + 26.f * o, py + rc + 5.f * o, capLines, m.small, capStep);
           rowStatus(canvas, cx + cw - 12.f * o, py + 4.f * o, done, m.small);
         }
         y += eh;

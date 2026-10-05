@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- derived from the icon pack Glass.svg: classes inlined, shapes baked to paths -->
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g id="Finals">
+    <g id="Glass" data-name="Glass">
+      <path fill="#cef" d="M46.75 59.5L12.16 46.21L12.16 7.63L46.75 19.59L46.75 59.5Z"/>
+      <path fill="#96dbff" d="M18.02 43.37L18.02 4.5L12.16 7.63L12.16 46.21L46.75 59.5L51.84 56.11L18.02 43.37Z"/>
+      <path fill="#fff" d="M23.95 11.7L12.16 24.52L12.16 43.82L37.41 16.36L23.95 11.7Z"/>
+      <path fill="#fff" d="M46.75 19.59L43.16 18.35L16.14 47.74L24.29 50.87L46.75 26.44L46.75 19.59Z"/>
+      <path fill="#fff" d="M18.02 4.5L12.16 7.63L46.75 19.59L51.84 16.2L18.02 4.5Z"/>
+      <path fill="#cef" d="M18.02 18.14L12.16 24.52L12.16 43.82L18.02 37.44L18.02 18.14Z"/>
+      <path fill="#cef" d="M19.61 43.97L16.14 47.74L24.29 50.87L27.8 47.05L19.61 43.97Z"/>
+      <path fill="#73adff" d="M51.84 16.2L46.75 19.59L46.75 59.5L51.84 56.11L51.84 16.2Z"/>
+      <path fill="#fff" d="M38.84 45.18L40.28 48.82L43.93 50.26L40.28 51.7L38.84 55.34L37.41 51.7L33.76 50.26L37.41 48.82L38.84 45.18Z"/>
+      <path fill="#fff" d="M44.97 34.43L46.41 38.07L50.06 39.51L46.41 40.95L44.97 44.59L43.53 40.95L39.89 39.51L43.53 38.07L44.97 34.43Z"/>
+    </g>
+  </g>
+</svg>

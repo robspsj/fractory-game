@@ -1,5 +1,27 @@
 # id,name,R,G,B,icon,svgPath,sway
 # sway: static = whole icon rotates as one, perPath = each <path> sways with its own frequency
+#
+# The board's content: 16 items in a mostly-logical, sometimes-whimsical
+# progression off the three basics. Ids 0..2 are the only ones the random world
+# grows (Config::numItems = 3) — everything else has to be made, by a reaction
+# (assets/reactions.csv), a shaped recipe (assets/crafting.csv) or a machine
+# (assets/station_recipes.csv). Ids are the item's identity everywhere: keep them
+# stable, append new items at the end.
+#
+#   0 wood   1 stone   2 water                      the basics, found
+#   3 wand                                          the crafting tool (below)
+#   4 coal   5 ore      <- reactions off the basics
+#   6 metal             <- the FURNACE: coal + ore
+#   7 plank  8 stick    <- shaped recipes (need the wand)
+#   9 sand  10 brick    <- reactions
+#  11 glass             <- the KILN: sand + coal
+#  12 torch 13 screw    <- reaction / shaped recipe
+#  14 ladder 15 gear    <- 3- and 4-ingredient reactions
+#
+# NOTE: every SVG here must carry INLINE fills — SkSVGDOM ignores <style> blocks,
+# so a CSS-classed pack SVG renders as a black blob. assets/Item *.svg are pack
+# icons run through tools (see the fractory-item-icons skill) to inline their
+# classes; the pack file itself must never be referenced directly.
 0,wood,0.55,0.35,0.15,0,assets/Wood Stick.svg,static
 1,stone,0.55,0.55,0.55,1,assets/Pétanque Cochonnet.svg,perPath
 2,water,0.20,0.40,0.80,2,assets/Water Drop.svg,static
@@ -8,7 +30,16 @@
 # (Config::numItems stays 3) and deliberately NEVER a crafting result — a
 # crafting recipe for the tool would be circular (it costs the tool it makes).
 # The wand is made by reaction ONLY (two wood, assets/reactions.csv).
-# NOTE: the SVG must carry INLINE fills — SkSVGDOM ignores <style> blocks, so a
-# CSS-classed SVG renders as a black blob (assets/CraftingWand.svg is
-# Wand.svg with its classes inlined).
 3,wand,0.85,0.62,0.20,3,assets/CraftingWand.svg,static
+4,coal,0.30,0.30,0.34,4,assets/Item Coal.svg,static
+5,ore,0.62,0.45,0.35,5,assets/Item Ore.svg,static
+6,metal,0.70,0.75,0.80,6,assets/Item Metal.svg,static
+7,plank,0.72,0.52,0.30,7,assets/Item Plank.svg,static
+8,stick,0.62,0.42,0.22,8,assets/Item Stick.svg,static
+9,sand,0.88,0.78,0.55,9,assets/Item Sand.svg,static
+10,brick,0.72,0.35,0.28,10,assets/Item Brick.svg,static
+11,glass,0.55,0.80,0.90,11,assets/Item Glass.svg,static
+12,torch,0.95,0.70,0.20,12,assets/Item Torch.svg,static
+13,screw,0.65,0.70,0.75,13,assets/Item Screw.svg,static
+14,ladder,0.70,0.50,0.28,14,assets/Item Ladder.svg,static
+15,gear,0.55,0.62,0.70,15,assets/Item Gear.svg,static

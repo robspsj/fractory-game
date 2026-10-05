@@ -18,19 +18,22 @@
 # The right button is a click/hold pair (Game::mouseDown/mouseUp): the CLICK
 # (a tap: <=250 ms and <=8 px of travel) is the interact, and a craft is tried
 # first while the wand is held. A click that matches no pattern is not a craft —
-# it falls through to the plain interact (reaction, id cycle, machine load).
-# A right-HOLD past the tap window is the heat pump and never crafts.
+# it falls through to the plain interact (id cycle, machine load). A right-HOLD
+# past the tap window is the heat pump and never crafts.
 #
-# Item ids come from assets/items.csv: 0=wood 1=stone 2=water 3=wand.
-# Rules are tried in file order — author specific shapes before general ones.
-
-# 1x2 — stone beside water -> wood
-0,1,0:0:1,0:1:2
-
-# 1x3 — three wood in a row -> 2 stone
-1,2,0:0:0,0:1:0,0:2:0
-
+# Item ids come from assets/items.csv. Rules are tried in file order — author
+# specific shapes before general ones.
+#
 # NOTE: nothing here produces item 3 (the wand). The crafting element must never
 # be a crafting result — a recipe for it would cost the very tool it makes, so
 # the tool could never be obtained. The wand is made ONLY by the reaction
 # wood + wood -> wand (assets/reactions.csv), which needs no tool at all.
+
+# 1x2 — wood + wood -> 2 plank            (sawing a log lengthwise)
+7,2,0:0:0,0:1:0
+
+# 1x3 — three wood in a row -> 3 stick    (splitting a log)
+8,3,0:0:0,0:1:0,0:2:0
+
+# 1x2 — metal + metal -> 4 screw          (a bar cut down)
+13,4,6:0:0,0:1:6

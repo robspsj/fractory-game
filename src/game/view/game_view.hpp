@@ -61,6 +61,13 @@ class GameView {
 
     void setDragScreenNdc(float ndcX, float ndcY) { _dragNX = ndcX; _dragNY = ndcY; }
     void elementColor(int id, float out[3]) const {
+      // Prefer the item's own items.csv colour: the board carries far more items
+      // than the five built-in fallback colours (ids 0..ELEMS-1).
+      auto it = _itemRenderInfo.find(id);
+      if (it != _itemRenderInfo.end()) {
+        out[0] = it->second.color[0]; out[1] = it->second.color[1]; out[2] = it->second.color[2];
+        return;
+      }
       int i = id % GameModel::ELEMS;
       if (i < 0) i += GameModel::ELEMS;
       out[0] = _elemColors[i][0]; out[1] = _elemColors[i][1]; out[2] = _elemColors[i][2];

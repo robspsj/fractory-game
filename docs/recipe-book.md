@@ -12,9 +12,9 @@ Implementation: `src/game/view/recipe_book.cpp` (overlay) +
 ```
 wide window                              narrow / portrait window
 ┌ RECIPE BOOK ────── F2 close … green row = done ┐   ┌ RECIPE BOOK ──────────┐
-│ 1 Recipes   0/2 │  How: hold the wand  …       │   │ 1 Recipes 0/2  2 Mach…│  <- tab strip
-│ 2 Machines  0/3 │  ┌────────────────────────┐   │   ├───────────────────────┤
-│ 3 Reactions 0/4 │  │ ● [pattern] -> [result]│ ▓ │   │ How: hold the wand  … │
+│ 1 Recipes   0/3 │  How: hold the wand  …       │   │ 1 Recipes 0/3  2 Mach…│  <- tab strip
+│ 2 Machines  0/2 │  ┌────────────────────────┐   │   ├───────────────────────┤
+│ 3 Reactions 0/8 │  │ ● [pattern] -> [result]│ ▓ │   │ How: hold the wand  … │
 │ 4 Stacking  0/5 │  └────────────────────────┘ ▓ │   │ ● [pattern]           │
 │ 5 Quantum   0/1 │  ...                     ░ ▓ │   │   -> [result]         │
 └─────────────────────────────────────────────────┘   └───────────────────────┘

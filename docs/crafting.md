@@ -39,8 +39,8 @@ Each entry after the first two columns is one **(offset, item)** pair.
 a recipe is authored the way it reads on the board:
 
 ```
-# 1x3 — three wood in a row -> 2 stone
-1,2,0:0:0,0:1:0,0:2:0
+# 1x3 — three wood in a row -> 3 stick
+8,3,0:0:0,0:1:0,0:2:0
 ```
 
 No recipe may produce the crafting element itself (item 3) — see §1.

@@ -9,13 +9,24 @@
 # On a match every one of those cells is emptied and the result goes into your
 # hand, so you end the reaction holding it.
 #
-# Item ids come from assets/items.csv (0=wood, 1=stone, 2=water, 3=wand).
-# The base trio transmutes into itself: every cross-pair of DISTINCT items turns
-# into the third, so the three basics are interchangeable.
-0,1,1:1,2:1   # stone:1 + water:1 -> wood
-1,1,2:1,0:1   # water:1 + wood:1  -> stone
-2,1,0:1,1:1   # wood:1  + stone:1 -> water
-# Two wood -> the wand (item 3), the crafting tool. This is its ONLY source: a
+# Item ids come from assets/items.csv. Rules are tried in file order.
+#
+# Two wood -> the wand (item 3), the crafting tool, and its ONLY source: a
 # crafting recipe for the tool would cost the tool it makes, so the wand can
-# never be crafted — a reaction needs no tool, which is what bootstraps the tree.
-3,1,0:1,0:1   # wood:1  + wood:1  -> wand
+# never be crafted — a reaction needs no tool, which bootstraps the whole tree.
+3,1,0:1,0:1               # wood:1  + wood:1  -> wand
+#
+# Gathered tier: the basics turned into the resources the rest needs. The counts
+# are exact, so charcoal wants a pile of TWO wood beside a stone, while panning
+# wants a single stone in running water.
+4,1,0:2,1:1               # wood:2  + stone:1 -> coal      (charcoal, burnt under a stone)
+5,1,1:1,2:1               # stone:1 + water:1 -> ore       (panning a stream)
+9,2,1:1,1:1               # stone:1 + stone:1 -> 2 sand    (two stones ground together)
+#
+# Crafted tier: what the basics and the gathered resources make between them.
+10,2,9:1,2:1              # sand:1  + water:1 -> 2 brick   (mud, dried)
+12,1,8:1,4:1              # stick:1 + coal:1  -> torch     (a brand worth carrying)
+#
+# Assembled tier: bigger sets, in a corner rather than across an edge.
+14,1,8:2,7:1              # stick:2 + plank:1 -> ladder                (3 ingredients)
+15,1,6:1,6:1,13:1,4:1     # metal:1 + metal:1 + screw:1 + coal:1 -> gear (4 ingredients)

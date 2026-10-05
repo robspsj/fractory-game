@@ -80,8 +80,11 @@ void GameView::loadUiAssets() { AssetManager::loadUiAssets(*this); }
 
 void GameView::debugIcon(SkCanvas* canvas, int w, int h, int icon, float rFrac) {
   _canvas = canvas; _targetW = w; _targetH = h; _aspect = (float)w / (float)h;
+  // Pass the ITEM ID through, not `icon % ELEMS`: drawIcon looks the item up in
+  // _itemRenderInfo to pick its SVG, and only falls back to the built-in vector
+  // set (indexed by % ELEMS) for ids it has no config for.
   const int ti = icon % GameModel::ELEMS;
-  IconRenderer::drawIcon(*this, 0.0f, 0.0f, ti, _elemColors[ti], rFrac, rFrac);
+  IconRenderer::drawIcon(*this, 0.0f, 0.0f, icon, _elemColors[ti], rFrac, rFrac);
   _canvas = nullptr;
 }
 

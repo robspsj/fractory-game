@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- derived from the icon pack Ore Coal.svg: classes inlined, shapes baked to paths -->
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g id="Finals">
+    <g id="Ore_Coal" data-name="Ore Coal">
+      <path fill="#4a4a54" d="M20.32 12.02L43.92 11.79L59.5 28.31L55.73 47.19L26.14 50.26L4.5 42L4.5 26.19L20.32 12.02Z"/>
+      <path fill="#3a3a42" d="M26.14 50.26L22.68 37.91L39.83 25.64L59.5 28.31L55.73 47.19L26.14 50.26Z"/>
+      <path fill="#5e5e68" d="M22.68 37.91L13.34 34.19L4.5 26.19L20.32 12.02L35.89 17.67L39.83 25.64L22.68 37.91Z"/>
+      <path fill="#2a2a30" d="M57.03 40.67L46.96 43.34L33.23 42.01L47.12 37.06L58.74 32.12L59.5 36.35L57.03 40.67Z"/>
+      <path fill="#1c1c20" d="M15.11 16.69L24.18 19.93L32 25.64L20.28 25.64L8.44 22.66L10.14 18.04L15.11 16.69Z"/>
+      <path fill="#2a2a30" d="M52.45 20.83L42.17 19.24L48.54 16.69L51.85 18.3L52.45 20.83Z"/>
+      <path fill="#2a2a30" d="M8.44 43.51L24.66 44.99L34.05 49.44L25.95 52.21L15.65 48.57L8.44 43.51Z"/>
+    </g>
+  </g>
+</svg>
