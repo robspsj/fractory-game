@@ -1,6 +1,6 @@
 # id,name,R,G,B,icon,svgPath,sway
 # sway: static = whole icon rotates as one, perPath = each <path> sways with its own frequency
-0,wood,0.55,0.35,0.15,0,assets/Lilypad.svg,perPath
+0,wood,0.55,0.35,0.15,0,assets/Wood Stick.svg,static
 1,stone,0.55,0.55,0.55,1,assets/Pétanque Cochonnet.svg,perPath
 2,water,0.20,0.40,0.80,2,assets/Water Drop.svg,static
 # 3 = the crafting element (CRAFT_TOOL_ITEM in src/game/model/crafting.hpp).
