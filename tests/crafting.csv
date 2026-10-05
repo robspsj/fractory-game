@@ -1,6 +1,7 @@
 # Test fixture for crafting (mirrors assets/crafting.csv; the harness loads this
 # file so asset edits never move test expectations).
 # Format: resultId,resultCount,dr:dc:itemId,...
+# No row may produce item 3 (the wand): the crafting tool is reaction-only, so a
+# recipe for it would cost the tool it makes.
 0,1,0:0:1,0:1:2
 1,2,0:0:0,0:1:0,0:2:0
-3,1,0:0:0,1:0:1,0:1:2

@@ -1,2 +1,5 @@
 # itemA,itemB,result,resultCount
 0,1,2,1
+# The wand (item 3) is reaction-only — a crafting recipe for the tool would cost
+# the tool it makes (see assets/reactions.csv).
+0,0,3,1

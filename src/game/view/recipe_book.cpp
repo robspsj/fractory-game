@@ -216,7 +216,7 @@ float drawLines(SkCanvas *c, float x, float y, const std::vector<std::string> &l
 //   Stacking  -> ItemCell::collectTickPlan     (tick-driven, flag-gated)
 //   Quantum   -> Game::step heat pump + GameModel::quantumFluctuation
 const char *kCatHow[(int)BookCategory::COUNT] = {
-    /* Recipes   */ "How: hold the hammer (item 3), right-click any cell of the shape.",
+    /* Recipes   */ "How: hold the wand (item 3), right-click any cell of the shape.",
     /* Machines  */ "How: shift-click an INPUT cell (green) while holding an item to load it.",
     /* Reactions */ "How: shift-click an item that sits next to another item.",
     /* Stacking  */ "How: automatic, gated by a feature flag per row (see the 'off' rows).",
@@ -225,9 +225,9 @@ const char *kCatHow[(int)BookCategory::COUNT] = {
 
 // Extra context line per category (tools, sources, caveats). Empty = none.
 const char *kCatNote[(int)BookCategory::COUNT] = {
-    /* Recipes   */ "The hammer itself: two wood react into one, or craft the L shape below.",
+    /* Recipes   */ "The wand itself is never crafted: two wood react into one (Reactions).",
     /* Machines  */ "Machines are scattered by the random world; hand-placing has no input yet.",
-    /* Reactions */ "Two identical items work too: wood + wood -> a hammer.",
+    /* Reactions */ "Two identical items work too: wood + wood -> a wand, the craft tool.",
     /* Stacking  */ "Enable with --item-dynamics (or --item-grow/-shrink/-split individually).",
     /* Quantum   */ "",
 };

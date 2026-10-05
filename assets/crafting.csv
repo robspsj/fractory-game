@@ -7,15 +7,15 @@
 #   non-contiguous (L, T, ring, …) and future fields can be appended inside an
 #   entry after a second ':' without changing the format.
 #
-# How a craft happens in game: hold (drag) a stack of item 3 — the crafting
-# element — and RIGHT-CLICK a cell that is part of the pattern. The recipe is
-# slid around the clicked cell, so the click can be on any of its cells. Every
-# pattern cell loses one unit, the result lands on the clicked cell, and one
-# unit of the crafting element is spent. Nothing is ever silently destroyed: if
-# the clicked cell still holds a different item after its unit is consumed, the
-# craft is refused.
+# How a craft happens in game: hold (drag) a stack of item 3 — the wand, the
+# crafting element — and RIGHT-CLICK a cell that is part of the pattern. The
+# recipe is slid around the clicked cell, so the click can be on any of its
+# cells. Every pattern cell loses one unit, the result lands on the clicked
+# cell, and one unit of the wand is spent. Nothing is ever silently destroyed:
+# if the clicked cell still holds a different item after its unit is consumed,
+# the craft is refused.
 #
-# Item ids come from assets/items.csv: 0=wood 1=stone 2=water 3=crafting wand.
+# Item ids come from assets/items.csv: 0=wood 1=stone 2=water 3=wand.
 # Rules are tried in file order — author specific shapes before general ones.
 
 # 1x2 — stone beside water -> wood
@@ -24,5 +24,7 @@
 # 1x3 — three wood in a row -> 2 stone
 1,2,0:0:0,0:1:0,0:2:0
 
-# L — wood + stone + water -> a crafting wand
-3,1,0:0:0,1:0:1,0:1:2
+# NOTE: nothing here produces item 3 (the wand). The crafting element must never
+# be a crafting result — a recipe for it would cost the very tool it makes, so
+# the tool could never be obtained. The wand is made ONLY by the reaction
+# wood + wood -> wand (assets/reactions.csv), which needs no tool at all.

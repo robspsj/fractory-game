@@ -12,9 +12,9 @@ Implementation: `src/game/view/recipe_book.cpp` (overlay) +
 ```
 wide window                              narrow / portrait window
 ┌ RECIPE BOOK ────── F2 close … green row = done ┐   ┌ RECIPE BOOK ──────────┐
-│ 1 Recipes   0/3 │  How: hold the hammer …      │   │ 1 Recipes 0/3  2 Mach…│  <- tab strip
+│ 1 Recipes   0/2 │  How: hold the wand  …       │   │ 1 Recipes 0/2  2 Mach…│  <- tab strip
 │ 2 Machines  0/3 │  ┌────────────────────────┐   │   ├───────────────────────┤
-│ 3 Reactions 0/4 │  │ ● [pattern] -> [result]│ ▓ │   │ How: hold the hammer… │
+│ 3 Reactions 0/4 │  │ ● [pattern] -> [result]│ ▓ │   │ How: hold the wand  … │
 │ 4 Stacking  0/5 │  └────────────────────────┘ ▓ │   │ ● [pattern]           │
 │ 5 Quantum   0/1 │  ...                     ░ ▓ │   │   -> [result]         │
 └─────────────────────────────────────────────────┘   └───────────────────────┘
@@ -83,8 +83,8 @@ input changes or a flag is added/removed:
 
 | Table | Scope | Example |
 |---|---|---|
-| `kCatHow[category]` | one line per category | Recipes: *"hold the hammer (item 3), right-click any cell of the shape"* |
-| `kCatNote[category]` | extra context (tool source, caveats) | Recipes: *"the hammer itself: two wood react into one, or craft the L shape below"* |
+| `kCatHow[category]` | one line per category | Recipes: *"hold the wand (item 3), right-click any cell of the shape"* |
+| `kCatNote[category]` | extra context (tool source, caveats) | Recipes: *"the wand itself is never crafted: two wood react into one (Reactions)"* |
 | `kPhysicsHow[BookPhysics]` | per-entry, for the code-defined rows | Split: *"automatic while --item-split / --item-dynamics is on"* |
 
 Drawn under each section intro (`drawCatHelp`) and inside each Stacking row, so

@@ -7,10 +7,13 @@ board. Data lives in `assets/crafting.csv`; the model side is
 ## 1. The crafting element
 
 Item id **3** (`assets/items.csv`, `CRAFT_TOOL_ITEM` in
-`src/game/model/crafting.hpp`) is the crafting tool — a hammer. It is
+`src/game/model/crafting.hpp`) is the crafting tool — a **wand**. It is
 deliberately **not** produced by the random world (`Config::numItems` stays 3),
-so it has to be made in-game: `assets/reactions.csv` has a same-type rule
-`wood + wood -> 1 wand`.
+and just as deliberately **never** a crafting result: a recipe producing the tool
+would cost the tool it makes, so the wand could never be obtained at all. Its
+**only** source is the reaction `wood + wood -> 1 wand`
+(`assets/reactions.csv`), which needs no tool held, so the tech tree always
+bootstraps from two sticks of wood.
 
 Hold it (drag state, picked up with the left button) and **right-click** a cell
 that is part of a pattern. One tool unit is spent per craft.
@@ -32,10 +35,9 @@ a recipe is authored the way it reads on the board:
 ```
 # 1x3 — three wood in a row -> 2 stone
 1,2,0:0:0,0:1:0,0:2:0
-
-# L — wood + stone + water -> a crafting wand
-3,1,0:0:0,1:0:1,0:1:2
 ```
+
+No recipe may produce the crafting element itself (item 3) — see §1.
 
 Entries may be non-contiguous (L, T, ring, …). Extra fields can be appended
 inside an entry after a further `:` (`dr:dc:itemId:count:…`) without a format
@@ -76,6 +78,6 @@ items around it keep acting).
 ## 5. Tests
 
 `tests/test_crafting.csv` (+ fixture `tests/crafting.csv`) covers: no tool held →
-no-op, a successful L craft (pattern consumed, result placed, tool spent), and a
-repeat craft on a consumed pattern matching nothing. The harness drives it with
-the `craft,row,col` step.
+no-op, a successful craft of the 1x3 recipe (pattern consumed, result placed,
+tool spent), and a repeat craft on a consumed pattern matching nothing. The
+harness drives it with the `craft,row,col` step.

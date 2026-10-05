@@ -9,11 +9,14 @@
 # the clicked cell becomes `result` with count `resultCount` — both stacks'
 # counts are discarded, so react small piles first.
 #
-# Item ids come from assets/items.csv (0=wood, 1=stone, 2=water).
+# Item ids come from assets/items.csv (0=wood, 1=stone, 2=water, 3=wand).
 0,1,2,1   # wood  + stone -> water
 1,2,0,1   # stone + water -> wood
 2,0,1,1   # water + wood  -> stone
-# Same-type rule: the crafting element's source (2 wood -> 1 wand). Without a
-# same-type rule, shift-clicking two identical piles falls through to the
-# id-cycle fallback instead (ItemCell::interact).
-0,0,3,1   # wood  + wood  -> crafting wand
+# Same-type rule 0,0 is the wand's ONLY source. It has to be a reaction and can
+# never be a crafting recipe: crafting costs a held wand (item 3), so a recipe
+# producing the wand would need the wand to make the wand. A reaction needs no
+# tool — two wood sitting next to each other bootstraps the whole tech tree.
+# (Without a same-type rule, shift-clicking two identical piles falls through to
+# the id-cycle fallback instead — ItemCell::interact.)
+0,0,3,1   # wood  + wood  -> wand
