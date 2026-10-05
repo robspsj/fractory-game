@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g id="Finals">
+    <g id="Water_Drop" data-name="Water Drop">
+      <path fill="#3366cc" d="M32 5C35.6 13 53 29 53 40A21 21 0 0 1 11 40C11 29 28.4 13 32 5Z"/>
+      <path fill="#1f3f85" d="M51.97 46.49A21 21 0 0 1 27.63 60.54Q41 55.58 51.97 46.49Z"/>
+      <path fill="#cfe6ff" d="M11.2 37.08A21 21 0 0 1 27.63 19.46Q21.18 29.91 11.2 37.08Z"/>
+    </g>
+  </g>
+</svg>
