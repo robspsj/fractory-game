@@ -40,6 +40,9 @@ class RecipeBook {
   // Measured on the last draw so scrolling can clamp to the content.
   float _contentH = 0.f;
   float _viewH = 1.f;
+  // Scroll step for one wheel notch / arrow press, refreshed from the type size
+  // on every draw (a big font wants a big step).
+  float _step = 40.f;
   // Scroll view geometry, measured on the last draw so click() can hit-test the
   // bar and dragTo() can map the mouse to a scroll position.
   float _barX = 0.f, _barY = 0.f, _barW = 0.f, _barH = 0.f;

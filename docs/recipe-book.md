@@ -27,9 +27,11 @@ Everything is derived from the window size (`Metrics`/`layoutFor` at the top of
 * `ui` scales geometry (cell, icon, margins, tabs); `o` is a gentler scale for
   structural offsets; **text is floored** (`text`/`small`) so it stays legible —
   overflow is absorbed by wrapping and the scroll view rather than shrinking type.
-  Current type: `text = clamp(1.75*ui, 1.35, 2.05)`, `small = clamp(1.42*ui, 1.15, 1.65)`.
-  Those two lines in `metricsFor()` are the *only* place to make the book's type
-  bigger or smaller — never hard-code a scale in a draw block.
+  Current type: `text = clamp(3.5*ui, 2.7, 4.1)`, `small = clamp(2.84*ui, 2.3, 3.3)`,
+  `title = 1.34*text`. Line spacing (`gap`) and every container that holds text
+  (title band, tab strip, sidebar rows, sidebar width, scroll step) is derived
+  from `textHeight()`/`textWidth()` — **never** hard-coded — so changing those
+  three scales reflows the panel instead of overlapping it.
 * **Long text word-wraps** to the pane (`wrapText` + `drawLines`, used for every
   intro, help line, row description and machine label). Rows measure their
   wrapped line count *before* drawing so row heights always fit the type; this

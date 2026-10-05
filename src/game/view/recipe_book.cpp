@@ -6,6 +6,7 @@
 #include "../../font.hpp"
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 #include "include/core/SkCanvas.h"
@@ -25,11 +26,12 @@ const char *kCatName[(int)BookCategory::COUNT] = {"Recipes", "Machines", "Reacti
 struct Metrics {
   float ui = 1.f;      // geometry scale
   float o = 1.f;       // structural offset scale (gentler than ui)
-  float text = 1.45f;  // body text scale
-  float small = 1.15f; // secondary text scale
-  float cell = 30.f;   // mini-grid cell size (px)
-  float icon = 13.f;   // item icon half-extent (px)
-  float gap = 18.f;    // line gap (px)
+  float text = 3.5f;   // body text scale  ──┐ the ONLY place the book's type is
+  float small = 2.84f; // secondary text scale ┘ sized (and title below)
+  float title = 4.7f;  // panel title scale
+  float cell = 38.f;   // mini-grid cell size (px)
+  float icon = 17.f;   // item icon half-extent (px)
+  float gap = 38.f;    // line gap (px) — follows the type, see metricsFor
   float margin = 22.f; // panel margin
 };
 
@@ -48,11 +50,15 @@ Metrics metricsFor(int winW, int winH) {
   const float minDim = (float)std::min(winW, winH);
   m.ui = std::clamp(minDim / 700.f, 0.55f, 1.5f);
   m.o = std::clamp(m.ui, 0.75f, 1.3f);
-  m.text = std::clamp(1.75f * m.ui, 1.35f, 2.05f);
-  m.small = std::clamp(1.42f * m.ui, 1.15f, 1.65f);
-  m.cell = std::clamp(30.f * m.ui, 18.f, 36.f);
+  // Type is deliberately chunky: legibility beats fitting more on screen, and
+  // everything that contains text is measured from `textHeight()` below, so a
+  // bigger font reflows the layout instead of overlapping.
+  m.text = std::clamp(3.5f * m.ui, 2.7f, 4.1f);
+  m.small = std::clamp(2.84f * m.ui, 2.3f, 3.3f);
+  m.title = std::clamp(1.34f * m.text, 2.2f, 5.4f);
+  m.gap = textHeight(m.small) * 1.35f;   // line spacing derived from the font
+  m.cell = std::clamp(38.f * m.ui, 24.f, 52.f);
   m.icon = m.cell * 0.44f;
-  m.gap = std::clamp(19.f * m.ui, 15.f, 24.f);
   m.margin = std::clamp(22.f * m.ui, 8.f, 30.f);
   return m;
 }
@@ -65,10 +71,16 @@ Layout layoutFor(int winW, int winH) {
   L.y0 = m.margin;
   L.w = (float)winW - 2.f * m.margin;
   L.h = (float)winH - 2.f * m.margin;
-  L.titleH = 34.f * m.o + 8.f;
-  L.sideW = std::clamp(196.f * m.o, 112.f, 232.f);
-  L.rowH = std::clamp(30.f * m.o, 20.f, 34.f);
-  L.tabH = std::clamp(26.f * m.o, 18.f, 32.f);
+  // Every container that holds text is sized from the font metrics, so the
+  // bands stay proportionate whatever the type scale is.
+  L.titleH = textHeight(m.title) * 1.25f + 10.f * m.o;
+  L.rowH = textHeight(m.text) * 1.6f;
+  L.tabH = textHeight(m.small) * 1.7f;
+  float maxNameW = 0.f;
+  for (int i = 0; i < (int)BookCategory::COUNT; i++)
+    maxNameW = std::max(maxNameW, textWidth(kCatName[i], m.text));
+  L.sideW = std::clamp(std::max(196.f * m.o, maxNameW + textWidth("4  0/5", m.small) + 30.f),
+                       112.f, 460.f);
   // Tabs move to a top strip when a left column would leave the content too
   // narrow (small windows, phones, very tall/portrait aspect ratios).
   L.tabsOnTop = (L.w < 780.f) || (L.w - L.sideW - 30.f < 400.f);
@@ -287,7 +299,7 @@ void RecipeBook::cycle(int dir) {
 }
 
 void RecipeBook::scrollBy(float dy) {
-  _scroll = std::max(0.f, std::min(_scroll - dy * 34.f, std::max(0.f, _contentH - _viewH)));
+  _scroll = std::max(0.f, std::min(_scroll - dy * _step, std::max(0.f, _contentH - _viewH)));
 }
 
 bool RecipeBook::click(int px, int py, int winW, int winH) {
@@ -348,13 +360,14 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
   const float g = m.gap;
   const float cell = m.cell;
   const float iconR = m.icon;
+  _step = std::max(24.f, g * 2.5f);   // one wheel notch ≈ 2.5 lines of copy
 
   canvas->resetMatrix();
   fillRect(canvas, L.x0, L.y0, L.w, L.h, SkColorSetARGB(252, 14, 16, 22), 10.f);
   strokeRect(canvas, L.x0, L.y0, L.w, L.h, SkColorSetARGB(200, 104, 116, 142), 10.f);
 
   // ── Title (hint text drops out when there is no room for it) ─────────────
-  const float titleScale = std::clamp(2.0f * o, 1.5f, 2.4f);
+  const float titleScale = m.title;
   drawText(canvas, L.x0 + 14.f * o, L.y0 + 12.f * o, "RECIPE BOOK", titleScale);
   const char *hintFull = "F2 close   1-5 tabs   scroll: wheel / arrows / drag the bar";
   const char *hintShort = "F2 close   1-5 tabs";
@@ -364,15 +377,16 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
   // Right-hand items are laid out relative to each other (legend first, hint to
   // its left), never both right-aligned to the same edge — that overlaps them.
   const bool legendFits = (rightEdge - legendW > titleEnd);
-  if (legendFits)
-    drawText(canvas, rightEdge - legendW, L.y0 + 15.f * o, "green row = done", m.small);
+  // Vertically centred against the (larger) title glyphs.
+  const float bandY = L.y0 + 12.f * o + (textHeight(titleScale) - textHeight(m.small)) * 0.5f;
+  if (legendFits) drawText(canvas, rightEdge - legendW, bandY, "green row = done", m.small);
   const float hintRight = legendFits ? (rightEdge - legendW - 16.f * o) : rightEdge;
   // Graduated hint: full -> keys only -> nothing, so small windows keep the
   // essential keys instead of dropping the line entirely.
   const char *hint = nullptr;
   if (hintRight - textWidth(hintFull, m.small) > titleEnd + 12.f) hint = hintFull;
   else if (hintRight - textWidth(hintShort, m.small) > titleEnd + 12.f) hint = hintShort;
-  if (hint) drawText(canvas, hintRight - textWidth(hint, m.small), L.y0 + 15.f * o, hint, m.small);
+  if (hint) drawText(canvas, hintRight - textWidth(hint, m.small), bandY, hint, m.small);
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   if (L.tabsOnTop) {
@@ -387,15 +401,19 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
                  1.f);
       char label[64];
       const int total = catTotal(ic, (BookCategory)i);
-      // The pill width is fixed, the type is not: drop the counter, then the
-      // name, before letting a label overrun its tab.
+      // The pill width is fixed, the type is not: degrade the label rather than
+      // overrun the tab (full -> "N Name" -> "N Nam.." -> "N").
       const float maxLblW = tw - 16.f * o;
       snprintf(label, sizeof label, "%d %s %d/%d", i + 1, kCatName[i],
                catDone(bs, (BookCategory)i), total);
-      if (textWidth(label, m.small) > maxLblW)
-        snprintf(label, sizeof label, "%d %s", i + 1, kCatName[i]);
-      if (textWidth(label, m.small) > maxLblW)
-        snprintf(label, sizeof label, "%d", i + 1);
+      if (textWidth(label, m.small) > maxLblW) {
+        const char *name = kCatName[i];
+        const int nlen = (int)strlen(name);
+        snprintf(label, sizeof label, "%d %s", i + 1, name);
+        for (int len = nlen - 1; len >= 3 && textWidth(label, m.small) > maxLblW; len--)
+          snprintf(label, sizeof label, "%d %.*s..", i + 1, len, name);
+        if (textWidth(label, m.small) > maxLblW) snprintf(label, sizeof label, "%d", i + 1);
+      }
       drawText(canvas, tx + 8.f * o, L.sideY + L.tabH * 0.5f - 8.f * o, label, m.small);
     }
   } else {
@@ -448,7 +466,12 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
         const int rows = r.maxDr - r.minDr + 1, cols = r.maxDc - r.minDc + 1;
         // At least 2 grid rows tall so the list reads as an even stack.
         const float shapeH = std::max(2, rows) * cell;
-        const float eh = shapeH + (narrow ? cell + 22.f * o : 14.f * o) + 10.f * o;
+        // Result block: box + two text lines (name, "recipe N"), so the row has
+        // to be tall enough for whichever of the two is bigger.
+        const float resTextH = textHeight(m.text) + textHeight(m.small) + 4.f * o;
+        const float resBlockH = std::max(cell, resTextH);
+        const float eh = narrow ? (shapeH + 6.f * o + resBlockH + 12.f * o)
+                                : (std::max(shapeH, resBlockH + 8.f * o) + 14.f * o);
         const bool done = bs.has(BookCategory::Recipes, i);
         if (y + eh > top && y < top + L.contentH) {
           fillRect(canvas, cx, y, cw, eh - 6.f, rowColor(done));
@@ -483,7 +506,8 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
           snprintf(buf, sizeof buf, "%s x%d", view.itemName(r.result).c_str(), r.resultCount);
           drawText(canvas, rx + cell + 8.f * o, ay + 2.f * o, buf, m.text);
           snprintf(buf, sizeof buf, "recipe %d", i);
-          drawText(canvas, rx + cell + 8.f * o, ay + 20.f * o, buf, m.small);
+          drawText(canvas, rx + cell + 8.f * o, ay + 2.f * o + textHeight(m.text) + 2.f * o, buf,
+                   m.small);
           rowStatus(canvas, cx + cw - 12.f * o, y + 6.f * o, done, m.small);
         }
         y += eh;
@@ -682,8 +706,12 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
       }
       const float howTop = 26.f * o;
       const float howH = (float)qHow.size() * g;
-      const float barTop = howTop + howH + 8.f * o;
-      const float eh = barTop + bh + 26.f + (float)qBody.size() * g + 14.f * o;
+      const float lblH = textHeight(m.small);
+      // Reserve a band for the threshold label above the bar, and a full text
+      // line for the 0/255 labels below it — both scale with the type.
+      const float barTop = howTop + howH + lblH + 6.f * o;
+      const float bodyTop = lblH + 16.f * o;
+      const float eh = barTop + bh + bodyTop + (float)qBody.size() * g + 14.f * o;
       const bool qDone = bs.has(BookCategory::Quantum, (int)BookPhysics::Quantum);
       if (y + eh > top && y < top + L.contentH) {
         fillRect(canvas, cx, y, cw, eh - 6.f, rowColor(qDone));
@@ -712,10 +740,10 @@ void RecipeBook::draw(GameView &view, SkCanvas *canvas, int winW, int winH) {
         // Above the tick if it fits, otherwise flipped to its left.
         const float lblW = textWidth(buf, m.small);
         const float lblX = (tx + 6.f + lblW <= bx + bw) ? tx + 6.f : (tx - 6.f - lblW);
-        drawText(canvas, lblX, by - 20.f * o, buf, m.small);
+        drawText(canvas, lblX, by - lblH - 4.f * o, buf, m.small);
         drawText(canvas, bx, by + bh + 6.f, "0", m.small);
         drawText(canvas, bx + bw - textWidth("255", m.small), by + bh + 6.f, "255", m.small);
-        drawLines(canvas, bx, by + bh + 26.f, qBody, m.small, g);
+        drawLines(canvas, bx, by + bh + bodyTop, qBody, m.small, g);
       }
       y += eh;
       break;
