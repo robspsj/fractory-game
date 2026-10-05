@@ -30,7 +30,7 @@ class SkCanvas;
 // Which game event produced a burst. Spawns are keyed by this so later we can
 // dial per-situation looks (a stronger puff for a reaction than a drop, etc.).
 enum class EffectKind {
-  INTERACT_REACTION, // two items combined/consumed on shift-click
+  INTERACT_REACTION, // two items combined/consumed on right-click
   INTERACT_SPAWN,    // a rule spawned an item into an empty cell
   QUANTUM_SPAWN,     // superheated vacuum fluctuated a particle into being
   MERGE,             // a dragged stack merged into a same-id stack on drop

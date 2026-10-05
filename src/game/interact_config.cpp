@@ -199,7 +199,7 @@ void initInteractConfig(InteractConfig &cfg,
   }
   // One-line summary: an empty table is otherwise silent (a native run from a
   // directory without assets/, a typo in a path, a wasm build without the
-  // embedded copy) — and 0 reactions means shift-click falls back to the
+  // embedded copy) — and 0 reactions means a right click falls back to the
   // id-cycle instead of reacting, which reads as "reactions are broken".
   fprintf(stderr, "[GameModel] interact config: %zu reactions, %zu spawn rules, %zu station recipes, %zu crafting recipes\n",
           cfg.reactions.size(), cfg.spawnRules.size(), cfg.stationRecipes.size(),

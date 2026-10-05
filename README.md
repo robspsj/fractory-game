@@ -25,8 +25,10 @@ cmake --build build -j
 ./build/fractory
 ```
 
-Controls: left-click = pick up / drop item, shift+click = interact,
-middle-drag = pan, scroll = zoom, F1 = reset view.
+Controls: left-click = pick up / drop item, right-click = interact (reaction,
+machine load; crafts when a wand is held), right-hold = warm the hovered cell
+(quantum heat pump), middle-drag = pan, scroll = zoom, F1 = reset view,
+F2 = recipe book.
 
 Launch flags (all optional):
 ```

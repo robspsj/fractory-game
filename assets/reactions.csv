@@ -1,8 +1,8 @@
-# Item reactions (shift-click an ITEM that has an ITEM neighbour).
+# Item reactions (right-click an ITEM that has an ITEM neighbour).
 # Format: itemA,itemB,result,resultCount
 #
 # Each pair of DISTINCT items transmutes into the third one — a 3-item cycle,
-# so every cross-pair has a rule and shift-click always reacts instead of
+# so every cross-pair has a rule and a right click always reacts instead of
 # falling through to the id-cycle fallback (ItemCell::interact).
 #
 # Semantics of a reaction: the neighbour cell is consumed (becomes EMPTY) and
@@ -17,6 +17,6 @@
 # never be a crafting recipe: crafting costs a held wand (item 3), so a recipe
 # producing the wand would need the wand to make the wand. A reaction needs no
 # tool — two wood sitting next to each other bootstraps the whole tech tree.
-# (Without a same-type rule, shift-clicking two identical piles falls through to
-# the id-cycle fallback instead — ItemCell::interact.)
+# (Without a same-type rule, right-clicking two identical piles falls through to
+# the id-cycle fallback — ItemCell::interact.)
 0,0,3,1   # wood  + wood  -> wand

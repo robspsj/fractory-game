@@ -13,7 +13,7 @@
 enum class BookCategory : int {
   Recipes = 0,   // crafting shapes       (assets/crafting.csv)
   Machines,      // station footprints    (assets/station_recipes.csv)
-  Reactions,     // shift-click pairs     (assets/reactions.csv)
+  Reactions,     // right-click pairs     (assets/reactions.csv)
   Stacking,      // grow / shrink / destroy / merge / split
   Quantum,       // heat-driven fluctuation
   COUNT

@@ -15,6 +15,12 @@
 # if the clicked cell still holds a different item after its unit is consumed,
 # the craft is refused.
 #
+# The right button is a click/hold pair (Game::mouseDown/mouseUp): the CLICK
+# (a tap: <=250 ms and <=8 px of travel) is the interact, and a craft is tried
+# first while the wand is held. A click that matches no pattern is not a craft —
+# it falls through to the plain interact (reaction, id cycle, machine load).
+# A right-HOLD past the tap window is the heat pump and never crafts.
+#
 # Item ids come from assets/items.csv: 0=wood 1=stone 2=water 3=wand.
 # Rules are tried in file order — author specific shapes before general ones.
 

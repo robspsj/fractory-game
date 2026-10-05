@@ -5,10 +5,6 @@
 #include <chrono>
 #include "include/core/SkCanvas.h"
 
-// Shift modifier bit, normalized across SDL2 (KMOD_SHIFT=1) and DOM (shiftKey).
-static constexpr int SHIFT_MOD = 1;
-static int modShiftFlag() { return SHIFT_MOD; }
-
 Game::Game(const Config &cfg)
     : _model(std::make_unique<GameModel>()),
       _ticksPerSecond(cfg.ticksPerSecond) {
@@ -48,6 +44,22 @@ bool Game::step(int elapsedMs) {
   using clk = std::chrono::steady_clock;
   _particles->beginFrame(); // start per-frame allocation accounting
   refreshHover();
+  // Right button: a press that outlives the tap window (or travels past the tap
+  // epsilon) is a HOLD — the heat pump. Decided per frame here, not in the
+  // motion handler, because a button held perfectly still emits no motion
+  // events at all (the transition would never fire and the cell would never
+  // warm). It runs before the tick below, so the hold's first tick already
+  // carries its heat.
+  if (_rightArmed && !_book.isOpen()) {
+    const float dx = float(_mousePX - _rightDownPx);
+    const float dy = float(_mousePY - _rightDownPy);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        clk::now() - _rightDownTime).count();
+    if (dx * dx + dy * dy > TAP_EPSILON_PX * TAP_EPSILON_PX || elapsed > TAP_MAX_MS) {
+      _rightArmed = false;
+      _heatingHeld = true;
+    }
+  }
   if (_tickAccumMs < 0)
     _tickAccumMs = 0;
   _tickAccumMs += elapsedMs;
@@ -179,19 +191,9 @@ void Game::update(int mousePx, int mousePy, int winW, int winH) {
   }
 }
 
-void Game::handleTap(int mousePx, int mousePy, int winW, int winH, int mod) {
+void Game::handleTap(int mousePx, int mousePy, int winW, int winH) {
   float wx, wy;
   _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
-
-  // Left tap: shift -> interact, else pick / drop cycle.
-  if (mod & modShiftFlag()) {
-    int idx = _view->resolveLeafCell(wx, wy);
-    if (idx >= 0) {
-      _model->interact(idx);
-      applyEffects();
-    }
-    return;
-  }
 
   if (_model->hasDrag()) {
     int idx = _view->resolveLeafCell(wx, wy);
@@ -220,21 +222,19 @@ void Game::handleTap(int mousePx, int mousePy, int winW, int winH, int mod) {
 void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, int winH) {
   // Remember cursor for hover refresh etc.
   _mousePX = mousePx; _mousePY = mousePy; _mouseWinW = winW; _mouseWinH = winH;
+  (void)mod;   // no modifier gestures: the right button carries interact
 
   if (_book.isOpen()) {   // modal overlay: clicks only drive the book
     _book.click(mousePx, mousePy, winW, winH);
     return;
   }
 
-  if (button == 3) { // right -> craft with a held tool, else arm the heat pump
-    if (_model->hasDrag()) {
-      float wx, wy;
-      _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
-      const int idx = _view->resolveLeafCell(wx, wy);
-      if (idx >= 0 && _model->tryCraftWithDrag(idx)) applyEffects();
-    } else {
-      _heatingHeld = true;
-    }
+  if (button == 3) { // right -> arm a CLICK (interact); a HOLD becomes the heat pump
+    _heatingHeld = false;
+    _rightArmed = true;
+    _rightDownPx = mousePx;
+    _rightDownPy = mousePy;
+    _rightDownTime = std::chrono::steady_clock::now();
     return;
   }
 
@@ -250,7 +250,6 @@ void Game::mouseDown(int button, int mod, int mousePx, int mousePy, int winW, in
     _tapDownPx = mousePx;
     _tapDownPy = mousePy;
     _tapButton = button;
-    _tapMod = mod;
     _tapDownWinW = winW;
     _tapDownWinH = winH;
     _tapDownTime = std::chrono::steady_clock::now();
@@ -262,11 +261,34 @@ void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
 
   if (_book.isOpen()) {   // modal: the release only ends a scrollbar drag
     _book.endDrag();
+    // A right hold that began before the book opened must not survive it.
+    _heatingHeld = false;
+    _rightArmed = false;
     return;
   }
 
-  if (button == 3) { // right -> release the heat pump (crafts happen on press)
+  if (button == 3) { // right -> the release ends a hold; a click is an interact
     _heatingHeld = false;
+    if (_rightArmed) {
+      _rightArmed = false;
+      float dx = float(mousePx - _rightDownPx);
+      float dy = float(mousePy - _rightDownPy);
+      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::steady_clock::now() - _rightDownTime).count();
+      if (dx*dx + dy*dy <= TAP_EPSILON_PX * TAP_EPSILON_PX && elapsed <= TAP_MAX_MS) {
+        float wx, wy;
+        _view->screenToWorld(mousePx, mousePy, winW, winH, wx, wy);
+        const int idx = _view->resolveLeafCell(wx, wy);
+        if (idx >= 0) {
+          // Craft first: right-clicking a matching pattern while the crafting
+          // element is held crafts it. Everything else — no tool held, or no
+          // pattern there — is the plain interact (reaction, id cycle, machine
+          // load, spawn on an EMPTY cell). A hold never gets this far.
+          if (!_model->tryCraftWithDrag(idx)) _model->interact(idx);
+          applyEffects();
+        }
+      }
+    }
     return;
   }
 
@@ -289,7 +311,7 @@ void Game::mouseUp(int button, int mousePx, int mousePy, int winW, int winH) {
 
     _tapArmed = false;
     if (sameButton && withinDist && withinTime) {
-      handleTap(mousePx, mousePy, winW, winH, _tapMod);
+      handleTap(mousePx, mousePy, winW, winH);
     }
     // else: not a tap -> ignore (drag/move/cancel)
   } else {

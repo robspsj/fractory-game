@@ -93,18 +93,23 @@ private:
   bool _tapArmed = false;
   int _tapDownPx = 0, _tapDownPy = 0;
   int _tapButton = 0;
-  int _tapMod = 0;
   int _tapDownWinW = 0, _tapDownWinH = 0;
   std::chrono::steady_clock::time_point _tapDownTime{};
 
-  // --- Right button: craft with a held tool, else heat the hovered cell ----
-  // Holding (dragging) the crafting element turns the right button into a craft
-  // attempt in the clicked area; with nothing held it is the heat pump that
-  // drives quantum fluctuations (Heat::QUANTUM_*). The heat itself lands in
-  // Game::step so the gain is tick-paced; the button state only arms it.
+  // --- Right button: CLICK = interact, HOLD = heat the hovered cell --------
+  // A right press released inside the tap window is an INTERACT — with a craft
+  // attempt first when the crafting element is held and its pattern matches;
+  // otherwise the plain interact (reaction, id cycle, machine load, or a spawn
+  // on an EMPTY cell). Past the window (moved > TAP_EPSILON_PX or held longer
+  // than TAP_MAX_MS) the press becomes a HOLD: the heat pump that drives quantum
+  // fluctuations (Heat::QUANTUM_*). A hold never crafts. The heat itself lands
+  // in Game::step so the gain is tick-paced; the button only arms it.
+  bool _rightArmed = false;
+  int _rightDownPx = 0, _rightDownPy = 0;
+  std::chrono::steady_clock::time_point _rightDownTime{};
   bool _heatingHeld = false;
 
-  void handleTap(int mousePx, int mousePy, int winW, int winH, int mod);
+  void handleTap(int mousePx, int mousePy, int winW, int winH);
 
   // Drain the model's cell-change events and spawn matching smoke bursts.
   void applyEffects();

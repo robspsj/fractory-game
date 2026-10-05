@@ -18,9 +18,14 @@ bootstraps from two sticks of wood.
 Hold it (drag state, picked up with the left button) and **right-click** a cell
 that is part of a pattern. One tool unit is spent per craft.
 
-> The right button is overloaded: **held tool → craft attempt**, otherwise it is
-> the heat pump that drives quantum fluctuations (`docs/heat.md`). Nothing is
-> held → heat. A craft attempt never falls through to heating.
+> **The right button is a click/hold pair** (`Game::mouseDown`/`mouseUp`):
+> a **click** (a tap — released within `TAP_MAX_MS` = 250 ms and `TAP_EPSILON_PX`
+> = 8 px of travel) is the **interact** — reaction, id cycle, machine load —
+> with a **craft attempt first** while the wand is held and its pattern matches.
+> A **hold** past that window is the **heat pump** that drives quantum
+> fluctuations (`docs/heat.md`) and never crafts. Nothing held + click → the
+> plain interact; a click that matches no pattern is not a craft, it falls
+> through to the interact.
 
 ## 2. Recipe format
 
@@ -50,11 +55,13 @@ ones. The bounding box is derived from the entries.
 
 ```mermaid
 flowchart TB
-    click["right-click while holding item 3"] --> tool{tool held?}
-    tool -->|no| heat[heat pump]
+    press["right press"] --> kind{"click (&#8804;250 ms, &#8804;8 px)<br/>or hold?"}
+    kind -->|hold| heat["heat pump (never crafts)"]
+    kind -->|click| tool{item 3 held?}
+    tool -->|no| interact["plain interact<br/>(reaction / id cycle / machine load)"]
     tool -->|yes| slide["for each rule, slide its bounding box<br/>so the clicked cell is covered<br/>(origin = anchor - dr,dc)"]
     slide --> cells["every entry must be an ITEM cell<br/>with the matching id"]
-    cells -->|no match| next[try next rule / no-op]
+    cells -->|no match| next["try next rule / fall through to the interact"]
     cells -->|match| place{"clicked cell free after<br/>losing one unit, or holds<br/>the result item?"}
     place -->|no| next
     place -->|yes| commit["consume 1 unit per pattern cell<br/>result -> clicked cell<br/>-1 tool unit<br/>+CRAFT_HEAT, CRAFT event"]

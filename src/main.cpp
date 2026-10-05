@@ -666,7 +666,7 @@ int main(int argc, char *argv[]) {
   // (The web build has no filesystem and wires the baked-in copy instead — see
   // the emscripten main() above.)
   cfg.stationRecipesCsvPath = resolveAssetPath("assets/station_recipes.csv");
-  // Reactions are what shift-click applies between two neighbouring items —
+  // Reactions are what a right click applies between two neighbouring items —
   // without this table the model has 0 rules and interact silently falls back
   // to the id-cycle. Spawns stay unset until an assets/spawns.csv is authored.
   cfg.reactionsCsvPath = resolveAssetPath("assets/reactions.csv");

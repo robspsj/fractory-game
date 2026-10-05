@@ -173,11 +173,11 @@ flowchart TB
 
 ```mermaid
 graph LR
-    PickUp[Shift+click ITEM<br/>or drag start] -->|stores dragHeat<br/>no cell heat change| Drag[Held ghost<br/>sway+tint = dragHeat]
+    PickUp[Left-click ITEM<br/>or drag start] -->|stores dragHeat<br/>no cell heat change| Drag[Held ghost<br/>sway+tint = dragHeat]
     Drag --> DropEmpty[Drop on EMPTY<br/>heat stays with target cell]
     Drag --> DropMerge[Drop on same ITEM<br/>count+ , heat unchanged]
     Drag --> DropSwap[Drop on different ITEM<br/>swap contents, heats stay]
-    Interact[Shift+click] --> Reaction
+    Interact[Right-click] --> Reaction
     Reaction --> HeatReact
     EmptySpawn --> HeatSpawn
 ```

@@ -212,13 +212,13 @@ float drawLines(SkCanvas *c, float x, float y, const std::vector<std::string> &l
 // is the only place to update. Keep them in sync with the code paths:
 //   Recipes   -> GameModel::tryCraftWithDrag   (held tool + right-click)
 //   Machines  -> StationCell::place / tick     (footprint + inputs)
-//   Reactions -> ItemCell::interact            (shift-click)
+//   Reactions -> ItemCell::interact            (right-click)
 //   Stacking  -> ItemCell::collectTickPlan     (tick-driven, flag-gated)
 //   Quantum   -> Game::step heat pump + GameModel::quantumFluctuation
 const char *kCatHow[(int)BookCategory::COUNT] = {
     /* Recipes   */ "How: hold the wand (item 3), right-click any cell of the shape.",
-    /* Machines  */ "How: shift-click an INPUT cell (green) while holding an item to load it.",
-    /* Reactions */ "How: shift-click an item that sits next to another item.",
+    /* Machines  */ "How: right-click an INPUT cell (green) while holding an item to load it.",
+    /* Reactions */ "How: right-click an item that sits next to another item.",
     /* Stacking  */ "How: automatic, gated by a feature flag per row (see the 'off' rows).",
     /* Quantum   */ "",   // single entry: its own how-line carries the instruction
 };
