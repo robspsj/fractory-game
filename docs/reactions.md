@@ -87,12 +87,13 @@ Feedback: `CellEventType::REACTION` → `EffectKind::INTERACT_REACTION` → smok
 gap's cells are heated (`Heat::INTERACT_REACTION_A` on the first,
 `_B` on the rest), and the recipe book marks the rule as performed.
 
-## 5. Cells still interact on their own
+## 5. A cell click is not a reaction
 
-Reactions moved off `ItemCell::interact`, so right-clicking an item cell no
-longer combines it with a neighbour. What remains there is the manual fallback —
-stepping the item id on (`(id + 1) % numItems`) — plus machine loading and the
-spawn-on-empty-cell rule.
+Reactions are only ever the gap gesture. Interacting with an item cell does
+nothing at all — combining items there was removed, and so was the old "step the
+item id on" fallback (`ItemCell::interact` no longer exists). A cell click still
+loads a machine's INPUT tile (and spawns on an EMPTY cell when a spawn rule
+matches, which the shipped assets do not author).
 
 ## 6. Tests
 
@@ -103,4 +104,4 @@ corner with the 4th cell empty, and a 4-ingredient corner that must *not* match
 the 3-ingredient rule. The harness drives it with the `react,row,col,side` step
 (`side` = `up`/`down`/`left`/`right` for an edge, `ul`/`ur`/`dl`/`dr` for a
 corner). `tests/test_reaction_wand.csv` covers the wand bootstrap,
-`tests/test_interact_cycle.csv` the id-cycle fallback.
+`tests/test_interact_item.csv` that a cell click does nothing.

@@ -18,7 +18,8 @@
 # The right button is a click/hold pair (Game::mouseDown/mouseUp): the CLICK
 # (a tap: <=250 ms and <=8 px of travel) is the interact, and a craft is tried
 # first while the wand is held. A click that matches no pattern is not a craft —
-# it falls through to the plain interact (id cycle, machine load). A right-HOLD
+# it falls through to the plain interact (machine load, spawn on an empty cell).
+# A right-HOLD
 # past the tap window is the heat pump and never crafts.
 #
 # Item ids come from assets/items.csv. Rules are tried in file order — author

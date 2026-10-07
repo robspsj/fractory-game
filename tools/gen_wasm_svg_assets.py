@@ -166,6 +166,7 @@ def extract_icon(root, svg_path):
 
 def read_items_csv(root):
     rows = []
+    natural = []
     with open(os.path.join(root, "assets", "items.csv"), encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -184,7 +185,15 @@ def read_items_csv(root):
             sway_raw = cols[7].lower() if len(cols) > 7 and cols[7] else "static"
             per_path = sway_raw in ("perpath", "per_path", "per-path", "1", "true", "yes", "sway")
             rows.append((item_id, color, icon, svg, per_path))
-    return rows
+            # `natural` (col 9) marks an id the world may grow. Only the
+            # contiguous prefix 0..n-1 counts: generation rolls id % numItems.
+            flag = cols[8].lower() if len(cols) > 8 and cols[8] else ""
+            if flag in ("1", "true", "yes"):
+                natural.append(item_id)
+    n = 0
+    while n in natural:
+        n += 1
+    return rows, n
 
 
 def cstr(s):
@@ -198,7 +207,7 @@ def main():
     root = os.path.abspath(sys.argv[1])
     out_path = sys.argv[2]
 
-    rows = read_items_csv(root)
+    rows, natural_count = read_items_csv(root)
     icon_paths = []
     icon_idx = {}
     for _, _, _, svg, _ in rows:
@@ -248,13 +257,18 @@ def main():
     out.append("};")
     out.append("inline constexpr size_t kItemCount = %d;" % len(rows))
     out.append("")
+    out.append("// How many leading item ids the random world may grow: the length of the")
+    out.append("// contiguous `natural` prefix in assets/items.csv. Web has no filesystem to")
+    out.append("// read that table, so it becomes Config::numItems here.")
+    out.append("inline constexpr int kNaturalCount = %d;" % natural_count)
+    out.append("")
     out.append("}  // namespace wasm_svg")
 
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
-    print("gen_wasm_svg_assets: %d items, %d icons, %d shapes -> %s"
-          % (len(rows), len(icon_paths), total_shapes, out_path))
+    print("gen_wasm_svg_assets: %d items (%d natural), %d icons, %d shapes -> %s"
+          % (len(rows), natural_count, len(icon_paths), total_shapes, out_path))
 
 
 if __name__ == "__main__":

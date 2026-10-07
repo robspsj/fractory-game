@@ -23,8 +23,8 @@ Exit code 0 = clean, 1 = problems (printed).
 import os
 import sys
 
-NUM_NATURAL = 3   # Config::numItems: ids 0..N-1 are what the world grows
-CRAFT_TOOL = 3    # CRAFT_TOOL_ITEM (src/game/model/crafting.hpp)
+NUM_NATURAL_FALLBACK = 3   # only when the table has no `natural` column at all
+CRAFT_TOOL = 3             # CRAFT_TOOL_ITEM (src/game/model/crafting.hpp)
 
 
 def rows(path):
@@ -43,6 +43,20 @@ def main():
 
     items = {int(r[0]): {"name": r[1], "svg": r[6]} for r in rows(a("items.csv"))}
     ids = set(items)
+
+    # `natural` (9th column) = ids the random world may grow. Only the contiguous
+    # prefix counts, because generation rolls `id % numItems` — this is exactly
+    # what src/game/model/item_table.cpp computes for Config::numItems.
+    natural_rows = [r for r in rows(a("items.csv"))
+                    if len(r) > 8 and r[8].lower() in ("1", "true", "yes")]
+    natural_ids = {int(r[0]) for r in natural_rows}
+    num_natural = 0
+    while num_natural in natural_ids:
+        num_natural += 1
+    if not natural_rows:
+        num_natural = NUM_NATURAL_FALLBACK
+        print(f"note: items.csv has no `natural` column — assuming ids 0.."
+              f"{num_natural - 1} are the world's")
 
     reactions = []
     for r in rows(a("reactions.csv")):
@@ -96,12 +110,19 @@ def main():
     for s in stations:
         sources.setdefault(s["out"], []).append("station")
     for i in sorted(items):
-        if i >= NUM_NATURAL and i not in sources:
-            errs.append(f"item {i} ({items[i]['name']}) is not natural (id >= "
-                        f"{NUM_NATURAL}) and nothing produces it")
-    for i in range(NUM_NATURAL):
+        if i >= num_natural and i not in sources:
+            errs.append(f"item {i} ({items[i]['name']}) is not natural and nothing "
+                        f"produces it")
+    for i in range(num_natural):
         if i not in ids:
-            errs.append(f"natural id {i} (< Config::numItems) is not defined")
+            errs.append(f"natural id {i} is not defined in items.csv")
+    # A natural id outside the contiguous prefix never spawns, and the ids inside
+    # it that are not marked natural spawn anyway — both are silent content bugs.
+    for i in sorted(natural_ids):
+        if i >= num_natural:
+            errs.append(f"item {i} ({items[i]['name']}) is marked natural but sits "
+                        f"after the contiguous prefix 0..{num_natural - 1}, so it "
+                        f"will never be grown — mark the ids before it too")
 
     if CRAFT_TOOL in [c[0] for c in crafts]:
         errs.append(f"a crafting recipe produces the crafting tool (item {CRAFT_TOOL})")
@@ -118,7 +139,8 @@ def main():
             errs.append(f"items {l} share artwork {svg} — they will look identical")
 
     print(f"items={len(items)} reactions={len(reactions)} crafting={len(crafts)} "
-          f"stations={len(stations)} natural={NUM_NATURAL}")
+          f"stations={len(stations)} world-grows={num_natural} "
+          f"({', '.join(items[i]['name'] for i in range(num_natural))})")
     if errs:
         print(f"\n{len(errs)} problem(s):")
         for e in errs:

@@ -59,7 +59,7 @@ flowchart TB
     press["right press"] --> kind{"click (&#8804;250 ms, &#8804;8 px)<br/>or hold?"}
     kind -->|hold| heat["heat pump (never crafts)"]
     kind -->|click| tool{item 3 held?}
-    tool -->|no| interact["plain interact<br/>(reaction / id cycle / machine load)"]
+    tool -->|no| interact["plain interact<br/>(machine load / spawn)"]
     tool -->|yes| slide["for each rule, slide its bounding box<br/>so the clicked cell is covered<br/>(origin = anchor - dr,dc)"]
     slide --> cells["every entry must be an ITEM cell<br/>with the matching id"]
     cells -->|no match| next["try next rule / fall through to the interact"]

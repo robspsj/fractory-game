@@ -1,0 +1,18 @@
+# Clicking an ITEM cell does nothing: combining items is the gap gesture
+# (tests/test_reaction_gap.csv) and the old "step the item id on" fallback is
+# gone. Here two neighbouring items must survive a click untouched, with no
+# reaction, no cycle and no heat.
+empty_grid:3
+init:0:1,1:1,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0,-1:0
+expect_cell,0,0,0,1
+expect_cell,0,1,1,1
+interact,0,0
+expect_cell,0,0,0,1
+expect_cell,0,1,1,1
+interact,0,0
+expect_cell,0,0,0,1
+expect_cell,0,1,1,1
+# The neighbour is equally inert.
+interact,0,1
+expect_cell,0,0,0,1
+expect_cell,0,1,1,1

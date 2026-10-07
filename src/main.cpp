@@ -1,6 +1,7 @@
 #include "font.hpp"
 #include "game/config.hpp"
 #include "game/game.hpp"
+#include "game/model/item_table.hpp"
 #include "test_runner.hpp"
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -512,6 +513,10 @@ int main() {
   cfg.reactionsCsv = FRACTORY_EMBEDDED_REACTIONS;
   cfg.craftingCsv = FRACTORY_EMBEDDED_CRAFTING;
   cfg.stationRecipesCsv = FRACTORY_EMBEDDED_STATION_RECIPES;
+  // No filesystem on web, so the item table's `natural` count arrives baked into
+  // the generated icon header (tools/gen_wasm_svg_assets.py) instead of being
+  // read from assets/items.csv.
+  cfg.numItems = wasm_svg::kNaturalCount;
   s_game = std::make_unique<Game>(cfg);
 #if !defined(__EMSCRIPTEN__)
   s_game->view().loadChessAssets();
@@ -657,6 +662,11 @@ int main(int argc, char *argv[]) {
       cfg.itemShrink = true;
     } else if (std::string(argv[a]) == "--item-split") {
       cfg.itemSplit = true;
+    } else if (std::string(argv[a]) == "--num-items" && a + 1 < argc) {
+      // Override how many leading item ids the world may grow (default: the
+      // `natural` column of assets/items.csv — see Config::numItems).
+      if (std::string(argv[a + 1]).find_first_not_of("0123456789") == std::string::npos)
+        cfg.numItems = std::atoi(argv[++a]);
     }
   }
 
@@ -666,13 +676,28 @@ int main(int argc, char *argv[]) {
   // (The web build has no filesystem and wires the baked-in copy instead — see
   // the emscripten main() above.)
   cfg.stationRecipesCsvPath = resolveAssetPath("assets/station_recipes.csv");
-  // Reactions are what a right click applies between two neighbouring items —
-  // without this table the model has 0 rules and interact silently falls back
-  // to the id-cycle. Spawns stay unset until an assets/spawns.csv is authored.
+  // Reactions are the gap gesture (docs/reactions.md); without this table the
+  // model simply has 0 rules. Spawns stay unset until an assets/spawns.csv is
+  // authored.
   cfg.reactionsCsvPath = resolveAssetPath("assets/reactions.csv");
   // Shaped crafting patterns (held crafting element + right-click), see
   // docs/crafting.md.
   cfg.craftingCsvPath = resolveAssetPath("assets/crafting.csv");
+  // How many leading item ids the world may grow: read from the content table's
+  // `natural` column rather than a number in the code, so adding an item cannot
+  // silently change what spawns. Left at 0 (auto) when the column is absent —
+  // the model then falls back to its built-in item set and says so below.
+  if (cfg.numItems <= 0) {
+    const std::string itemsPath = resolveAssetPath("assets/items.csv");
+    const int natural = naturalItemCountFromFile(itemsPath);
+    if (natural > 0) {
+      cfg.numItems = natural;
+    } else {
+      fprintf(stderr, "[fractory] %s declares no natural items — the world will "
+                      "grow the model's built-in item set\n", itemsPath.c_str());
+    }
+  }
+  fprintf(stderr, "[fractory] world grows %d item type(s)\n", cfg.numItems);
 
   if (tickMode) {
     // Headless model-tick micro-benchmark: avg time per GameModel::tick() on the

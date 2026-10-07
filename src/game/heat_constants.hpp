@@ -42,7 +42,6 @@ namespace Heat {
  // ── Interactions ─────────────────────────────────────────────────────
  inline constexpr int INTERACT_REACTION_A = 18; // actor cell
  inline constexpr int INTERACT_REACTION_B = 12; // neighbor
- inline constexpr int INTERACT_CYCLE      = 6;  // fallback id cycle
  inline constexpr int EMPTY_SPAWN_HEAT    = 10;
 
  // ── Station / Reserved I/O ───────────────────────────────────────────

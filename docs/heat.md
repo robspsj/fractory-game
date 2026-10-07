@@ -27,7 +27,7 @@ flowchart TB
         A[Random warm seed<br/>2% cells 80..200<br/>initRandomGrid]
         B[ITEM tick mut<br/>GROW/SHRINK/DESTROY<br/>+12 + (255-heat)>>4 self-limiting]
         C[Spill<br/>src+18 / tgt+18]
-        D[Interact reaction<br/>a+18 / b+12<br/>fallback cycle +6]
+        D[Interact reaction<br/>a+18 / b+12]
         E[Empty spawn<br/>+10]
         F[Station I/O<br/>RESERVED +8 / anchor +4<br/>tick working +1]
         G[Station progress active<br/>+1 per tick]
@@ -188,7 +188,7 @@ All `addHeat` call sites:
 |---|---|---|
 | `ItemCell::collectTickPlan` mut | `item_cell.cpp:80` | +12..27 |
 | `ItemCell` spill | `game_model.cpp:342` | +18 / +18 |
-| `ItemCell::interact` reaction | `item_cell.cpp:127` | +18 / +12, cycle +6 |
+| `ItemCell::interact` reaction | `item_cell.cpp:127` | +18 / +12 |
 | `EmptyCell::interact` spawn | `empty_cell.cpp:13` | +10 |
 | `StationCell::tick` working | `station_cell.cpp:16` | +1 |
 | `StationCell/ReservedCell` I/O | `station_cell.cpp:126`, `reserved_cell.cpp:18` | +8 / +4 |
@@ -249,7 +249,7 @@ namespace Heat {
   ITEM_MUT_BASE=12, ITEM_MUT_SCALE_SHIFT=4; // + (heat>>4) → 12..27
   // Spill / interactions
   SPILL_HEAT_SRC=18, SPILL_HEAT_TGT=18;
-  INTERACT_REACTION_A=18, INTERACT_REACTION_B=12, INTERACT_CYCLE=6;
+  INTERACT_REACTION_A=18, INTERACT_REACTION_B=12;
   EMPTY_SPAWN_HEAT=10;
   // Station / Reserved
   STATION_INPUT_HEAT=8, STATION_ANCHOR_HEAT=4, STATION_TICK_SELF_HEAT=1;

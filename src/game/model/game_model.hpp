@@ -33,6 +33,10 @@ class ReservedCell;
 class GameModel {
  public:
   static constexpr int GRID = 5;
+  // Size of the built-in vector item set (the icons/colours used when no
+  // items.csv entry applies). It is NOT the item count: how many ids the world
+  // grows comes from Config::numItems (assets/items.csv `natural`), and this is
+  // only the last-resort value when nobody declares one.
   static constexpr int ELEMS = 5;
 
   GameModel() = default;
@@ -265,5 +269,7 @@ class GameModel {
   // flat few-ms/tick instead of a hitch every 32nd/64th tick.
   int _decayCur = 1, _diffCur = 1;
   int _rngOverride = -1;
-  int _numItems = 5;
+  // Ids the random world may grow (Config::numItems; ELEMS only as a last
+  // resort — see init()).
+  int _numItems = ELEMS;
 };

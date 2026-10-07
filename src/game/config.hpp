@@ -22,10 +22,14 @@ struct Config {
     // the subgrids hold a machine. 0 disables stations entirely.
     // Footprints come from assets/station_recipes.csv; this only sets density.
     int stationChance = 20;
-    // Number of distinct item types the simulation uses (drives random item-id
-    // generation). Keep this in sync with the rows defined in assets/items.csv
-    // (id 0..numItems-1). Defaults to 3: wood, stone, water.
-    int numItems = 3;
+    // Number of distinct item types the simulation grows at random — the world
+    // spawns ids 0..numItems-1 and the quantum-birth roll uses `id % numItems`,
+    // so the natural ids in assets/items.csv must be contiguous from 0.
+    // 0 (the default) = take it from that table's `natural` column, which is what
+    // the game does (src/main.cpp -> naturalItemCountFromFile). Tests and tools
+    // that build a Config by hand leave it 0 and get the model's built-in
+    // fallback; --num-items sets it explicitly.
+    int numItems = 0;
     // ── Feature flags: automatic item dynamics ──────────────────────────
     // The tick engine's own item behaviour — a stack growing on its own, a
     // stack shrinking/vanishing, and a tall stack splitting toward a neighbour.
@@ -51,6 +55,6 @@ struct Config {
 
     Config() : seed(0), gridChance(20), gridLimit(500000), showAnchor(false), ticksPerSecond(20) {}
     Config(unsigned int seed_, int gridChance_, int gridLimit_ = 500000,
-           bool showAnchor_ = false, int ticksPerSecond_ = 20, int numItems_ = 3)
+           bool showAnchor_ = false, int ticksPerSecond_ = 20, int numItems_ = 0)
         : seed(seed_), gridChance(gridChance_), gridLimit(gridLimit_), showAnchor(showAnchor_), ticksPerSecond(ticksPerSecond_), numItems(numItems_) {}
 };

@@ -75,15 +75,6 @@ void ItemCell::collectTickPlan(int idx, const Cell &cell, GameModel &model,
   }
 }
 
-void ItemCell::interact(int idx, GameModel &model) {
-  // Reactions are the GAP gesture now (GameModel::tryReaction — right-click the
-  // space between cells), so interacting with an item cell itself does not
-  // combine anything. What is left is the manual fallback: step the id on.
-  Cell &cell = model._nodes[idx];
-  cell.content.data.item.id = (cell.content.data.item.id + 1) % model._numItems;
-  model.addHeat(idx, Heat::INTERACT_CYCLE);
-}
-
 void ItemCell::tick(int, GameModel &) {
   // Item tick is planned in parallel via collectTickPlan; serial part handled by GameModel.
 }

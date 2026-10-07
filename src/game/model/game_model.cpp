@@ -19,6 +19,10 @@ void GameModel::init(const Config &cfg) {
   _prngSeed = (cfg.seed != 0) ? (unsigned)cfg.seed : 0x9E3779B9u;
   _tickCounter = 0;
   _decayCur = _diffCur = 1;
+  // How many leading ids the random world may grow. Config::numItems comes from
+  // the content table's `natural` column (src/game/model/item_table.cpp); 0 means
+  // "nobody declared it" — a hand-built Config in a test or tool — so fall back
+  // to the built-in item set rather than dividing by zero.
   _numItems = (cfg.numItems > 0) ? cfg.numItems : GameModel::ELEMS;
   if (cfg.seed != 0)
     std::srand(cfg.seed);
@@ -380,7 +384,11 @@ void GameModel::interact(int idx) {
   CellType t = typeOf(idx);
   switch (t) {
     case CellType::EMPTY: EmptyCell::interact(idx, *this); break;
-    case CellType::ITEM: ItemCell::interact(idx, *this); break;
+    case CellType::ITEM:
+      // An item cell has no interaction of its own. Combining items is the GAP
+      // gesture (tryReaction), crafting needs the tool held, and the old
+      // "step the id on" fallback is gone — clicking an item does nothing.
+      break;
     case CellType::GRID: GridCell::interact(idx, *this); break;
     case CellType::STATION: StationCell::interact(idx, *this); break;
     case CellType::RESERVED: ReservedCell::interact(idx, *this); break;

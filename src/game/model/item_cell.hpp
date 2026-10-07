@@ -12,7 +12,6 @@ class ItemCell {
   static void collectTickPlan(int idx, const Cell &cell, GameModel &model,
                               std::vector<PlMut> &muts, std::vector<PlSpill> &spills,
                               double &spillMs, long &itemCounter);
-  static void interact(int idx, GameModel &model);
   static void tick(int idx, GameModel &model);
   static int findSpillTarget(int idx, GameModel &model);
 };

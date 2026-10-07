@@ -49,6 +49,7 @@ set(FRACTORY_SOURCES
     src/game/model/game_model.cpp
     src/game/model/empty_cell.cpp
     src/game/model/item_cell.cpp
+    src/game/model/item_table.cpp
     src/game/model/grid_cell.cpp
     src/game/model/station_cell.cpp
     src/game/model/reserved_cell.cpp
